@@ -35,6 +35,11 @@ from pydantic import ValidationError
 from .config import load_config
 from .db import get_client_and_db
 from arango.database import StandardDatabase
+from .session_state import SessionState
+from .multi_db_manager import MultiDatabaseConnectionManager
+from .config_loader import ConfigFileLoader
+from .db_resolver import resolve_database
+from .session_utils import extract_session_id
 from .handlers import (
     handle_arango_query,
     handle_backup,
@@ -156,7 +161,15 @@ from . import handlers  # noqa: F401 - imported for side effects (decorator exec
 
 @asynccontextmanager
 async def server_lifespan(server: Server) -> AsyncIterator[Dict[str, Any]]:
-    """Initialize ArangoDB client+db once and share via request context."""
+    """Initialize ArangoDB client+db and multi-tenancy components.
+
+    Initializes:
+    - ConfigFileLoader: Load database configurations from YAML/env vars
+    - MultiDatabaseConnectionManager: Manage connections to multiple databases
+    - SessionState: Per-session state for focused database and workflows
+
+    Stores all components in lifespan_context for access in call_tool().
+    """
     # Configure logging to stderr only (never stdout for stdio MCP servers)
     log_level = os.getenv("LOG_LEVEL", "INFO").upper()
     logging.basicConfig(
@@ -176,6 +189,26 @@ async def server_lifespan(server: Server) -> AsyncIterator[Dict[str, Any]]:
         )
     logger.info(f"Tool registry validated: {len(TOOL_REGISTRY)} tools registered")
 
+    # Initialize multi-tenancy components
+    logger.info("Initializing multi-tenancy components...")
+
+    # Load database configurations
+    config_loader = ConfigFileLoader()
+    config_loader.load()
+    logger.info(f"Loaded {len(config_loader.get_configured_databases())} database configuration(s)")
+
+    # Initialize multi-database connection manager
+    db_manager = MultiDatabaseConnectionManager()
+    for db_key, db_config in config_loader.get_configured_databases().items():
+        db_manager.register_database(db_key, db_config)
+    await db_manager.initialize()
+    logger.info("Multi-database connection manager initialized")
+
+    # Initialize session state
+    session_state = SessionState()
+    logger.info("Session state initialized")
+
+    # For backward compatibility: also initialize single-database connection
     cfg = load_config()
     client = None
     db = None
@@ -211,8 +244,18 @@ async def server_lifespan(server: Server) -> AsyncIterator[Dict[str, Any]]:
                 break
 
     try:
-        yield {"db": db, "client": client}
+        # Store all components in lifespan context
+        yield {
+            "db": db,
+            "client": client,
+            "session_state": session_state,
+            "db_manager": db_manager,
+            "config_loader": config_loader,
+        }
     finally:
+        # Cleanup
+        session_state.cleanup_all()
+        await db_manager.close_all()
         if client is not None:
             try:
                 client.close()
@@ -325,9 +368,13 @@ def _invoke_handler(
 async def call_tool(name: str, arguments: Dict[str, Any]) -> List[types.Content]:
     """Execute a tool by dispatching to its registered handler.
 
-    Uses TOOL_REGISTRY for O(1) lookup and dispatch, replacing the previous
-    O(n) if-elif chain. Maintains all existing features: validation, lazy
-    connect, error handling.
+    Implements multi-tenancy support with:
+    - Implicit session creation on first tool call
+    - Database resolution using 6-level priority fallback
+    - Per-tool database override support
+
+    Uses TOOL_REGISTRY for O(1) lookup and dispatch. Maintains all existing
+    features: validation, lazy connect, error handling.
 
     Args:
         name: Tool name to execute
@@ -339,7 +386,13 @@ async def call_tool(name: str, arguments: Dict[str, Any]) -> List[types.Content]
     logger = logging.getLogger("mcp_arangodb_async.entry")
     # Access lifespan context; may not have connected (graceful degradation)
     ctx = server.request_context
-    db = ctx.lifespan_context.get("db") if ctx and ctx.lifespan_context else None
+    lifespan_ctx = ctx.lifespan_context if ctx and ctx.lifespan_context else {}
+
+    # Extract multi-tenancy components
+    session_state = lifespan_ctx.get("session_state")
+    db_manager = lifespan_ctx.get("db_manager")
+    config_loader = lifespan_ctx.get("config_loader")
+    db = lifespan_ctx.get("db")
 
     # Look up tool in registry
     tool_reg = TOOL_REGISTRY.get(name)
@@ -359,7 +412,47 @@ async def call_tool(name: str, arguments: Dict[str, Any]) -> List[types.Content]
             }
         )
 
-    # If DB is unavailable, attempt a lazy one-shot connect (helps when startup race occurred)
+    # Extract session ID (stdio or HTTP transport)
+    session_id = extract_session_id(ctx) if ctx else "stdio"
+
+    # Implicit session creation on first tool call
+    if session_state and not session_state.has_session(session_id):
+        session_state.initialize_session(session_id)
+        logger.debug(f"Initialized session: {session_id}")
+
+    # Resolve database using 6-level priority fallback
+    target_db_key = None
+    if session_state and db_manager and config_loader:
+        target_db_key = resolve_database(
+            validated_args, session_state, session_id, config_loader
+        )
+        logger.debug(f"Resolved database for session {session_id}: {target_db_key}")
+
+        # Get connection from multi-database manager
+        try:
+            client, db = await db_manager.get_connection(target_db_key)
+            logger.debug(f"Got connection to database: {target_db_key}")
+        except KeyError as e:
+            logger.error(f"Database not configured: {target_db_key}")
+            return _json_content(
+                {
+                    "error": "Database not configured",
+                    "database": target_db_key,
+                    "tool": name,
+                }
+            )
+        except Exception as e:
+            logger.error(f"Failed to get database connection: {e}")
+            return _json_content(
+                {
+                    "error": "Failed to get database connection",
+                    "database": target_db_key,
+                    "tool": name,
+                    "details": str(e),
+                }
+            )
+
+    # If DB is unavailable, attempt a lazy one-shot connect (backward compatibility)
     if db is None:
         try:
             cfg = load_config()
@@ -409,6 +502,11 @@ async def call_tool(name: str, arguments: Dict[str, Any]) -> List[types.Content]
     # Dispatch to handler via registry (O(1) lookup)
     try:
         result = _invoke_handler(tool_reg.handler, db, validated_args)
+
+        # Track tool usage in session state
+        if session_state:
+            session_state.track_tool_usage(session_id, name)
+
         return _json_content(result)
     except Exception as e:
         logger.exception("Error executing tool '%s'", name)
