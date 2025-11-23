@@ -1,0 +1,148 @@
+"""Configuration file loader for multi-database support.
+
+This module provides YAML-based configuration loading with backward compatibility
+for environment variable-based configuration from v0.4.0.
+"""
+
+import os
+import yaml
+from typing import Dict, Optional
+from pathlib import Path
+from mcp_arangodb_async.multi_db_manager import DatabaseConfig
+
+
+class ConfigFileLoader:
+    """Load and validate database configurations from YAML and environment variables.
+    
+    Supports both YAML file configuration (new multi-database mode) and
+    environment variable configuration (backward compatibility with v0.4.0).
+    """
+
+    def __init__(self, config_path: str = "config/databases.yaml"):
+        """Initialize ConfigFileLoader.
+        
+        Args:
+            config_path: Path to YAML configuration file
+        """
+        self.config_path = config_path
+        self.default_database: Optional[str] = None
+        self._databases: Dict[str, DatabaseConfig] = {}
+
+    def load(self) -> None:
+        """Load configurations from YAML file and environment variables.
+        
+        Priority:
+        1. YAML file (if exists)
+        2. Environment variables (backward compatibility)
+        
+        Raises:
+            yaml.YAMLError: If YAML file is invalid
+        """
+        if os.path.exists(self.config_path):
+            self._load_from_yaml()
+        else:
+            self._load_from_env_vars()
+
+    def _load_from_yaml(self) -> None:
+        """Load configuration from YAML file.
+        
+        Raises:
+            yaml.YAMLError: If YAML file is invalid
+        """
+        with open(self.config_path, 'r') as f:
+            config = yaml.safe_load(f)
+        
+        # Handle empty YAML file
+        if config is None:
+            config = {}
+        
+        # Load default database
+        self.default_database = config.get("default_database")
+        
+        # Load database configurations
+        databases = config.get("databases", {})
+        for key, db_config in databases.items():
+            self._databases[key] = DatabaseConfig(**db_config)
+
+    def _load_from_env_vars(self) -> None:
+        """Load configuration from environment variables (backward compatibility).
+        
+        Supports v0.4.0 environment variables:
+        - ARANGO_URL (default: http://localhost:8529)
+        - ARANGO_DB (default: _system)
+        - ARANGO_USERNAME (default: root)
+        - ARANGO_PASSWORD (password environment variable)
+        """
+        url = os.getenv("ARANGO_URL", "http://localhost:8529")
+        database = os.getenv("ARANGO_DB", "_system")
+        username = os.getenv("ARANGO_USERNAME", "root")
+        
+        self._databases["default"] = DatabaseConfig(
+            url=url,
+            database=database,
+            username=username,
+            password_env="ARANGO_PASSWORD",
+            timeout=30.0
+        )
+        self.default_database = "default"
+
+    def get_configured_databases(self) -> Dict[str, DatabaseConfig]:
+        """Get all configured databases.
+        
+        Returns:
+            Dictionary mapping database keys to their configurations
+        """
+        return self._databases.copy()
+
+    def add_database(self, database_key: str, config: DatabaseConfig) -> None:
+        """Add a database configuration.
+        
+        Args:
+            database_key: Unique identifier for this database
+            config: Database configuration
+        """
+        self._databases[database_key] = config
+
+    def remove_database(self, database_key: str) -> None:
+        """Remove a database configuration.
+        
+        Args:
+            database_key: Database identifier to remove
+        """
+        self._databases.pop(database_key, None)
+
+    def save_to_yaml(self) -> None:
+        """Save current configuration to YAML file.
+        
+        Creates parent directories if they don't exist.
+        """
+        # Create parent directory if it doesn't exist
+        config_dir = os.path.dirname(self.config_path)
+        if config_dir and not os.path.exists(config_dir):
+            os.makedirs(config_dir, exist_ok=True)
+        
+        # Build configuration dictionary
+        config_data = {}
+        
+        if self.default_database:
+            config_data["default_database"] = self.default_database
+        
+        # Convert DatabaseConfig objects to dictionaries
+        databases = {}
+        for key, db_config in self._databases.items():
+            databases[key] = {
+                "url": db_config.url,
+                "database": db_config.database,
+                "username": db_config.username,
+                "password_env": db_config.password_env,
+                "timeout": db_config.timeout
+            }
+            if db_config.description:
+                databases[key]["description"] = db_config.description
+        
+        config_data["databases"] = databases
+        
+        # Write to YAML file
+        with open(self.config_path, 'w') as f:
+            yaml.dump(config_data, f, default_flow_style=False, sort_keys=False)
+
