@@ -133,10 +133,10 @@ from .tools import (
     # Pattern 1: Progressive Tool Discovery
     ARANGO_SEARCH_TOOLS,
     ARANGO_LIST_TOOLS_BY_CATEGORY,
-    # Pattern 2: Context Switching
-    ARANGO_SWITCH_CONTEXT,
-    ARANGO_GET_ACTIVE_CONTEXT,
-    ARANGO_LIST_CONTEXTS,
+    # Pattern 2: Workflow Switching
+    ARANGO_SWITCH_WORKFLOW,
+    ARANGO_GET_ACTIVE_WORKFLOW,
+    ARANGO_LIST_WORKFLOWS,
     # Pattern 3: Tool Unloading
     ARANGO_ADVANCE_WORKFLOW_STAGE,
     ARANGO_GET_TOOL_USAGE_STATS,
@@ -253,10 +253,10 @@ from .models import (
     # Pattern 1: Progressive Tool Discovery
     SearchToolsArgs,
     ListToolsByCategoryArgs,
-    # Pattern 2: Context Switching
-    SwitchContextArgs,
-    GetActiveContextArgs,
-    ListContextsArgs,
+    # Pattern 2: Workflow Switching
+    SwitchWorkflowArgs,
+    GetActiveWorkflowArgs,
+    ListWorkflowsArgs,
     # Pattern 3: Tool Unloading
     AdvanceWorkflowStageArgs,
     GetToolUsageStatsArgs,
@@ -1966,7 +1966,7 @@ def handle_list_tools_by_category(
         return result
 
 
-# Pattern 2: Context Switching
+# Pattern 2: Workflow Switching
 # Define workflow contexts
 WORKFLOW_CONTEXTS = {
     "baseline": {
@@ -2020,21 +2020,21 @@ _ACTIVE_CONTEXT = "baseline"
 
 @handle_errors
 @register_tool(
-    name=ARANGO_SWITCH_CONTEXT,
-    description="Switch to a different workflow context with a predefined set of tools. Enables Context Switching pattern for workflow-specific tool sets.",
-    model=SwitchContextArgs,
+    name=ARANGO_SWITCH_WORKFLOW,
+    description="Switch to a different workflow context with a predefined set of tools. Enables Workflow Switching pattern for workflow-specific tool sets.",
+    model=SwitchWorkflowArgs,
 )
-def handle_switch_context(
+def handle_switch_workflow(
     db: StandardDatabase, args: Dict[str, Any]
 ) -> Dict[str, Any]:
     """Switch to a different workflow context.
 
-    This tool enables the Context Switching pattern by allowing AI agents to
+    This tool enables the Workflow Switching pattern by allowing AI agents to
     switch between predefined tool sets optimized for specific workflows.
 
     Args:
         db: ArangoDB database instance (not used, but required for handler signature)
-        args: Validated SwitchContextArgs containing target context
+        args: Validated SwitchWorkflowArgs containing target context
 
     Returns:
         Dictionary with context switch details
@@ -2071,11 +2071,11 @@ def handle_switch_context(
 
 @handle_errors
 @register_tool(
-    name=ARANGO_GET_ACTIVE_CONTEXT,
+    name=ARANGO_GET_ACTIVE_WORKFLOW,
     description="Get the currently active workflow context and its tool set.",
-    model=GetActiveContextArgs,
+    model=GetActiveWorkflowArgs,
 )
-def handle_get_active_context(
+def handle_get_active_workflow(
     db: StandardDatabase, args: Optional[Dict[str, Any]] = None
 ) -> Dict[str, Any]:
     """Get the currently active workflow context.
@@ -2101,18 +2101,18 @@ def handle_get_active_context(
 
 @handle_errors
 @register_tool(
-    name=ARANGO_LIST_CONTEXTS,
+    name=ARANGO_LIST_WORKFLOWS,
     description="List all available workflow contexts with their descriptions and optional tool lists.",
-    model=ListContextsArgs,
+    model=ListWorkflowsArgs,
 )
-def handle_list_contexts(
+def handle_list_workflows(
     db: StandardDatabase, args: Dict[str, Any]
 ) -> Dict[str, Any]:
     """List all available workflow contexts.
 
     Args:
         db: ArangoDB database instance (not used, but required for handler signature)
-        args: Validated ListContextsArgs with include_tools flag
+        args: Validated ListWorkflowsArgs with include_tools flag
 
     Returns:
         Dictionary with all available contexts
