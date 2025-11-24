@@ -15,26 +15,174 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Table of Contents
 
-1. [Version 0.4.0 (Current)](#version-040---2025-11-11)
-2. [Version 0.3.2](#version-032---2025-10-20)
-3. [Version 0.3.1](#version-031---2025-10-20)
-4. [Version 0.3.0](#version-030---2025-10-20)
-5. [Version 0.2.11](#version-0211---2025-10-20)
-6. [Version 0.2.10](#version-0210---2025-10-20)
-7. [Version 0.2.9](#version-029---2025-10-20)
-8. [Version 0.2.8](#version-028---2025-10-20)
-9. [Version 0.2.7](#version-027---2025-10-19)
-10. [Version 0.2.6](#version-026---2025-10-15)
-11. [Version 0.2.5](#version-025---2025-10-10)
-12. [Version 0.2.0-0.2.4](#version-020-024---2025-09-01-to-2025-10-01)
-13. [Version 0.1.x](#version-01x---2025-08-01)
-14. [Migration Guides](#migration-guides)
+1. [Version 0.4.2 (Current)](#version-042---2025-11-24)
+2. [Version 0.4.1](#version-041---2025-11-24)
+3. [Version 0.4.0](#version-040---2025-11-11)
+4. [Version 0.3.2](#version-032---2025-10-20)
+5. [Version 0.3.1](#version-031---2025-10-20)
+6. [Version 0.3.0](#version-030---2025-10-20)
+7. [Version 0.2.11](#version-0211---2025-10-20)
+8. [Version 0.2.10](#version-0210---2025-10-20)
+9. [Version 0.2.9](#version-029---2025-10-20)
+10. [Version 0.2.8](#version-028---2025-10-20)
+11. [Version 0.2.7](#version-027---2025-10-19)
+12. [Version 0.2.6](#version-026---2025-10-15)
+13. [Version 0.2.5](#version-025---2025-10-10)
+14. [Version 0.2.0-0.2.4](#version-020-024---2025-09-01-to-2025-10-01)
+15. [Version 0.1.x](#version-01x---2025-08-01)
+16. [Migration Guides](#migration-guides)
+
+---
+
+## [0.4.2] - 2025-11-23
+
+**Current Release**
+
+### Added
+
+✅ **Foundation Integration Layer (Milestone 1.2)**
+- **Database Resolver (Task 1.2.1):**
+  - `mcp_arangodb_async/db_resolver.py` with `resolve_database()` function
+  - Implements 6-level priority fallback algorithm:
+    1. Per-tool override (`tool_args["database"]`)
+    2. Focused database (`session_state.get_focused_database()`)
+    3. Config default (`config_loader.default_database`)
+    4. Environment variable (`MCP_DEFAULT_DATABASE`)
+    5. First configured database
+    6. Hardcoded fallback (`"_system"`)
+  - 11 unit tests, 100% code coverage
+  - Issue: Closes [#4](https://github.com/LittleCoinCoin/mcp-arangodb-async/issues/4)
+
+- **Session ID Extraction (Task 1.2.2):**
+  - `mcp_arangodb_async/session_utils.py` with `extract_session_id()` function
+  - Handles stdio transport (returns `"stdio"` singleton session)
+  - Handles HTTP transport (returns unique session ID from request)
+  - 14 unit tests, 100% code coverage
+  - Issue: Closes [#5](https://github.com/LittleCoinCoin/mcp-arangodb-async/issues/5)
+
+- **Entry Point Integration (Task 1.2.3):**
+  - Updated `entry.py` to integrate all foundation components:
+    - ConfigFileLoader: Load database configurations from YAML/env vars
+    - MultiDatabaseConnectionManager: Manage connections to multiple databases
+    - SessionState: Per-session state for focused database and workflows
+  - Implements implicit session creation on first tool call
+  - Implements database resolution algorithm in `call_tool()`
+  - Adds session ID extraction and tool usage tracking
+  - 10 integration tests
+  - All 36 existing MCP integration tests pass
+  - Issue: Closes [#6](https://github.com/LittleCoinCoin/mcp-arangodb-async/issues/6)
+
+✅ **Test Coverage**
+- Total Tests: 67 passing (all new components from both milestones)
+  - Database Resolver: 11 tests (100% coverage)
+  - Session Utils: 14 tests (100% coverage)
+  - Entry Point Integration: 10 tests
+  - Foundation Components: 32 tests (from Milestone 1.1)
+- Backward Compatibility: ✅ All existing tests pass
+
+### Changed
+
+- **Architecture:** Integrated multi-database connection pooling with session-based context management
+- **Entry Point:** Enhanced to support multi-database workflows with implicit session creation
+- **Database Resolution:** Added deterministic 6-level priority algorithm for database selection
+
+### Technical Details
+
+- Foundation components (SessionState, MultiDatabaseConnectionManager, ConfigFileLoader) now fully integrated into MCP server
+- Session state mutations protected by `asyncio.Lock()` for thread-safe concurrent access
+- Database resolution algorithm enables both focused database context and per-tool overrides without ambiguity
+- Backward compatibility maintained: existing deployments work unchanged
+
+### Files Changed
+
+**Created:**
+- `mcp_arangodb_async/db_resolver.py`
+- `mcp_arangodb_async/session_utils.py`
+- `tests/test_db_resolver_unit.py`
+- `tests/test_session_utils_unit.py`
+- `tests/test_entry_point_integration_unit.py`
+
+**Modified:**
+- `mcp_arangodb_async/entry.py`
+
+### Related Issues
+
+Closes [#4](https://github.com/LittleCoinCoin/mcp-arangodb-async/issues/4), [#5](https://github.com/LittleCoinCoin/mcp-arangodb-async/issues/5), [#6](https://github.com/LittleCoinCoin/mcp-arangodb-async/issues/6)
+
+---
+
+## [0.4.1] - 2025-11-23
+
+### Added
+
+✅ **Foundation Core Components (Milestone 1.1)**
+- **SessionState Component (Task 1.1.1):**
+  - `mcp_arangodb_async/session_state.py` with SessionState class
+  - Per-session state management for focused database, active workflow, tool lifecycle stage, and tool usage tracking
+  - Replaces global state variables (`_ACTIVE_CONTEXT`, `_CURRENT_STAGE`, `_TOOL_USAGE_STATS`) with per-session isolation
+  - Async-safe state mutations using `asyncio.Lock()`
+  - Session isolation for concurrent agent operations
+  - Methods: `initialize_session()`, `set_focused_database()`, `get_focused_database()`, `set_active_workflow()`, `get_active_workflow()`, `set_tool_lifecycle_stage()`, `get_tool_lifecycle_stage()`, `track_tool_usage()`, `get_tool_usage_stats()`, `cleanup_session()`, `cleanup_all()`
+  - 11 unit tests, 100% code coverage
+  - Issue: Closes [#1](https://github.com/LittleCoinCoin/mcp-arangodb-async/issues/1)
+
+- **MultiDatabaseConnectionManager Component (Task 1.1.2):**
+  - `mcp_arangodb_async/multi_db_manager.py` with connection pooling
+  - Purpose: Connection pooling for multiple ArangoDB servers and databases
+  - Lazy connection creation with connection reuse
+  - Async-safe connection pool using `asyncio.Lock()`
+  - Database configuration registration and management
+  - Connection testing and health checks
+  - Graceful cleanup on shutdown
+  - Methods: `initialize()`, `get_connection()`, `get_configured_databases()`, `test_connection()`, `register_database()`, `close_all()`
+  - 10 unit tests, 94% code coverage
+  - Issue: Closes [#2](https://github.com/LittleCoinCoin/mcp-arangodb-async/issues/2)
+
+- **ConfigFileLoader Component (Task 1.1.3):**
+  - `mcp_arangodb_async/config_loader.py` for YAML-based configuration
+  - Purpose: YAML configuration loading with backward compatibility
+  - YAML file configuration loading
+  - Backward compatibility with v0.4.0 environment variables
+  - Database configuration CRUD operations (add, remove, get, save)
+  - Support for optional description field
+  - Graceful handling of empty/invalid YAML files
+  - Security: Passwords stored in environment variables, referenced by name in YAML
+  - Methods: `load()`, `get_configured_databases()`, `add_database()`, `remove_database()`, `_load_from_env_vars()`, `_save_to_yaml()`
+  - 11 unit tests, 96% code coverage
+  - Issue: Closes [#3](https://github.com/LittleCoinCoin/mcp-arangodb-async/issues/3)
+
+✅ **Comprehensive Test Coverage**
+- Total Tests: 32 tests passing
+  - SessionState: 11 tests (100% coverage)
+  - MultiDatabaseConnectionManager: 10 tests (94% coverage)
+  - ConfigFileLoader: 11 tests (96% code coverage)
+- All tests pass with no regressions
+
+### Technical Details
+
+- SessionState provides the isolation boundary for multi-database workflows
+- MultiDatabaseConnectionManager enables multiple simultaneous ArangoDB connections without overhead
+- ConfigFileLoader decouples database configuration from code, enabling runtime configuration changes
+- All components use `asyncio.Lock()` for async-safe state and connection pool mutations
+- Foundation components ready for integration into entry point
+
+### Files Changed
+
+**Created:**
+- `mcp_arangodb_async/session_state.py`
+- `mcp_arangodb_async/multi_db_manager.py`
+- `mcp_arangodb_async/config_loader.py`
+- `tests/test_session_state_unit.py`
+- `tests/test_multi_db_manager_unit.py`
+- `tests/test_config_loader_unit.py`
+
+### Related Issues
+
+Closes [#1](https://github.com/LittleCoinCoin/mcp-arangodb-async/issues/1), [#2](https://github.com/LittleCoinCoin/mcp-arangodb-async/issues/2), [#3](https://github.com/LittleCoinCoin/mcp-arangodb-async/issues/3)
 
 ---
 
 ## [0.4.0] - 2025-11-11
-
-**Current Release**
 
 ### Added
 
