@@ -440,9 +440,9 @@ class ListToolsByCategoryArgs(BaseModel):
     )
 
 
-# Pattern 2: Context Switching
-class SwitchContextArgs(BaseModel):
-    """Arguments for arango_switch_context."""
+# Pattern 2: Workflow Switching
+class SwitchWorkflowArgs(BaseModel):
+    """Arguments for arango_switch_workflow."""
     context: Literal[
         "baseline", "data_analysis", "graph_modeling",
         "bulk_operations", "schema_validation", "full"
@@ -451,13 +451,13 @@ class SwitchContextArgs(BaseModel):
     )
 
 
-class GetActiveContextArgs(BaseModel):
-    """Arguments for arango_get_active_context."""
+class GetActiveWorkflowArgs(BaseModel):
+    """Arguments for arango_get_active_workflow."""
     pass
 
 
-class ListContextsArgs(BaseModel):
-    """Arguments for arango_list_contexts."""
+class ListWorkflowsArgs(BaseModel):
+    """Arguments for arango_list_workflows."""
     include_tools: bool = Field(
         default=False,
         description="Include tool lists for each context"

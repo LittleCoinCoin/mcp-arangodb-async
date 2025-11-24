@@ -109,10 +109,10 @@ ARANGO_DATABASE_STATUS = "arango_database_status"
 ARANGO_SEARCH_TOOLS = "arango_search_tools"
 ARANGO_LIST_TOOLS_BY_CATEGORY = "arango_list_tools_by_category"
 
-# Pattern 2: Context Switching
-ARANGO_SWITCH_CONTEXT = "arango_switch_context"
-ARANGO_GET_ACTIVE_CONTEXT = "arango_get_active_context"
-ARANGO_LIST_CONTEXTS = "arango_list_contexts"
+# Pattern 2: Workflow Switching
+ARANGO_SWITCH_WORKFLOW = "arango_switch_workflow"
+ARANGO_GET_ACTIVE_WORKFLOW = "arango_get_active_workflow"
+ARANGO_LIST_WORKFLOWS = "arango_list_workflows"
 
 # Pattern 3: Tool Unloading
 ARANGO_ADVANCE_WORKFLOW_STAGE = "arango_advance_workflow_stage"
