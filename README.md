@@ -283,9 +283,9 @@ The server exposes **43 MCP tools** organized into 10 categories:
 ### MCP Design Pattern Tools (9 tools)
 - `arango_search_tools` - Search for tools by keywords
 - `arango_list_tools_by_category` - List tools by category
-- `arango_switch_context` - Switch workflow context
-- `arango_get_active_context` - Get active context
-- `arango_list_contexts` - List all contexts
+- `arango_switch_workflow` - Switch workflow context
+- `arango_get_active_workflow` - Get active workflow
+- `arango_list_workflows` - List all workflows
 - `arango_advance_workflow_stage` - Advance workflow stage
 - `arango_get_tool_usage_stats` - Get tool usage statistics
 - `arango_unload_tools` - Unload specific tools
