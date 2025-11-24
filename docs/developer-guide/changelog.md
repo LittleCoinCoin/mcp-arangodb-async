@@ -15,9 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Table of Contents
 
-1. [Version 0.4.2 (Current)](#version-042---2025-11-24)
-2. [Version 0.4.1](#version-041---2025-11-24)
-3. [Version 0.4.0](#version-040---2025-11-11)
+1. [Version 0.4.3 (Current)](#version-043---2025-11-24)
+2. [Version 0.4.2](#version-042---2025-11-24)
+3. [Version 0.4.1](#version-041---2025-11-24)
+4. [Version 0.4.0](#version-040---2025-11-11)
 4. [Version 0.3.2](#version-032---2025-10-20)
 5. [Version 0.3.1](#version-031---2025-10-20)
 6. [Version 0.3.0](#version-030---2025-10-20)
@@ -34,9 +35,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [0.4.2] - 2025-11-23
+## [0.4.3] - 2025-11-24
 
 **Current Release**
+
+### Changed
+
+✅ **Tool Renaming (Milestone 2.1)**
+- **Renamed workflow tools to eliminate terminology ambiguity:**
+  - `arango_switch_context` → `arango_switch_workflow`
+  - `arango_get_active_context` → `arango_get_active_workflow`
+  - `arango_list_contexts` → `arango_list_workflows`
+- **Rationale:** Resolves ambiguity between "workflow context" (design patterns) and "database context" (multi-tenancy) as specified in Architecture Design v3
+- **Updated components:**
+  - Tool name constants in `mcp_arangodb_async/tools.py`
+  - Pydantic models in `mcp_arangodb_async/models.py` (SwitchWorkflowArgs, GetActiveWorkflowArgs, ListWorkflowsArgs)
+  - Handler registrations and functions in `mcp_arangodb_async/handlers.py`
+  - All test references in `tests/test_handlers_unit.py` and `tests/test_mcp_integration.py`
+  - Documentation in `README.md`, `docs/user-guide/tools-reference.md`, and `docs/user-guide/mcp-design-patterns.md`
+- **Test Coverage:** All 81 handler and integration tests pass with no regressions
+- **Breaking Change:** Old tool names (`arango_switch_context`, `arango_get_active_context`, `arango_list_contexts`) are no longer available
+
+---
+
+## [0.4.2] - 2025-11-23
 
 ### Added
 
