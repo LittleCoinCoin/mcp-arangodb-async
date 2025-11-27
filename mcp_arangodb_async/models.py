@@ -61,32 +61,37 @@ class QueryArgs(BaseModel):
     bind_vars: Optional[Dict[str, Any]] = Field(
         default=None, description="Optional bind variables for the AQL query"
     )
+    database: Optional[str] = Field(default=None, description="Database override")
 
 
 class ListCollectionsArgs(BaseModel):
-    pass
+    database: Optional[str] = Field(default=None, description="Database override")
 
 
 class InsertArgs(BaseModel):
     collection: str
     document: Dict[str, Any]
+    database: Optional[str] = Field(default=None, description="Database override")
 
 
 class UpdateArgs(BaseModel):
     collection: str = Field(description="Name of the collection containing the document")
     key: str = Field(description="Document key to update")
     update: Dict[str, Any] = Field(description="Fields to update in the document")
+    database: Optional[str] = Field(default=None, description="Database override")
 
 
 class RemoveArgs(BaseModel):
     collection: str = Field(description="Name of the collection containing the document")
     key: str = Field(description="Document key to remove")
+    database: Optional[str] = Field(default=None, description="Database override")
 
 
 class CreateCollectionArgs(BaseModel):
     name: str = Field(description="Name of the collection to create")
     type: Literal["document", "edge"] = Field(default="document", description="Type of collection (document or edge)")
     waitForSync: Optional[bool] = Field(default=None, description="Whether to wait for sync to disk")
+    database: Optional[str] = Field(default=None, description="Database override")
 
 
 class BackupArgs(BaseModel):
@@ -110,6 +115,7 @@ class BackupArgs(BaseModel):
         alias="docLimit",
         description="Maximum number of documents to backup per collection"
     )
+    database: Optional[str] = Field(default=None, description="Database override")
 
 
 IndexType = Literal["persistent", "hash", "skiplist", "ttl", "fulltext", "geo"]
@@ -117,6 +123,7 @@ IndexType = Literal["persistent", "hash", "skiplist", "ttl", "fulltext", "geo"]
 
 class ListIndexesArgs(BaseModel):
     collection: str = Field(description="Collection name to list indexes for")
+    database: Optional[str] = Field(default=None, description="Database override")
 
 
 class CreateIndexArgs(BaseModel):
@@ -134,11 +141,13 @@ class CreateIndexArgs(BaseModel):
     expireAfter: Optional[int] = Field(default=None, description="Alias for ttl (expireAfter)")
     minLength: Optional[int] = Field(default=None, description="Minimum length for fulltext index")
     geoJson: Optional[bool] = Field(default=None, description="If true, fields are in GeoJSON format for geo index")
+    database: Optional[str] = Field(default=None, description="Database override")
 
 
 class DeleteIndexArgs(BaseModel):
     collection: str = Field(description="Name of the collection containing the index")
     id_or_name: str = Field(description="Index ID (e.g., collection/12345) or name to delete")
+    database: Optional[str] = Field(default=None, description="Database override")
 
 
 class ExplainQueryArgs(BaseModel):
@@ -146,18 +155,21 @@ class ExplainQueryArgs(BaseModel):
     bind_vars: Optional[Dict[str, Any]] = None
     suggest_indexes: bool = True
     max_plans: int = 1
+    database: Optional[str] = Field(default=None, description="Database override")
 
 
 class ValidateReferencesArgs(BaseModel):
     collection: str
     reference_fields: List[str]
     fix_invalid: bool = False
+    database: Optional[str] = Field(default=None, description="Database override")
 
 
 class InsertWithValidationArgs(BaseModel):
     collection: str
     document: Dict[str, Any]
     reference_fields: List[str] = Field(default_factory=list)
+    database: Optional[str] = Field(default=None, description="Database override")
 
 
 class BulkInsertArgs(BaseModel):
@@ -166,6 +178,7 @@ class BulkInsertArgs(BaseModel):
     validate_refs: bool = False
     batch_size: int = 1000
     on_error: Literal["stop", "continue", "ignore"] = "stop"
+    database: Optional[str] = Field(default=None, description="Database override")
 
 
 class BulkUpdateArgs(BaseModel):
@@ -173,6 +186,7 @@ class BulkUpdateArgs(BaseModel):
     updates: List[Dict[str, Any]]  # each must include key and update fields
     batch_size: int = 1000
     on_error: Literal["stop", "continue", "ignore"] = "stop"
+    database: Optional[str] = Field(default=None, description="Database override")
 
 
 # Graph models (Phase 2)
@@ -186,6 +200,7 @@ class CreateGraphArgs(BaseModel):
     name: str
     edge_definitions: List[EdgeDefinition]
     create_collections: bool = True
+    database: Optional[str] = Field(default=None, description="Database override")
 
 
 class AddEdgeArgs(BaseModel):
@@ -193,6 +208,7 @@ class AddEdgeArgs(BaseModel):
     from_id: str = Field(description="_from document id, e.g., users/123")
     to_id: str = Field(description="_to document id, e.g., orders/456")
     attributes: Optional[Dict[str, Any]] = Field(default_factory=dict)
+    database: Optional[str] = Field(default=None, description="Database override")
 
 
 class TraverseArgs(BaseModel):
@@ -204,6 +220,7 @@ class TraverseArgs(BaseModel):
     edge_collections: Optional[List[str]] = None
     return_paths: bool = False
     limit: Optional[int] = None
+    database: Optional[str] = Field(default=None, description="Database override")
 
 
 class ShortestPathArgs(BaseModel):
@@ -213,16 +230,18 @@ class ShortestPathArgs(BaseModel):
     graph: Optional[str] = None
     edge_collections: Optional[List[str]] = None
     return_paths: bool = True
+    database: Optional[str] = Field(default=None, description="Database override")
 
 
 # Additional graph management models
 class ListGraphsArgs(BaseModel):
-    pass
+    database: Optional[str] = Field(default=None, description="Database override")
 
 
 class AddVertexCollectionArgs(BaseModel):
     graph: str
     collection: str
+    database: Optional[str] = Field(default=None, description="Database override")
 
 
 class AddEdgeDefinitionArgs(BaseModel):
@@ -230,6 +249,7 @@ class AddEdgeDefinitionArgs(BaseModel):
     edge_collection: str
     from_collections: List[str]
     to_collections: List[str]
+    database: Optional[str] = Field(default=None, description="Database override")
 
 
 # Schema management
@@ -241,6 +261,7 @@ class CreateSchemaArgs(BaseModel):
         validation_alias="schema",
         serialization_alias="schema",
     )
+    database: Optional[str] = Field(default=None, description="Database override")
 
 
 class ValidateDocumentArgs(BaseModel):
@@ -253,6 +274,7 @@ class ValidateDocumentArgs(BaseModel):
         validation_alias="schema",
         serialization_alias="schema",
     )
+    database: Optional[str] = Field(default=None, description="Database override")
 
 
 # Enhanced query tools
@@ -273,12 +295,14 @@ class QueryBuilderArgs(BaseModel):
     sort: List[QuerySort] = Field(default_factory=list)
     limit: Optional[int] = None
     return_fields: Optional[List[str]] = Field(default=None, description="Fields to project; omit for full doc")
+    database: Optional[str] = Field(default=None, description="Database override")
 
 
 class QueryProfileArgs(BaseModel):
     query: str
     bind_vars: Optional[Dict[str, Any]] = None
     max_plans: int = 1
+    database: Optional[str] = Field(default=None, description="Database override")
 
 
 # Graph Management Models (Phase 1 - New Graph Tools)
@@ -305,6 +329,7 @@ class BackupGraphArgs(BaseModel):
         alias="docLimit",
         description="Maximum number of documents to backup per collection"
     )
+    database: Optional[str] = Field(default=None, description="Database override")
 
 
 class RestoreGraphArgs(BaseModel):
@@ -330,6 +355,7 @@ class RestoreGraphArgs(BaseModel):
         alias="validateIntegrity",
         description="Validate referential integrity during restore"
     )
+    database: Optional[str] = Field(default=None, description="Database override")
 
 
 class BackupNamedGraphsArgs(BaseModel):
@@ -346,6 +372,7 @@ class BackupNamedGraphsArgs(BaseModel):
         alias="graphNames",
         description="Specific graphs to backup (if not specified, backs up all graphs)"
     )
+    database: Optional[str] = Field(default=None, description="Database override")
 
 
 class ValidateGraphIntegrityArgs(BaseModel):
@@ -372,6 +399,7 @@ class ValidateGraphIntegrityArgs(BaseModel):
         alias="returnDetails",
         description="Return detailed violation information"
     )
+    database: Optional[str] = Field(default=None, description="Database override")
 
 
 class GraphStatisticsArgs(BaseModel):
@@ -409,11 +437,12 @@ class GraphStatisticsArgs(BaseModel):
         alias="perCollectionStats",
         description="Provide detailed per-collection statistics breakdown"
     )
+    database: Optional[str] = Field(default=None, description="Database override")
 
 
 class ArangoDatabaseStatusArgs(BaseModel):
     """Arguments for arango_database_status tool (no parameters required)."""
-    pass
+    database: Optional[str] = Field(default=None, description="Database override")
 
 
 # Pattern 1: Progressive Tool Discovery
