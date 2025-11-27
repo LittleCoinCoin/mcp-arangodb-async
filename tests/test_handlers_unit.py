@@ -1057,6 +1057,85 @@ class TestMCPDesignPatternHandlers:
         assert isinstance(result["tool_usage"], dict)
         assert isinstance(result["active_stage_tools"], list)
 
+    # ========================================================================
+    # Pattern 3.2: Usage Stats with SessionState (Per-Session Isolation)
+    # ========================================================================
+
+    def test_handle_get_tool_usage_stats_with_session_state(self):
+        """Test getting tool usage stats with SessionState."""
+        from mcp_arangodb_async.session_state import SessionState
+        import asyncio
+
+        session_state = SessionState()
+        session_id = "test_session_1"
+        session_state.initialize_session(session_id)
+
+        # Track some tool usage
+        session_state.track_tool_usage(session_id, "arango_query")
+        session_state.track_tool_usage(session_id, "arango_query")
+        session_state.track_tool_usage(session_id, "arango_insert")
+
+        # Set lifecycle stage
+        asyncio.run(session_state.set_tool_lifecycle_stage(session_id, "analysis"))
+
+        args = {
+            "_session_context": {
+                "session_state": session_state,
+                "session_id": session_id
+            }
+        }
+
+        result = handle_get_tool_usage_stats(self.mock_db, args)
+
+        assert result["current_stage"] == "analysis"
+        assert result["total_tools_used"] == 2
+        assert "arango_query" in result["tool_usage"]
+        assert "arango_insert" in result["tool_usage"]
+        assert result["tool_usage"]["arango_query"]["use_count"] == 2
+        assert result["tool_usage"]["arango_insert"]["use_count"] == 1
+
+    def test_handle_get_tool_usage_stats_session_isolation(self):
+        """Test that tool usage stats are isolated between sessions."""
+        from mcp_arangodb_async.session_state import SessionState
+
+        session_state = SessionState()
+        session_1 = "session_1"
+        session_2 = "session_2"
+        session_state.initialize_session(session_1)
+        session_state.initialize_session(session_2)
+
+        # Track different tool usage for each session
+        session_state.track_tool_usage(session_1, "arango_query")
+        session_state.track_tool_usage(session_1, "arango_query")
+        session_state.track_tool_usage(session_2, "arango_insert")
+
+        # Get stats for session 1
+        args1 = {
+            "_session_context": {
+                "session_state": session_state,
+                "session_id": session_1
+            }
+        }
+        result1 = handle_get_tool_usage_stats(self.mock_db, args1)
+
+        # Get stats for session 2
+        args2 = {
+            "_session_context": {
+                "session_state": session_state,
+                "session_id": session_2
+            }
+        }
+        result2 = handle_get_tool_usage_stats(self.mock_db, args2)
+
+        # Verify isolation
+        assert result1["total_tools_used"] == 1
+        assert "arango_query" in result1["tool_usage"]
+        assert "arango_insert" not in result1["tool_usage"]
+
+        assert result2["total_tools_used"] == 1
+        assert "arango_insert" in result2["tool_usage"]
+        assert "arango_query" not in result2["tool_usage"]
+
     def test_handle_unload_tools_valid(self):
         """Test manually unloading valid tools."""
         from mcp_arangodb_async.tools import ARANGO_QUERY, ARANGO_INSERT

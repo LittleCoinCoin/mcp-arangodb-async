@@ -2324,20 +2324,36 @@ def handle_get_tool_usage_stats(
 ) -> Dict[str, Any]:
     """Get tool usage statistics.
 
+    Uses per-session state via SessionState for multi-tenancy support.
+    Returns session-specific tool usage statistics when SessionState is available.
+
     Args:
         db: ArangoDB database instance (not used, but required for handler signature)
-        args: No arguments required
+        args: Optional arguments (may contain session context)
 
     Returns:
         Dictionary with tool usage statistics
     """
     global _TOOL_USAGE_STATS, _CURRENT_STAGE
 
+    # Extract session context for per-session state
+    if args is None:
+        args = {}
+    session_state, session_id = _get_session_context(args)
+
+    # Get stats from session state or global fallback
+    if session_state:
+        tool_usage = session_state.get_tool_usage_stats(session_id)
+        current_stage = session_state.get_tool_lifecycle_stage(session_id) or "setup"
+    else:
+        tool_usage = _TOOL_USAGE_STATS
+        current_stage = _CURRENT_STAGE
+
     return {
-        "current_stage": _CURRENT_STAGE,
-        "tool_usage": _TOOL_USAGE_STATS,
-        "total_tools_used": len(_TOOL_USAGE_STATS),
-        "active_stage_tools": WORKFLOW_STAGES[_CURRENT_STAGE]["tools"]
+        "current_stage": current_stage,
+        "tool_usage": tool_usage,
+        "total_tools_used": len(tool_usage),
+        "active_stage_tools": WORKFLOW_STAGES[current_stage]["tools"]
     }
 
 
