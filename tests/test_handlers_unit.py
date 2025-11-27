@@ -24,9 +24,9 @@ from mcp_arangodb_async.handlers import (
     # MCP Design Pattern handlers
     handle_search_tools,
     handle_list_tools_by_category,
-    handle_switch_context,
-    handle_get_active_context,
-    handle_list_contexts,
+    handle_switch_workflow,
+    handle_get_active_workflow,
+    handle_list_workflows,
     handle_advance_workflow_stage,
     handle_get_tool_usage_stats,
     handle_unload_tools,
@@ -726,14 +726,14 @@ class TestMCPDesignPatternHandlers:
         assert "invalid_category" in result["error"]
 
     # ========================================================================
-    # Pattern 2: Context Switching
+    # Pattern 2: Workflow Switching
     # ========================================================================
 
-    def test_handle_switch_context_valid(self):
+    def test_handle_switch_workflow_valid(self):
         """Test switching to a valid workflow context."""
         args = {"context": "graph_modeling"}
 
-        result = handle_switch_context(self.mock_db, args)
+        result = handle_switch_workflow(self.mock_db, args)
 
         assert "from_context" in result
         assert "to_context" in result
@@ -745,25 +745,25 @@ class TestMCPDesignPatternHandlers:
         assert "active_tools" in result
         assert isinstance(result["active_tools"], list)
 
-    def test_handle_switch_context_invalid(self):
+    def test_handle_switch_workflow_invalid(self):
         """Test switching to invalid context returns error."""
         args = {"context": "invalid_context"}
 
-        result = handle_switch_context(self.mock_db, args)
+        result = handle_switch_workflow(self.mock_db, args)
 
         assert "error" in result
         assert "available_contexts" in result
         assert "invalid_context" in result["error"]
 
-    def test_handle_switch_context_tracks_changes(self):
-        """Test context switching tracks tool additions and removals."""
+    def test_handle_switch_workflow_tracks_changes(self):
+        """Test workflow switching tracks tool additions and removals."""
         # First switch to data_analysis
         args1 = {"context": "data_analysis"}
-        result1 = handle_switch_context(self.mock_db, args1)
+        result1 = handle_switch_workflow(self.mock_db, args1)
 
         # Then switch to graph_modeling
         args2 = {"context": "graph_modeling"}
-        result2 = handle_switch_context(self.mock_db, args2)
+        result2 = handle_switch_workflow(self.mock_db, args2)
 
         assert result2["from_context"] == "data_analysis"
         assert result2["to_context"] == "graph_modeling"
@@ -771,14 +771,14 @@ class TestMCPDesignPatternHandlers:
         assert isinstance(result2["tools_added"], list)
         assert isinstance(result2["tools_removed"], list)
 
-    def test_handle_get_active_context(self):
-        """Test getting the currently active context."""
+    def test_handle_get_active_workflow(self):
+        """Test getting the currently active workflow."""
         # Switch to a known context first
         switch_args = {"context": "bulk_operations"}
-        handle_switch_context(self.mock_db, switch_args)
+        handle_switch_workflow(self.mock_db, switch_args)
 
-        # Now get active context
-        result = handle_get_active_context(self.mock_db, None)
+        # Now get active workflow
+        result = handle_get_active_workflow(self.mock_db, None)
 
         assert "active_context" in result
         assert result["active_context"] == "bulk_operations"
@@ -788,11 +788,11 @@ class TestMCPDesignPatternHandlers:
         assert isinstance(result["tools"], list)
         assert result["tool_count"] == len(result["tools"])
 
-    def test_handle_list_contexts_without_tools(self):
-        """Test listing all contexts without tool details."""
+    def test_handle_list_workflows_without_tools(self):
+        """Test listing all workflows without tool details."""
         args = {"include_tools": False}
 
-        result = handle_list_contexts(self.mock_db, args)
+        result = handle_list_workflows(self.mock_db, args)
 
         assert "contexts" in result
         assert "total_contexts" in result
@@ -805,11 +805,11 @@ class TestMCPDesignPatternHandlers:
             assert "tool_count" in context_info
             assert "tools" not in context_info
 
-    def test_handle_list_contexts_with_tools(self):
-        """Test listing all contexts with tool details."""
+    def test_handle_list_workflows_with_tools(self):
+        """Test listing all workflows with tool details."""
         args = {"include_tools": True}
 
-        result = handle_list_contexts(self.mock_db, args)
+        result = handle_list_workflows(self.mock_db, args)
 
         assert "contexts" in result
         assert len(result["contexts"]) == 6

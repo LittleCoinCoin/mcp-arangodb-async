@@ -1068,9 +1068,9 @@ List all MCP tools organized by category. Useful for understanding tool organiza
 
 ---
 
-### Pattern 2: Context Switching (3 tools)
+### Pattern 2: Workflow Switching (3 tools)
 
-#### arango_switch_context
+#### arango_switch_workflow
 
 Switch to a different workflow context with a predefined set of tools. Enables workflow-specific tool sets for different use cases.
 
@@ -1139,13 +1139,13 @@ Switch to a different workflow context with a predefined set of tools. Enables w
 
 **Best Practices:**
 - Match context to workflow stage
-- Minimize context switches (group related operations)
-- Verify context before operations with `arango_get_active_context`
+- Minimize workflow switches (group related operations)
+- Verify workflow before operations with `arango_get_active_workflow`
 - Use `full` context only when truly needed
 
 ---
 
-#### arango_get_active_context
+#### arango_get_active_workflow
 
 Get the currently active workflow context and its tool set.
 
@@ -1185,14 +1185,14 @@ Get the currently active workflow context and its tool set.
 ```
 
 **Use Cases:**
-- Verify current context before operations
+- Verify current workflow before operations
 - Debug workflow issues
-- Log context state for audit trails
-- Confirm successful context switches
+- Log workflow state for audit trails
+- Confirm successful workflow switches
 
 ---
 
-#### arango_list_contexts
+#### arango_list_workflows
 
 List all available workflow contexts with their descriptions and optional tool lists.
 
