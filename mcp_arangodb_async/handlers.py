@@ -2014,8 +2014,24 @@ WORKFLOW_CONTEXTS = {
     }
 }
 
-# Global state for active context (in production, this would be per-session)
+# Global state for active context (legacy fallback during migration)
+# TODO: Remove in Milestone 3.2 after all tools migrated to SessionState
 _ACTIVE_CONTEXT = "baseline"
+
+
+def _get_session_context(args: Dict[str, Any]) -> tuple:
+    """Extract session context from args if available.
+
+    Args:
+        args: Handler arguments dictionary
+
+    Returns:
+        Tuple of (session_state, session_id) - session_state may be None
+    """
+    session_ctx = args.pop("_session_context", {})
+    session_state = session_ctx.get("session_state")
+    session_id = session_ctx.get("session_id", "stdio")
+    return session_state, session_id
 
 
 @handle_errors
@@ -2024,13 +2040,15 @@ _ACTIVE_CONTEXT = "baseline"
     description="Switch to a different workflow context with a predefined set of tools. Enables Workflow Switching pattern for workflow-specific tool sets.",
     model=SwitchWorkflowArgs,
 )
-def handle_switch_workflow(
+async def handle_switch_workflow(
     db: StandardDatabase, args: Dict[str, Any]
 ) -> Dict[str, Any]:
     """Switch to a different workflow context.
 
     This tool enables the Workflow Switching pattern by allowing AI agents to
     switch between predefined tool sets optimized for specific workflows.
+
+    Uses per-session state via SessionState for multi-tenancy support.
 
     Args:
         db: ArangoDB database instance (not used, but required for handler signature)
@@ -2041,8 +2059,16 @@ def handle_switch_workflow(
     """
     global _ACTIVE_CONTEXT
 
+    # Extract session context for per-session state
+    session_state, session_id = _get_session_context(args)
+
     new_context = args["context"]
-    old_context = _ACTIVE_CONTEXT
+
+    # Get old context from session state or global fallback
+    if session_state:
+        old_context = session_state.get_active_workflow(session_id) or "baseline"
+    else:
+        old_context = _ACTIVE_CONTEXT
 
     if new_context not in WORKFLOW_CONTEXTS:
         return {
@@ -2056,7 +2082,11 @@ def handle_switch_workflow(
     tools_added = list(new_tools - old_tools)
     tools_removed = list(old_tools - new_tools)
 
-    _ACTIVE_CONTEXT = new_context
+    # Update session state or global fallback
+    if session_state:
+        await session_state.set_active_workflow(session_id, new_context)
+    else:
+        _ACTIVE_CONTEXT = new_context
 
     return {
         "from_context": old_context,
@@ -2080,19 +2110,32 @@ def handle_get_active_workflow(
 ) -> Dict[str, Any]:
     """Get the currently active workflow context.
 
+    Uses per-session state via SessionState for multi-tenancy support.
+
     Args:
         db: ArangoDB database instance (not used, but required for handler signature)
-        args: No arguments required
+        args: Optional arguments (may contain session context)
 
     Returns:
         Dictionary with active context details
     """
     global _ACTIVE_CONTEXT
 
-    context_info = WORKFLOW_CONTEXTS[_ACTIVE_CONTEXT]
+    # Extract session context for per-session state
+    if args is None:
+        args = {}
+    session_state, session_id = _get_session_context(args)
+
+    # Get active workflow from session state or global fallback
+    if session_state:
+        active_context = session_state.get_active_workflow(session_id) or "baseline"
+    else:
+        active_context = _ACTIVE_CONTEXT
+
+    context_info = WORKFLOW_CONTEXTS[active_context]
 
     return {
-        "active_context": _ACTIVE_CONTEXT,
+        "active_context": active_context,
         "description": context_info["description"],
         "tools": context_info["tools"],
         "tool_count": len(context_info["tools"])
@@ -2110,6 +2153,8 @@ def handle_list_workflows(
 ) -> Dict[str, Any]:
     """List all available workflow contexts.
 
+    Uses per-session state via SessionState for multi-tenancy support.
+
     Args:
         db: ArangoDB database instance (not used, but required for handler signature)
         args: Validated ListWorkflowsArgs with include_tools flag
@@ -2117,6 +2162,9 @@ def handle_list_workflows(
     Returns:
         Dictionary with all available contexts
     """
+    # Extract session context for per-session state
+    session_state, session_id = _get_session_context(args)
+
     include_tools = args.get("include_tools", False)
 
     contexts = {}
@@ -2129,10 +2177,16 @@ def handle_list_workflows(
         if include_tools:
             contexts[context_name]["tools"] = context_info["tools"]
 
+    # Get active workflow from session state or global fallback
+    if session_state:
+        active_context = session_state.get_active_workflow(session_id) or "baseline"
+    else:
+        active_context = _ACTIVE_CONTEXT
+
     return {
         "contexts": contexts,
         "total_contexts": len(contexts),
-        "active_context": _ACTIVE_CONTEXT
+        "active_context": active_context
     }
 
 
@@ -2169,13 +2223,19 @@ WORKFLOW_STAGES = {
     }
 }
 
-# Global state for tool usage tracking (in production, this would be per-session)
+# Global state for tool usage tracking (legacy fallback during migration)
+# TODO: Remove in Milestone 3.2 after all tools migrated to SessionState
 _CURRENT_STAGE = "setup"
 _TOOL_USAGE_STATS = {}
 
 
 def _track_tool_usage(tool_name: str):
-    """Track tool usage for unloading decisions."""
+    """Track tool usage for unloading decisions (legacy global tracking).
+
+    Note: This function is deprecated. Tool usage is now tracked via
+    SessionState.track_tool_usage() in entry.py. This function remains
+    for backward compatibility during migration.
+    """
     if tool_name not in _TOOL_USAGE_STATS:
         _TOOL_USAGE_STATS[tool_name] = {
             "first_used": datetime.now().isoformat(),
@@ -2194,13 +2254,15 @@ def _track_tool_usage(tool_name: str):
     description="Advance to the next workflow stage, automatically unloading tools from previous stage and loading tools for new stage. Enables Tool Unloading pattern.",
     model=AdvanceWorkflowStageArgs,
 )
-def handle_advance_workflow_stage(
+async def handle_advance_workflow_stage(
     db: StandardDatabase, args: Dict[str, Any]
 ) -> Dict[str, Any]:
     """Advance to a new workflow stage with automatic tool unloading.
 
     This tool enables the Tool Unloading pattern by automatically removing
     tools from completed stages and loading tools for the new stage.
+
+    Uses per-session state via SessionState for multi-tenancy support.
 
     Args:
         db: ArangoDB database instance (not used, but required for handler signature)
@@ -2211,8 +2273,16 @@ def handle_advance_workflow_stage(
     """
     global _CURRENT_STAGE
 
+    # Extract session context for per-session state
+    session_state, session_id = _get_session_context(args)
+
     new_stage = args["stage"]
-    old_stage = _CURRENT_STAGE
+
+    # Get old stage from session state or global fallback
+    if session_state:
+        old_stage = session_state.get_tool_lifecycle_stage(session_id) or "setup"
+    else:
+        old_stage = _CURRENT_STAGE
 
     if new_stage not in WORKFLOW_STAGES:
         return {
@@ -2226,7 +2296,11 @@ def handle_advance_workflow_stage(
     tools_unloaded = list(old_tools - new_tools)
     tools_loaded = list(new_tools - old_tools)
 
-    _CURRENT_STAGE = new_stage
+    # Update session state or global fallback
+    if session_state:
+        await session_state.set_tool_lifecycle_stage(session_id, new_stage)
+    else:
+        _CURRENT_STAGE = new_stage
 
     return {
         "from_stage": old_stage,
@@ -2250,20 +2324,36 @@ def handle_get_tool_usage_stats(
 ) -> Dict[str, Any]:
     """Get tool usage statistics.
 
+    Uses per-session state via SessionState for multi-tenancy support.
+    Returns session-specific tool usage statistics when SessionState is available.
+
     Args:
         db: ArangoDB database instance (not used, but required for handler signature)
-        args: No arguments required
+        args: Optional arguments (may contain session context)
 
     Returns:
         Dictionary with tool usage statistics
     """
     global _TOOL_USAGE_STATS, _CURRENT_STAGE
 
+    # Extract session context for per-session state
+    if args is None:
+        args = {}
+    session_state, session_id = _get_session_context(args)
+
+    # Get stats from session state or global fallback
+    if session_state:
+        tool_usage = session_state.get_tool_usage_stats(session_id)
+        current_stage = session_state.get_tool_lifecycle_stage(session_id) or "setup"
+    else:
+        tool_usage = _TOOL_USAGE_STATS
+        current_stage = _CURRENT_STAGE
+
     return {
-        "current_stage": _CURRENT_STAGE,
-        "tool_usage": _TOOL_USAGE_STATS,
-        "total_tools_used": len(_TOOL_USAGE_STATS),
-        "active_stage_tools": WORKFLOW_STAGES[_CURRENT_STAGE]["tools"]
+        "current_stage": current_stage,
+        "tool_usage": tool_usage,
+        "total_tools_used": len(tool_usage),
+        "active_stage_tools": WORKFLOW_STAGES[current_stage]["tools"]
     }
 
 
@@ -2278,6 +2368,9 @@ def handle_unload_tools(
 ) -> Dict[str, Any]:
     """Manually unload specific tools.
 
+    Extracts session context for consistency with other pattern handlers,
+    though this handler doesn't currently use session state.
+
     Args:
         db: ArangoDB database instance (not used, but required for handler signature)
         args: Validated UnloadToolsArgs containing tool names to unload
@@ -2285,6 +2378,9 @@ def handle_unload_tools(
     Returns:
         Dictionary with unload results
     """
+    # Extract session context (not used currently, but prepared for future use)
+    _session_state, _session_id = _get_session_context(args)
+
     tool_names = args["tool_names"]
 
     # In a real implementation, this would remove tools from the active context

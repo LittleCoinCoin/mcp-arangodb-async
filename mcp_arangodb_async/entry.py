@@ -307,7 +307,7 @@ def _json_content(data: Any) -> List[types.Content]:
     return [types.TextContent(type="text", text=json.dumps(data, ensure_ascii=False))]
 
 
-def _invoke_handler(
+async def _invoke_handler(
     handler: Callable, db: StandardDatabase, args: Dict[str, Any]
 ) -> Any:
     """Invoke handler function with appropriate signature based on parameter inspection.
@@ -330,6 +330,10 @@ def _invoke_handler(
     - Uses single args dict for handlers without **kwargs (production handlers)
     - No try/catch overhead, deterministic signature detection
 
+    Supports both sync and async handlers:
+    - Async handlers (coroutine functions) are awaited
+    - Sync handlers are called directly
+
     Args:
         handler: Handler function to invoke (either real implementation or test mock)
         db: ArangoDB database instance
@@ -344,6 +348,7 @@ def _invoke_handler(
         handlers that require arguments vs. those that don't (e.g., list_collections).
     """
     import inspect
+    import asyncio
 
     # Inspect handler signature to determine calling convention
     sig = inspect.signature(handler)
@@ -354,13 +359,20 @@ def _invoke_handler(
         for p in sig.parameters.values()
     )
 
+    # Check if handler is async (coroutine function)
+    is_async = asyncio.iscoroutinefunction(handler)
+
     if has_var_keyword:
         # Test-compatible signature: handler(db, **args)
         # This allows mocked handlers in tests to inspect individual parameters
+        if is_async:
+            return await handler(db, **args)
         return handler(db, **args)
     else:
         # Production signature: handler(db, args)
         # This matches the documented handler pattern for real implementations
+        if is_async:
+            return await handler(db, args)
         return handler(db, args)
 
 
@@ -499,9 +511,16 @@ async def call_tool(name: str, arguments: Dict[str, Any]) -> List[types.Content]
                 }
             )
 
+    # Inject session context for pattern handlers that need per-session state
+    # This enables migration from global variables to SessionState
+    validated_args["_session_context"] = {
+        "session_state": session_state,
+        "session_id": session_id
+    }
+
     # Dispatch to handler via registry (O(1) lookup)
     try:
-        result = _invoke_handler(tool_reg.handler, db, validated_args)
+        result = await _invoke_handler(tool_reg.handler, db, validated_args)
 
         # Track tool usage in session state
         if session_state:
