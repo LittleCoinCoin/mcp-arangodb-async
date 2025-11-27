@@ -15,29 +15,80 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Table of Contents
 
-1. [Version 0.4.3 (Current)](#version-043---2025-11-24)
-2. [Version 0.4.2](#version-042---2025-11-24)
-3. [Version 0.4.1](#version-041---2025-11-24)
-4. [Version 0.4.0](#version-040---2025-11-11)
-4. [Version 0.3.2](#version-032---2025-10-20)
-5. [Version 0.3.1](#version-031---2025-10-20)
-6. [Version 0.3.0](#version-030---2025-10-20)
-7. [Version 0.2.11](#version-0211---2025-10-20)
-8. [Version 0.2.10](#version-0210---2025-10-20)
-9. [Version 0.2.9](#version-029---2025-10-20)
-10. [Version 0.2.8](#version-028---2025-10-20)
-11. [Version 0.2.7](#version-027---2025-10-19)
-12. [Version 0.2.6](#version-026---2025-10-15)
-13. [Version 0.2.5](#version-025---2025-10-10)
-14. [Version 0.2.0-0.2.4](#version-020-024---2025-09-01-to-2025-10-01)
-15. [Version 0.1.x](#version-01x---2025-08-01)
-16. [Migration Guides](#migration-guides)
+1. [Version 0.4.4 (Current)](#version-044---2025-11-27)
+2. [Version 0.4.3](#version-043---2025-11-24)
+3. [Version 0.4.2](#version-042---2025-11-24)
+4. [Version 0.4.1](#version-041---2025-11-24)
+5. [Version 0.4.0](#version-040---2025-11-11)
+6. [Version 0.3.2](#version-032---2025-10-20)
+7. [Version 0.3.1](#version-031---2025-10-20)
+8. [Version 0.3.0](#version-030---2025-10-20)
+9. [Version 0.2.11](#version-0211---2025-10-20)
+10. [Version 0.2.10](#version-0210---2025-10-20)
+11. [Version 0.2.9](#version-029---2025-10-20)
+12. [Version 0.2.8](#version-028---2025-10-20)
+13. [Version 0.2.7](#version-027---2025-10-19)
+14. [Version 0.2.6](#version-026---2025-10-15)
+15. [Version 0.2.5](#version-025---2025-10-10)
+16. [Version 0.2.0-0.2.4](#version-020-024---2025-09-01-to-2025-10-01)
+17. [Version 0.1.x](#version-01x---2025-08-01)
+18. [Migration Guides](#migration-guides)
+
+---
+
+## [0.4.4] - 2025-11-27
+
+**Current Release**
+
+### Changed
+
+✅ **State Migration - Tools (Milestone 3.1)**
+- **Migrated 6 design pattern tools + 1 helper from global variables to per-session state:**
+  - `handle_switch_workflow`: now async, uses `session_state.set_active_workflow()`
+  - `handle_get_active_workflow`: uses `session_state.get_active_workflow()`
+  - `handle_list_workflows`: uses `session_state.get_active_workflow()`
+  - `handle_advance_workflow_stage`: now async, uses `session_state.set_tool_lifecycle_stage()`
+  - `handle_unload_tools`: extracts session context for consistency
+  - `handle_get_tool_usage_stats`: uses `session_state.get_tool_usage_stats()` and `session_state.get_tool_lifecycle_stage()`
+  - `_track_tool_usage`: deprecated (tool usage now tracked via SessionState.track_tool_usage() in entry.py)
+
+- **Infrastructure changes for per-session state support:**
+  - `entry.py`: make `_invoke_handler` async-aware to support async handlers
+  - `entry.py`: inject `_session_context` into validated_args for pattern handlers
+  - `handlers.py`: add `_get_session_context()` helper for session context extraction
+  - Global variables `_ACTIVE_CONTEXT`, `_CURRENT_STAGE`, `_TOOL_USAGE_STATS` marked for removal in Milestone 3.2
+
+- **Rationale:** Enables multiple agents to work with different workflows/stages/stats simultaneously without interference, a prerequisite for multi-tenancy
+
+### Added
+
+✅ **Per-Session Isolation Tests**
+- 6 new tests for workflow tool session isolation
+- 2 new tests for lifecycle tool session isolation
+- 2 new tests for usage stats session isolation
+- Test coverage: 53 handler tests pass (up from 45)
+
+### Technical Details
+
+- Async handlers use `asyncio.Lock()` protected SessionState methods for thread-safe state mutations
+- Sync handlers use non-locking SessionState getter methods for read-only operations
+- Global variables retained as fallback during migration (removed in Milestone 3.2)
+- Backward compatible: handlers work without session context using global fallback
+
+### Files Changed
+
+**Modified:**
+- `mcp_arangodb_async/entry.py` - async-aware handler invocation, session context injection
+- `mcp_arangodb_async/handlers.py` - 6 handlers migrated to SessionState
+- `tests/test_handlers_unit.py` - 10 new per-session isolation tests
+
+### Related Issues
+
+Closes [#10](https://github.com/LittleCoinCoin/mcp-arangodb-async/issues/10), [#11](https://github.com/LittleCoinCoin/mcp-arangodb-async/issues/11), [#12](https://github.com/LittleCoinCoin/mcp-arangodb-async/issues/12)
 
 ---
 
 ## [0.4.3] - 2025-11-24
-
-**Current Release**
 
 ### Changed
 
