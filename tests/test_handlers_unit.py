@@ -760,12 +760,25 @@ class TestMCPDesignPatternHandlers:
     @pytest.mark.asyncio
     async def test_handle_switch_workflow_tracks_changes(self):
         """Test workflow switching tracks tool additions and removals."""
+        from mcp_arangodb_async.session_state import SessionState
+
+        session_state = SessionState()
+        session_id = "test_session_tracks"
+        session_state.initialize_session(session_id)
+
+        session_ctx = {
+            "_session_context": {
+                "session_state": session_state,
+                "session_id": session_id
+            }
+        }
+
         # First switch to data_analysis
-        args1 = {"context": "data_analysis"}
+        args1 = {"context": "data_analysis", **session_ctx}
         result1 = await handle_switch_workflow(self.mock_db, args1)
 
         # Then switch to graph_modeling
-        args2 = {"context": "graph_modeling"}
+        args2 = {"context": "graph_modeling", **session_ctx}
         result2 = await handle_switch_workflow(self.mock_db, args2)
 
         assert result2["from_context"] == "data_analysis"
@@ -777,12 +790,25 @@ class TestMCPDesignPatternHandlers:
     @pytest.mark.asyncio
     async def test_handle_get_active_workflow(self):
         """Test getting the currently active workflow."""
+        from mcp_arangodb_async.session_state import SessionState
+
+        session_state = SessionState()
+        session_id = "test_session_get_active"
+        session_state.initialize_session(session_id)
+
+        session_ctx = {
+            "_session_context": {
+                "session_state": session_state,
+                "session_id": session_id
+            }
+        }
+
         # Switch to a known context first using async handler
-        switch_args = {"context": "bulk_operations"}
+        switch_args = {"context": "bulk_operations", **session_ctx}
         await handle_switch_workflow(self.mock_db, switch_args)
 
-        # Now get active workflow (sync handler, uses global fallback without session_state)
-        result = handle_get_active_workflow(self.mock_db, None)
+        # Now get active workflow with session context
+        result = handle_get_active_workflow(self.mock_db, session_ctx)
 
         assert "active_context" in result
         assert result["active_context"] == "bulk_operations"
@@ -965,19 +991,32 @@ class TestMCPDesignPatternHandlers:
     @pytest.mark.asyncio
     async def test_handle_advance_workflow_stage_progression(self):
         """Test stage progression tracks tool lifecycle."""
+        from mcp_arangodb_async.session_state import SessionState
+
+        session_state = SessionState()
+        session_id = "test_session_progression"
+        session_state.initialize_session(session_id)
+
+        session_ctx = {
+            "_session_context": {
+                "session_state": session_state,
+                "session_id": session_id
+            }
+        }
+
         # First, reset to setup stage
-        reset_args = {"stage": "setup"}
+        reset_args = {"stage": "setup", **session_ctx}
         await handle_advance_workflow_stage(self.mock_db, reset_args)
 
         # Advance from setup to data_loading
-        args1 = {"stage": "data_loading"}
+        args1 = {"stage": "data_loading", **session_ctx}
         result1 = await handle_advance_workflow_stage(self.mock_db, args1)
 
         assert result1["from_stage"] == "setup"
         assert result1["to_stage"] == "data_loading"
 
         # Advance to analysis
-        args2 = {"stage": "analysis"}
+        args2 = {"stage": "analysis", **session_ctx}
         result2 = await handle_advance_workflow_stage(self.mock_db, args2)
 
         assert result2["from_stage"] == "data_loading"

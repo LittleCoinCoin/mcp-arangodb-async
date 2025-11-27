@@ -604,8 +604,15 @@ class TestMCPDesignPatternToolsIntegration:
     @pytest.mark.asyncio
     async def test_get_active_workflow(self):
         """Test arango_get_active_workflow through MCP server."""
+        from mcp_arangodb_async.session_state import SessionState
+
+        session_state = SessionState()
         with patch.object(server, 'request_context') as mock_ctx:
-            mock_ctx.lifespan_context = {"db": self.mock_db, "client": self.mock_client}
+            mock_ctx.lifespan_context = {
+                "db": self.mock_db,
+                "client": self.mock_client,
+                "session_state": session_state
+            }
 
             # First switch to a known context
             await server._handlers["call_tool"](
@@ -631,8 +638,15 @@ class TestMCPDesignPatternToolsIntegration:
     @pytest.mark.asyncio
     async def test_workflow_switching_workflow(self):
         """Test complete workflow switching workflow."""
+        from mcp_arangodb_async.session_state import SessionState
+
+        session_state = SessionState()
         with patch.object(server, 'request_context') as mock_ctx:
-            mock_ctx.lifespan_context = {"db": self.mock_db, "client": self.mock_client}
+            mock_ctx.lifespan_context = {
+                "db": self.mock_db,
+                "client": self.mock_client,
+                "session_state": session_state
+            }
 
             # Switch to data_analysis
             result1 = await server._handlers["call_tool"](
@@ -706,8 +720,15 @@ class TestMCPDesignPatternToolsIntegration:
     @pytest.mark.asyncio
     async def test_workflow_stage_progression(self):
         """Test complete workflow stage progression."""
+        from mcp_arangodb_async.session_state import SessionState
+
+        session_state = SessionState()
         with patch.object(server, 'request_context') as mock_ctx:
-            mock_ctx.lifespan_context = {"db": self.mock_db, "client": self.mock_client}
+            mock_ctx.lifespan_context = {
+                "db": self.mock_db,
+                "client": self.mock_client,
+                "session_state": session_state
+            }
 
             # Reset to setup stage
             await server._handlers["call_tool"](
@@ -793,8 +814,15 @@ class TestMCPDesignPatternToolsIntegration:
     @pytest.mark.asyncio
     async def test_complete_mcp_design_pattern_workflow(self):
         """Test realistic workflow combining all three patterns."""
+        from mcp_arangodb_async.session_state import SessionState
+
+        session_state = SessionState()
         with patch.object(server, 'request_context') as mock_ctx:
-            mock_ctx.lifespan_context = {"db": self.mock_db, "client": self.mock_client}
+            mock_ctx.lifespan_context = {
+                "db": self.mock_db,
+                "client": self.mock_client,
+                "session_state": session_state
+            }
 
             # Step 1: Search for tools (Pattern 1)
             search_result = await server._handlers["call_tool"](

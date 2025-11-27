@@ -2014,11 +2014,6 @@ WORKFLOW_CONTEXTS = {
     }
 }
 
-# Global state for active context (legacy fallback during migration)
-# TODO: Remove in Milestone 3.2 after all tools migrated to SessionState
-_ACTIVE_CONTEXT = "baseline"
-
-
 def _get_session_context(args: Dict[str, Any]) -> tuple:
     """Extract session context from args if available.
 
@@ -2057,18 +2052,16 @@ async def handle_switch_workflow(
     Returns:
         Dictionary with context switch details
     """
-    global _ACTIVE_CONTEXT
-
     # Extract session context for per-session state
     session_state, session_id = _get_session_context(args)
 
     new_context = args["context"]
 
-    # Get old context from session state or global fallback
+    # Get old context from session state or default
     if session_state:
         old_context = session_state.get_active_workflow(session_id) or "baseline"
     else:
-        old_context = _ACTIVE_CONTEXT
+        old_context = "baseline"
 
     if new_context not in WORKFLOW_CONTEXTS:
         return {
@@ -2082,11 +2075,9 @@ async def handle_switch_workflow(
     tools_added = list(new_tools - old_tools)
     tools_removed = list(old_tools - new_tools)
 
-    # Update session state or global fallback
+    # Update session state if available
     if session_state:
         await session_state.set_active_workflow(session_id, new_context)
-    else:
-        _ACTIVE_CONTEXT = new_context
 
     return {
         "from_context": old_context,
@@ -2119,18 +2110,16 @@ def handle_get_active_workflow(
     Returns:
         Dictionary with active context details
     """
-    global _ACTIVE_CONTEXT
-
     # Extract session context for per-session state
     if args is None:
         args = {}
     session_state, session_id = _get_session_context(args)
 
-    # Get active workflow from session state or global fallback
+    # Get active workflow from session state or default
     if session_state:
         active_context = session_state.get_active_workflow(session_id) or "baseline"
     else:
-        active_context = _ACTIVE_CONTEXT
+        active_context = "baseline"
 
     context_info = WORKFLOW_CONTEXTS[active_context]
 
@@ -2177,11 +2166,11 @@ def handle_list_workflows(
         if include_tools:
             contexts[context_name]["tools"] = context_info["tools"]
 
-    # Get active workflow from session state or global fallback
+    # Get active workflow from session state or default
     if session_state:
         active_context = session_state.get_active_workflow(session_id) or "baseline"
     else:
-        active_context = _ACTIVE_CONTEXT
+        active_context = "baseline"
 
     return {
         "contexts": contexts,
@@ -2223,30 +2212,6 @@ WORKFLOW_STAGES = {
     }
 }
 
-# Global state for tool usage tracking (legacy fallback during migration)
-# TODO: Remove in Milestone 3.2 after all tools migrated to SessionState
-_CURRENT_STAGE = "setup"
-_TOOL_USAGE_STATS = {}
-
-
-def _track_tool_usage(tool_name: str):
-    """Track tool usage for unloading decisions (legacy global tracking).
-
-    Note: This function is deprecated. Tool usage is now tracked via
-    SessionState.track_tool_usage() in entry.py. This function remains
-    for backward compatibility during migration.
-    """
-    if tool_name not in _TOOL_USAGE_STATS:
-        _TOOL_USAGE_STATS[tool_name] = {
-            "first_used": datetime.now().isoformat(),
-            "last_used": datetime.now().isoformat(),
-            "use_count": 0,
-            "stage": _CURRENT_STAGE
-        }
-
-    _TOOL_USAGE_STATS[tool_name]["last_used"] = datetime.now().isoformat()
-    _TOOL_USAGE_STATS[tool_name]["use_count"] += 1
-
 
 @handle_errors
 @register_tool(
@@ -2271,18 +2236,16 @@ async def handle_advance_workflow_stage(
     Returns:
         Dictionary with stage transition details
     """
-    global _CURRENT_STAGE
-
     # Extract session context for per-session state
     session_state, session_id = _get_session_context(args)
 
     new_stage = args["stage"]
 
-    # Get old stage from session state or global fallback
+    # Get old stage from session state or default
     if session_state:
         old_stage = session_state.get_tool_lifecycle_stage(session_id) or "setup"
     else:
-        old_stage = _CURRENT_STAGE
+        old_stage = "setup"
 
     if new_stage not in WORKFLOW_STAGES:
         return {
@@ -2296,11 +2259,9 @@ async def handle_advance_workflow_stage(
     tools_unloaded = list(old_tools - new_tools)
     tools_loaded = list(new_tools - old_tools)
 
-    # Update session state or global fallback
+    # Update session state if available
     if session_state:
         await session_state.set_tool_lifecycle_stage(session_id, new_stage)
-    else:
-        _CURRENT_STAGE = new_stage
 
     return {
         "from_stage": old_stage,
@@ -2334,20 +2295,18 @@ def handle_get_tool_usage_stats(
     Returns:
         Dictionary with tool usage statistics
     """
-    global _TOOL_USAGE_STATS, _CURRENT_STAGE
-
     # Extract session context for per-session state
     if args is None:
         args = {}
     session_state, session_id = _get_session_context(args)
 
-    # Get stats from session state or global fallback
+    # Get stats from session state or default
     if session_state:
         tool_usage = session_state.get_tool_usage_stats(session_id)
         current_stage = session_state.get_tool_lifecycle_stage(session_id) or "setup"
     else:
-        tool_usage = _TOOL_USAGE_STATS
-        current_stage = _CURRENT_STAGE
+        tool_usage = {}
+        current_stage = "setup"
 
     return {
         "current_stage": current_stage,
