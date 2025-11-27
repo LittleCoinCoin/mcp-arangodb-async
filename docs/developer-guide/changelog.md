@@ -15,31 +15,69 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Table of Contents
 
-1. [Version 0.4.5 (Current)](#version-045---2025-11-27)
-2. [Version 0.4.4](#version-044---2025-11-27)
-3. [Version 0.4.3](#version-043---2025-11-24)
-4. [Version 0.4.2](#version-042---2025-11-24)
-5. [Version 0.4.1](#version-041---2025-11-24)
-6. [Version 0.4.0](#version-040---2025-11-11)
-6. [Version 0.3.2](#version-032---2025-10-20)
-7. [Version 0.3.1](#version-031---2025-10-20)
-8. [Version 0.3.0](#version-030---2025-10-20)
-9. [Version 0.2.11](#version-0211---2025-10-20)
-10. [Version 0.2.10](#version-0210---2025-10-20)
-11. [Version 0.2.9](#version-029---2025-10-20)
-12. [Version 0.2.8](#version-028---2025-10-20)
-13. [Version 0.2.7](#version-027---2025-10-19)
-14. [Version 0.2.6](#version-026---2025-10-15)
-15. [Version 0.2.5](#version-025---2025-10-10)
-16. [Version 0.2.0-0.2.4](#version-020-024---2025-09-01-to-2025-10-01)
-17. [Version 0.1.x](#version-01x---2025-08-01)
-18. [Migration Guides](#migration-guides)
+1. [Version 0.4.6 (Current)](#version-046---2025-11-27)
+2. [Version 0.4.5](#version-045---2025-11-27)
+3. [Version 0.4.4](#version-044---2025-11-27)
+4. [Version 0.4.3](#version-043---2025-11-24)
+5. [Version 0.4.2](#version-042---2025-11-24)
+6. [Version 0.4.1](#version-041---2025-11-24)
+7. [Version 0.4.0](#version-040---2025-11-11)
+8. [Version 0.3.2](#version-032---2025-10-20)
+9. [Version 0.3.1](#version-031---2025-10-20)
+10. [Version 0.3.0](#version-030---2025-10-20)
+11. [Version 0.2.11](#version-0211---2025-10-20)
+12. [Version 0.2.10](#version-0210---2025-10-20)
+13. [Version 0.2.9](#version-029---2025-10-20)
+14. [Version 0.2.8](#version-028---2025-10-20)
+15. [Version 0.2.7](#version-027---2025-10-19)
+16. [Version 0.2.6](#version-026---2025-10-15)
+17. [Version 0.2.5](#version-025---2025-10-10)
+18. [Version 0.2.0-0.2.4](#version-020-024---2025-09-01-to-2025-10-01)
+19. [Version 0.1.x](#version-01x---2025-08-01)
+20. [Migration Guides](#migration-guides)
+
+---
+
+## [0.4.6] - 2025-11-27
+
+**Current Release**
+
+### Added
+
+✅ **Database Override - Tool Models (Milestone 4.1)**
+- **Tool Models Update (Task 4.1.1):**
+  - Added optional `database` parameter to 32 data operation tool models
+  - Enables per-tool database override for cross-database workflows
+  - Categories updated: Core Data (8), Indexing (4), Validation & Bulk (4), Graph (12), Schema & Query (4)
+  - Parameter pattern: `database: Optional[str] = Field(default=None, description="Database override")`
+  - All existing model tests pass (40/40)
+  - Issue: Closes [#15](https://github.com/LittleCoinCoin/mcp-arangodb-async/issues/15)
+
+- **Handler Updates & Testing (Task 4.1.2):**
+  - Added comprehensive test suite for per-tool database override functionality
+  - Test critical requirement: per-tool override does NOT mutate focused_database state
+  - Test database resolution priority (Level 1 override takes precedence)
+  - Test empty string and None handling (skip to next level)
+  - Test multiple tool calls with different overrides
+  - 7 new unit tests, all passing (7/7 asyncio tests)
+  - Issue: Closes [#16](https://github.com/LittleCoinCoin/mcp-arangodb-async/issues/16)
+
+### Technical Details
+
+**Database Resolution:**
+- Per-tool database override implemented via Level 1 of 6-level priority fallback
+- Database resolution already centralized in `entry.py` (from Milestone 1.2)
+- Handlers receive resolved database connection automatically
+- No handler code changes required (architecture already supports override)
+
+**Test Coverage:**
+- 7 new tests in `tests/test_per_tool_database_override_unit.py`
+- All existing tests continue to pass (40 model tests, 11 db_resolver tests)
+- Total: 58/63 tests passing (5 trio failures due to missing trio library)
 
 ---
 
 ## [0.4.5] - 2025-11-27
-
-**Current Release**
 
 ### Changed
 
