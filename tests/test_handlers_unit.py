@@ -933,11 +933,12 @@ class TestMCPDesignPatternHandlers:
     # Pattern 3: Tool Unloading
     # ========================================================================
 
-    def test_handle_advance_workflow_stage_valid(self):
+    @pytest.mark.asyncio
+    async def test_handle_advance_workflow_stage_valid(self):
         """Test advancing to a valid workflow stage."""
         args = {"stage": "data_loading"}
 
-        result = handle_advance_workflow_stage(self.mock_db, args)
+        result = await handle_advance_workflow_stage(self.mock_db, args)
 
         assert "from_stage" in result
         assert "to_stage" in result
@@ -950,37 +951,100 @@ class TestMCPDesignPatternHandlers:
         assert isinstance(result["active_tools"], list)
         assert result["total_active_tools"] == len(result["active_tools"])
 
-    def test_handle_advance_workflow_stage_invalid(self):
+    @pytest.mark.asyncio
+    async def test_handle_advance_workflow_stage_invalid(self):
         """Test advancing to invalid stage returns error."""
         args = {"stage": "invalid_stage"}
 
-        result = handle_advance_workflow_stage(self.mock_db, args)
+        result = await handle_advance_workflow_stage(self.mock_db, args)
 
         assert "error" in result
         assert "available_stages" in result
         assert "invalid_stage" in result["error"]
 
-    def test_handle_advance_workflow_stage_progression(self):
+    @pytest.mark.asyncio
+    async def test_handle_advance_workflow_stage_progression(self):
         """Test stage progression tracks tool lifecycle."""
         # First, reset to setup stage
         reset_args = {"stage": "setup"}
-        handle_advance_workflow_stage(self.mock_db, reset_args)
+        await handle_advance_workflow_stage(self.mock_db, reset_args)
 
         # Advance from setup to data_loading
         args1 = {"stage": "data_loading"}
-        result1 = handle_advance_workflow_stage(self.mock_db, args1)
+        result1 = await handle_advance_workflow_stage(self.mock_db, args1)
 
         assert result1["from_stage"] == "setup"
         assert result1["to_stage"] == "data_loading"
 
         # Advance to analysis
         args2 = {"stage": "analysis"}
-        result2 = handle_advance_workflow_stage(self.mock_db, args2)
+        result2 = await handle_advance_workflow_stage(self.mock_db, args2)
 
         assert result2["from_stage"] == "data_loading"
         assert result2["to_stage"] == "analysis"
         assert isinstance(result2["tools_unloaded"], list)
         assert isinstance(result2["tools_loaded"], list)
+
+    # ========================================================================
+    # Pattern 3.1: Lifecycle Tools with SessionState (Per-Session Isolation)
+    # ========================================================================
+
+    @pytest.mark.asyncio
+    async def test_handle_advance_workflow_stage_with_session_state(self):
+        """Test advancing workflow stage with SessionState for per-session isolation."""
+        from mcp_arangodb_async.session_state import SessionState
+
+        session_state = SessionState()
+        session_id = "test_session_1"
+        session_state.initialize_session(session_id)
+
+        args = {
+            "stage": "data_loading",
+            "_session_context": {
+                "session_state": session_state,
+                "session_id": session_id
+            }
+        }
+
+        result = await handle_advance_workflow_stage(self.mock_db, args)
+
+        assert result["to_stage"] == "data_loading"
+        assert session_state.get_tool_lifecycle_stage(session_id) == "data_loading"
+
+    @pytest.mark.asyncio
+    async def test_handle_advance_workflow_stage_session_isolation(self):
+        """Test that lifecycle stage is isolated between sessions."""
+        from mcp_arangodb_async.session_state import SessionState
+
+        session_state = SessionState()
+        session_1 = "session_1"
+        session_2 = "session_2"
+        session_state.initialize_session(session_1)
+        session_state.initialize_session(session_2)
+
+        # Advance session 1 to data_loading
+        args1 = {
+            "stage": "data_loading",
+            "_session_context": {
+                "session_state": session_state,
+                "session_id": session_1
+            }
+        }
+        await handle_advance_workflow_stage(self.mock_db, args1)
+
+        # Advance session 2 to analysis
+        args2 = {
+            "stage": "analysis",
+            "_session_context": {
+                "session_state": session_state,
+                "session_id": session_2
+            }
+        }
+        await handle_advance_workflow_stage(self.mock_db, args2)
+
+        # Verify isolation
+        assert session_state.get_tool_lifecycle_stage(session_1) == "data_loading"
+        assert session_state.get_tool_lifecycle_stage(session_2) == "analysis"
 
     def test_handle_get_tool_usage_stats(self):
         """Test getting tool usage statistics."""
