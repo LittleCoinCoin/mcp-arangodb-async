@@ -15,11 +15,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Table of Contents
 
-1. [Version 0.4.4 (Current)](#version-044---2025-11-27)
-2. [Version 0.4.3](#version-043---2025-11-24)
-3. [Version 0.4.2](#version-042---2025-11-24)
-4. [Version 0.4.1](#version-041---2025-11-24)
-5. [Version 0.4.0](#version-040---2025-11-11)
+1. [Version 0.4.5 (Current)](#version-045---2025-11-27)
+2. [Version 0.4.4](#version-044---2025-11-27)
+3. [Version 0.4.3](#version-043---2025-11-24)
+4. [Version 0.4.2](#version-042---2025-11-24)
+5. [Version 0.4.1](#version-041---2025-11-24)
+6. [Version 0.4.0](#version-040---2025-11-11)
 6. [Version 0.3.2](#version-032---2025-10-20)
 7. [Version 0.3.1](#version-031---2025-10-20)
 8. [Version 0.3.0](#version-030---2025-10-20)
@@ -36,9 +37,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [0.4.4] - 2025-11-27
+## [0.4.5] - 2025-11-27
 
 **Current Release**
+
+### Changed
+
+✅ **State Migration - Cleanup (Milestone 3.2)**
+- **Removed global variables from handlers.py (Task 3.2.1):**
+  - Deleted `_ACTIVE_CONTEXT` global variable
+  - Deleted `_CURRENT_STAGE` global variable
+  - Deleted `_TOOL_USAGE_STATS` global variable
+  - Deleted deprecated `_track_tool_usage()` function
+  - Replaced global fallbacks with default values ("baseline", "setup", {})
+  - Grep for global variables returns 0 results
+
+### Added
+
+✅ **Concurrent Session Isolation Verification (Task 3.2.2)**
+- `test_concurrent_sessions_independent_state()`: Verifies 2 concurrent sessions have completely independent state across all 4 state components
+- `test_workflow_switch_preserves_focused_database()`: Verifies focused database remains stable during workflow/stage switches
+- 100% code coverage for session_state.py
+- All 344 tests pass
+
+### Technical Details
+
+- SessionState now the single source of truth for per-session state
+- No global variable fallback means handlers require session context for state persistence
+- Tests updated to provide session context where state persistence is needed
+- Phase 3 complete: Multi-tenancy foundation fully established
+
+### Files Changed
+
+**Modified:**
+- `mcp_arangodb_async/handlers.py` - Remove global variables and fallbacks
+- `tests/test_handlers_unit.py` - 3 tests updated to use session state
+- `tests/test_mcp_integration.py` - 4 tests updated to include session_state in mock context
+- `tests/test_session_state_unit.py` - 2 new verification tests
+
+### Related Issues
+
+Closes [#13](https://github.com/LittleCoinCoin/mcp-arangodb-async/issues/13), [#14](https://github.com/LittleCoinCoin/mcp-arangodb-async/issues/14)
+
+---
+
+## [0.4.4] - 2025-11-27
 
 ### Changed
 
