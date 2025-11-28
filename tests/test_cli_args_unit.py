@@ -37,8 +37,8 @@ class TestCLIArgumentParsing:
                 assert result == 0
 
     def test_server_flag(self):
-        """Test --server flag."""
-        with patch("sys.argv", ["mcp_arangodb_async", "--server"]):
+        """Test server subcommand."""
+        with patch("sys.argv", ["mcp_arangodb_async", "server"]):
             with patch("mcp_arangodb_async.entry.main") as mock_entry:
                 from mcp_arangodb_async.__main__ import main
 
@@ -49,8 +49,8 @@ class TestCLIArgumentParsing:
                 assert result == 0
 
     def test_transport_stdio_explicit(self):
-        """Test --transport stdio flag."""
-        with patch("sys.argv", ["mcp_arangodb_async", "--transport", "stdio"]):
+        """Test server --transport stdio flag."""
+        with patch("sys.argv", ["mcp_arangodb_async", "server", "--transport", "stdio"]):
             with patch("mcp_arangodb_async.entry.main") as mock_entry:
                 from mcp_arangodb_async.__main__ import main
 
@@ -62,8 +62,8 @@ class TestCLIArgumentParsing:
                 assert result == 0
 
     def test_transport_http_basic(self):
-        """Test --transport http flag."""
-        with patch("sys.argv", ["mcp_arangodb_async", "--transport", "http"]):
+        """Test server --transport http flag."""
+        with patch("sys.argv", ["mcp_arangodb_async", "server", "--transport", "http"]):
             with patch("mcp_arangodb_async.entry.main") as mock_entry:
                 from mcp_arangodb_async.__main__ import main
                 from mcp_arangodb_async.transport_config import TransportConfig
@@ -83,10 +83,10 @@ class TestCLIArgumentParsing:
                 assert result == 0
 
     def test_transport_http_custom_host(self):
-        """Test --transport http with --host flag."""
+        """Test server --transport http with --host flag."""
         with patch(
             "sys.argv",
-            ["mcp_arangodb_async", "--transport", "http", "--host", "127.0.0.1"],
+            ["mcp_arangodb_async", "server", "--transport", "http", "--host", "127.0.0.1"],
         ):
             with patch("mcp_arangodb_async.entry.main") as mock_entry:
                 from mcp_arangodb_async.__main__ import main
@@ -103,9 +103,9 @@ class TestCLIArgumentParsing:
                 assert result == 0
 
     def test_transport_http_custom_port(self):
-        """Test --transport http with --port flag."""
+        """Test server --transport http with --port flag."""
         with patch(
-            "sys.argv", ["mcp_arangodb_async", "--transport", "http", "--port", "9000"]
+            "sys.argv", ["mcp_arangodb_async", "server", "--transport", "http", "--port", "9000"]
         ):
             with patch("mcp_arangodb_async.entry.main") as mock_entry:
                 from mcp_arangodb_async.__main__ import main
@@ -122,9 +122,9 @@ class TestCLIArgumentParsing:
                 assert result == 0
 
     def test_transport_http_stateless(self):
-        """Test --transport http with --stateless flag."""
+        """Test server --transport http with --stateless flag."""
         with patch(
-            "sys.argv", ["mcp_arangodb_async", "--transport", "http", "--stateless"]
+            "sys.argv", ["mcp_arangodb_async", "server", "--transport", "http", "--stateless"]
         ):
             with patch("mcp_arangodb_async.entry.main") as mock_entry:
                 from mcp_arangodb_async.__main__ import main
@@ -141,11 +141,12 @@ class TestCLIArgumentParsing:
                 assert result == 0
 
     def test_transport_http_all_options(self):
-        """Test --transport http with all options."""
+        """Test server --transport http with all options."""
         with patch(
             "sys.argv",
             [
                 "mcp_arangodb_async",
+                "server",
                 "--transport",
                 "http",
                 "--host",
@@ -328,7 +329,7 @@ class TestCLIEnvironmentVariables:
     def test_cli_args_override_env_vars(self):
         """Test that CLI arguments override environment variables."""
         with patch(
-            "sys.argv", ["mcp_arangodb_async", "--transport", "http", "--port", "9000"]
+            "sys.argv", ["mcp_arangodb_async", "server", "--transport", "http", "--port", "9000"]
         ):
             with patch.dict(
                 "os.environ",
