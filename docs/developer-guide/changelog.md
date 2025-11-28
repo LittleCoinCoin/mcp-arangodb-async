@@ -15,8 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Table of Contents
 
-1. [Version 0.4.6 (Current)](#version-046---2025-11-27)
-2. [Version 0.4.5](#version-045---2025-11-27)
+1. [Version 0.4.7 (Current)](#version-047---2025-11-28)
+2. [Version 0.4.6](#version-046---2025-11-27)
+3. [Version 0.4.5](#version-045---2025-11-27)
 3. [Version 0.4.4](#version-044---2025-11-27)
 4. [Version 0.4.3](#version-043---2025-11-24)
 5. [Version 0.4.2](#version-042---2025-11-24)
@@ -38,9 +39,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [0.4.6] - 2025-11-27
+## [0.4.7] - 2025-11-28
 
 **Current Release**
+
+### Added
+
+✅ **Multi-Tenancy Tools (Milestone 4.2 - Task 4.2.1)**
+- **MCP Tools Implementation:**
+  - Implemented 6 multi-tenancy MCP tools for database management:
+    * `arango_set_focused_database` - Set focused database for session
+    * `arango_get_focused_database` - Get currently focused database
+    * `arango_list_available_databases` - List all configured databases
+    * `arango_get_database_resolution` - Show database resolution algorithm
+    * `arango_test_database_connection` - Test connection to specific database
+    * `arango_get_multi_database_status` - Get status of all databases
+  - Added tool constants to `tools.py`
+  - Added tool models to `models.py`
+  - Added tool handlers to `handlers.py`
+  - Comprehensive unit tests with 19 test cases covering all scenarios
+  - All tests passing with excellent coverage
+
+### Changed
+
+- Updated `DeleteIndexArgs` test to expect `database` parameter (added in Milestone 4.1)
+
+### Technical Details
+
+- **Files Modified:**
+  - `mcp_arangodb_async/tools.py` - Added 6 tool constants
+  - `mcp_arangodb_async/models.py` - Added 6 tool models
+  - `mcp_arangodb_async/handlers.py` - Added 6 tool handlers
+  - `tests/test_multi_tenancy_tools_unit.py` - Added comprehensive tests
+  - `tests/test_comprehensive_fixes.py` - Updated test for database parameter
+
+- **Test Coverage:**
+  - 19 unit tests for multi-tenancy tools
+  - Tests cover success cases, error cases, and edge cases
+  - Tests verify session state integration
+  - Tests verify database manager integration
+  - Tests verify error handling and validation
+
+---
+
+## [0.4.6] - 2025-11-27
 
 ### Added
 

@@ -51,6 +51,14 @@ Schema & Enhanced Query Tools:
     - ARANGO_VALIDATE_DOCUMENT
     - ARANGO_QUERY_BUILDER
     - ARANGO_QUERY_PROFILE
+
+Multi-Tenancy Tools:
+    - ARANGO_SET_FOCUSED_DATABASE
+    - ARANGO_GET_FOCUSED_DATABASE
+    - ARANGO_LIST_AVAILABLE_DATABASES
+    - ARANGO_GET_DATABASE_RESOLUTION
+    - ARANGO_TEST_DATABASE_CONNECTION
+    - ARANGO_GET_MULTI_DATABASE_STATUS
 """
 
 # Tool name constants (to match the TS implementation semantics)
@@ -118,3 +126,11 @@ ARANGO_LIST_WORKFLOWS = "arango_list_workflows"
 ARANGO_ADVANCE_WORKFLOW_STAGE = "arango_advance_workflow_stage"
 ARANGO_GET_TOOL_USAGE_STATS = "arango_get_tool_usage_stats"
 ARANGO_UNLOAD_TOOLS = "arango_unload_tools"
+
+# Multi-Tenancy Tools
+ARANGO_SET_FOCUSED_DATABASE = "arango_set_focused_database"
+ARANGO_GET_FOCUSED_DATABASE = "arango_get_focused_database"
+ARANGO_LIST_AVAILABLE_DATABASES = "arango_list_available_databases"
+ARANGO_GET_DATABASE_RESOLUTION = "arango_get_database_resolution"
+ARANGO_TEST_DATABASE_CONNECTION = "arango_test_database_connection"
+ARANGO_GET_MULTI_DATABASE_STATUS = "arango_get_multi_database_status"

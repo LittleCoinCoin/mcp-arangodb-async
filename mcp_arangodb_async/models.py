@@ -48,6 +48,14 @@ Enhanced Query:
     - QuerySort
     - QueryBuilderArgs
     - QueryProfileArgs
+
+Multi-Tenancy:
+    - SetFocusedDatabaseArgs
+    - GetFocusedDatabaseArgs
+    - ListAvailableDatabasesArgs
+    - GetDatabaseResolutionArgs
+    - TestDatabaseConnectionArgs
+    - GetMultiDatabaseStatusArgs
 """
 
 from __future__ import annotations
@@ -511,3 +519,38 @@ class UnloadToolsArgs(BaseModel):
     tool_names: List[str] = Field(
         description="List of tool names to unload from active context"
     )
+
+
+# Multi-Tenancy Tools
+class SetFocusedDatabaseArgs(BaseModel):
+    """Arguments for arango_set_focused_database."""
+    database: str = Field(
+        description="Database key to set as focused database for this session"
+    )
+
+
+class GetFocusedDatabaseArgs(BaseModel):
+    """Arguments for arango_get_focused_database."""
+    pass
+
+
+class ListAvailableDatabasesArgs(BaseModel):
+    """Arguments for arango_list_available_databases."""
+    pass
+
+
+class GetDatabaseResolutionArgs(BaseModel):
+    """Arguments for arango_get_database_resolution."""
+    pass
+
+
+class TestDatabaseConnectionArgs(BaseModel):
+    """Arguments for arango_test_database_connection."""
+    database: str = Field(
+        description="Database key to test connection for"
+    )
+
+
+class GetMultiDatabaseStatusArgs(BaseModel):
+    """Arguments for arango_get_multi_database_status."""
+    pass
