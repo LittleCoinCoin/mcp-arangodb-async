@@ -63,6 +63,15 @@ python -m mcp_arangodb_async db --help
 config/databases.yaml
 ```
 
+### How Configuration Works
+
+The CLI tool manages a YAML configuration file that stores database connection details. **Passwords are NOT stored in the YAML file** - only the names of environment variables that contain passwords.
+
+**Security Model:**
+1. YAML file stores: database URLs, usernames, and **environment variable names**
+2. Environment variables store: actual passwords (never in YAML)
+3. At connection time: Server reads environment variables to get passwords
+
 ### YAML Schema
 
 ```yaml
@@ -75,22 +84,22 @@ databases:
     url: "http://localhost:8529"
     database: "myapp_prod"
     username: "admin"
-    password_env: "MCP_ARANGO_PROD_PASSWORD"  # Environment variable name
+    password_env: "MCP_ARANGO_PROD_PASSWORD"  # ← NAME of env var (not the password!)
     timeout: 60.0
     description: "Production database for live data"  # Optional
-  
+
   staging:
     url: "http://staging.example.com:8529"
     database: "myapp_staging"
     username: "admin"
-    password_env: "MCP_ARANGO_STAGING_PASSWORD"
+    password_env: "MCP_ARANGO_STAGING_PASSWORD"  # ← Different env var for different password
     timeout: 30.0
     description: "Staging database for pre-production testing"
 ```
 
 ### Environment Variables
 
-Passwords are stored in environment variables referenced by name in the YAML file:
+Passwords are stored in environment variables. The YAML file only references the environment variable **names**:
 
 ```bash
 # Linux/macOS
@@ -101,6 +110,22 @@ export MCP_ARANGO_STAGING_PASSWORD="your-staging-password"
 $env:MCP_ARANGO_PROD_PASSWORD="your-secure-password"
 $env:MCP_ARANGO_STAGING_PASSWORD="your-staging-password"
 ```
+
+**Important:** Each database can have a different password by using different environment variable names. This allows secure multi-environment setups where production and staging have different credentials.
+
+---
+
+## Important: Server Restart Required
+
+**After using `db add` or `db remove`, the MCP server must be restarted to pick up the changes.**
+
+The flow is:
+1. Run `db add production ...` → Updates YAML file ✅
+2. MCP server reads YAML file at startup
+3. **Stop and restart the MCP server** to load new configuration
+4. After restart, the database is accessible via MCP tools
+
+**Why?** The server loads the configuration once at startup. Changes to the YAML file are not automatically reloaded while the server is running.
 
 ---
 

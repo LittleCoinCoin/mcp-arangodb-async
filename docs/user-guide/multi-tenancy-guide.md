@@ -38,39 +38,85 @@ The multi-tenancy system consists of three layers:
 2. **Resolution Layer** - Algorithm to determine which database to use
 3. **Tool Layer** - MCP tools with optional database parameter
 
+### Security Model: Password Environment Variables
+
+**Passwords are never stored in the YAML configuration file.** Instead:
+
+1. **YAML file stores:** Database URLs, usernames, and **environment variable names**
+2. **Environment stores:** Actual passwords (never in YAML)
+3. **At connection time:** Server reads environment variables to get passwords
+
+**Example:**
+
+YAML file (`config/databases.yaml`):
+```yaml
+databases:
+  production:
+    url: "http://localhost:8529"
+    database: "myapp_prod"
+    username: "admin"
+    password_env: "MCP_ARANGO_PROD_PASSWORD"  # ← Just the name, not the password!
+```
+
+Environment variables (shell):
+```bash
+export MCP_ARANGO_PROD_PASSWORD="actual-password-here"  # ← The actual password
+```
+
+**Why this design?**
+- Passwords are never committed to version control
+- Different environments can have different passwords
+- Passwords can be rotated without changing YAML files
+- Follows security best practices (12-factor app)
+
 ---
 
 ## Quick Start
 
 ### Step 1: Configure Databases
 
-Use the CLI tool to add database configurations:
+Use the CLI tool to add database configurations. The `--password-env` parameter specifies the **name** of an environment variable that will contain the password (not the password itself):
 
 ```bash
 # Add production database
+# Note: --password-env is the NAME of an environment variable, not the password
 python -m mcp_arangodb_async db add production \
   --url http://localhost:8529 \
   --database myapp_prod \
   --username admin \
   --password-env MCP_ARANGO_PROD_PASSWORD
 
-# Add staging database
+# Add staging database with DIFFERENT password environment variable
 python -m mcp_arangodb_async db add staging \
   --url http://staging:8529 \
   --database myapp_staging \
   --username admin \
   --password-env MCP_ARANGO_STAGING_PASSWORD
-
-# Set passwords
-export MCP_ARANGO_PROD_PASSWORD="prod-password"
-export MCP_ARANGO_STAGING_PASSWORD="staging-password"
 ```
 
-### Step 2: Start MCP Server
+### Step 2: Set Environment Variables
+
+Set the actual passwords in environment variables (using the names you specified above):
+
+```bash
+# Linux/macOS
+export MCP_ARANGO_PROD_PASSWORD="prod-password"
+export MCP_ARANGO_STAGING_PASSWORD="staging-password"
+
+# Windows (PowerShell)
+$env:MCP_ARANGO_PROD_PASSWORD="prod-password"
+$env:MCP_ARANGO_STAGING_PASSWORD="staging-password"
+```
+
+**Why different environment variable names?** Each database can have a different password. By using different environment variable names, you can set different passwords for production and staging.
+
+### Step 3: Start MCP Server
 
 ```bash
 python -m mcp_arangodb_async server
 ```
+
+**Important:** The server reads the configuration file at startup. If you add or remove databases, you must restart the server for changes to take effect.
 
 ### Step 3: Use Multi-Tenancy Tools
 
