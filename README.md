@@ -235,27 +235,25 @@ Work with multiple databases using YAML configuration:
 **1. Configure databases via CLI:**
 
 ```bash
-# Add production database
-# Note: --password-env is the NAME of an environment variable (not the password)
+# Same server, same user = same password env var
 python -m mcp_arangodb_async db add production \
   --url http://localhost:8529 \
   --database myapp_prod \
   --username admin \
-  --password-env MCP_ARANGO_PROD_PASSWORD
+  --password-env ARANGO_PASSWORD
 
-# Add staging database with different password environment variable
 python -m mcp_arangodb_async db add staging \
-  --url http://staging:8529 \
+  --url http://localhost:8529 \
   --database myapp_staging \
   --username admin \
-  --password-env MCP_ARANGO_STAGING_PASSWORD
+  --password-env ARANGO_PASSWORD
 ```
 
-**2. Set environment variables with actual passwords:**
+**2. Set password for the user:**
 
 ```bash
-export MCP_ARANGO_PROD_PASSWORD="prod-password"
-export MCP_ARANGO_STAGING_PASSWORD="staging-password"
+# Passwords are bound to users, not databases
+export ARANGO_PASSWORD="admin-password"
 ```
 
 **3. Restart the MCP server** to pick up the new configuration:
@@ -263,6 +261,8 @@ export MCP_ARANGO_STAGING_PASSWORD="staging-password"
 ```bash
 python -m mcp_arangodb_async server
 ```
+
+**Note:** The MCP server connects to existing databases. Use `scripts/setup-arango.ps1` or ArangoDB's web UI to create databases and users first.
 
 **2. Use multi-tenancy tools:**
 

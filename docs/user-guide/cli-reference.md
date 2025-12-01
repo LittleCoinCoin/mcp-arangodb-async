@@ -74,27 +74,46 @@ The CLI tool manages a YAML configuration file that stores database connection d
 
 ### YAML Schema
 
+**Important:** Passwords are bound to **users**, not databases. If you use the same user on the same ArangoDB server for multiple databases, they use the same password.
+
+**Example - Same server, same user (typical):**
+
 ```yaml
-# Optional: Default database to use when no focused database is set
 default_database: "production"
 
-# Database configurations
 databases:
   production:
     url: "http://localhost:8529"
     database: "myapp_prod"
     username: "admin"
-    password_env: "MCP_ARANGO_PROD_PASSWORD"  # ← NAME of env var (not the password!)
+    password_env: "ARANGO_PASSWORD"  # Same user = same env var
     timeout: 60.0
-    description: "Production database for live data"  # Optional
+    description: "Production database"
 
   staging:
-    url: "http://staging.example.com:8529"
+    url: "http://localhost:8529"
     database: "myapp_staging"
     username: "admin"
-    password_env: "MCP_ARANGO_STAGING_PASSWORD"  # ← Different env var for different password
+    password_env: "ARANGO_PASSWORD"  # Same user = same env var
     timeout: 30.0
-    description: "Staging database for pre-production testing"
+    description: "Staging database"
+```
+
+**Example - Different servers (separate ArangoDB instances):**
+
+```yaml
+databases:
+  production:
+    url: "http://prod-server:8529"
+    database: "myapp_prod"
+    username: "admin"
+    password_env: "PROD_ARANGO_PASSWORD"  # Different server
+
+  staging:
+    url: "http://staging-server:8529"
+    database: "myapp_staging"
+    username: "admin"
+    password_env: "STAGING_ARANGO_PASSWORD"  # Different server
 ```
 
 ### Environment Variables
@@ -102,16 +121,13 @@ databases:
 Passwords are stored in environment variables. The YAML file only references the environment variable **names**:
 
 ```bash
-# Linux/macOS
-export MCP_ARANGO_PROD_PASSWORD="your-secure-password"
-export MCP_ARANGO_STAGING_PASSWORD="your-staging-password"
+# Same server, same user - one password
+export ARANGO_PASSWORD="admin-password"
 
-# Windows (PowerShell)
-$env:MCP_ARANGO_PROD_PASSWORD="your-secure-password"
-$env:MCP_ARANGO_STAGING_PASSWORD="your-staging-password"
+# OR for different servers - different passwords
+export PROD_ARANGO_PASSWORD="prod-admin-password"
+export STAGING_ARANGO_PASSWORD="staging-admin-password"
 ```
-
-**Important:** Each database can have a different password by using different environment variable names. This allows secure multi-environment setups where production and staging have different credentials.
 
 ---
 
