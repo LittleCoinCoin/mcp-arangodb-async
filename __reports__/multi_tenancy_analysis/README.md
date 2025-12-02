@@ -60,7 +60,23 @@ This directory contains comprehensive analysis and documentation for multi-tenan
 - **[02-integration_design_v0.md](./02-integration_design_v0.md)** 📦 **ARCHIVED** - Initial integration design
   - Superseded by v3 after stakeholder feedback iterations
 
+- **[04-admin_cli_roadmap_v0.md](./04-admin_cli_roadmap_v0.md)** ⭐ **CURRENT** - Milestone 4.3 Admin CLI roadmap (v0)
+  - **Purpose**: Implementation roadmap for GitHub Issue #33 (Admin CLI)
+  - **Scope**: All 10 CLI commands (full scope per stakeholder decision)
+  - 4 tasks: Scope Analysis → Test Suite → Implementation → Documentation
+  - Timeline: 6-8 days (test-driven, architecture-first)
+  - **Status**: Ready for Implementation
+
+- **[03-scope_extension_evaluation_v0.md](./03-scope_extension_evaluation_v0.md)** 📦 **ARCHIVED** - Scope extension evaluation for Issues #33 and #34 (v0)
+  - **Purpose**: Evaluate late-stage feature requests for v0.5.0 release
+  - **Issue #33**: Admin CLI for User/Database CRUD (portability blocker)
+  - **Issue #34**: Hot Reload Configuration (DX improvement)
+  - Decision matrix and recommended action plan
+  - **Original Recommendation**: #33 IMPLEMENT (reduced scope), #34 DEFER to v0.6.0
+  - **Stakeholder Decision**: #33 IMPLEMENT (full scope) → See 04-admin_cli_roadmap_v0.md
+
 - **[02-implementation_roadmap_v3.md](./02-implementation_roadmap_v3.md)** ⭐ **CURRENT** - Implementation roadmap for v0.4.0 → v0.5.0 (v3 - Final)
+  - **NOTE**: Milestone 4.3 (Admin CLI) inserted between 4.2 and 5.1 per 04-admin_cli_roadmap_v0.md
   - **Changes from v2**: Added Context (1-4 bullets) and Rationale (1-2 sentences) to all 23 tasks, enhanced testing specifications (90% coverage target, style compliance, scope discipline), enhanced documentation gates (style guide compliance, integration analysis), added deferred feature (server-side multi-threading within single session)
   - **Purpose**: Actionable implementation roadmap aligned with Architecture Design v3
   - **Format**: Focused, comprehensive (707 lines)
