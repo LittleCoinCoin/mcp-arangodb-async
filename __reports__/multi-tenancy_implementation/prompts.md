@@ -1175,9 +1175,9 @@ Generally, the report was good, and stakeholders don't see any blocking issues a
 
 Excellent work on the v1 CLI design analysis. The stakeholders have reviewed it and approve the overall design direction. They have provided final feedback on **operation result reporting** that needs to be integrated before implementation.
 
-## Required Changes for v2
+#### Required Changes for v2
 
-### 1. Enhanced Operation Result Reporting
+##### 1. Enhanced Operation Result Reporting
 
 **Requirement**: All mutating commands must display comprehensive feedback about the consequences of operations, not just success/failure messages.
 
@@ -1196,7 +1196,7 @@ $ mcp-arangodb-async db remove mydb --yes
 
 **Rationale**: Users need transparency about cascading effects and side effects of operations (e.g., which users lost access when a database was deleted, which permissions were granted, etc.).
 
-### 2. Standardized Output Format for All Mutating Commands
+##### 2. Standardized Output Format for All Mutating Commands
 
 **Requirement**: Establish a consistent output format template that works for both `--dry-run` preview mode and actual execution mode.
 
@@ -1235,14 +1235,14 @@ Are you sure you want to proceed? [y/N]: y
 [GRANTED] Permission rw: myuser → mydb
 ```
 
-### 3. Apply Consistent Reporting to All Commands
+##### 3. Apply Consistent Reporting to All Commands
 
 Update the command reference section to show this standardized output format for:
 - `db add` / `db remove`
 - `db config add` / `db config remove`
 - `user add` / `user remove` / `user grant` / `user revoke` / `user password`
 
-## Your Task
+#### Your Task
 
 **Create `00-cli_design_analysis_v2.md`** (do not overwrite v1) with the following changes:
 
@@ -1256,14 +1256,14 @@ Update the command reference section to show this standardized output format for
 5. **Streamline content**: Remove trade-off analysis sections (Section 8) and other comparative discussions that are no longer needed since the design has been approved. Focus on documenting the **final accepted design** rather than alternatives considered.
 6. **Update README.md**: Reference v2 as the current version
 
-## Constraints
+##### Constraints
 
 - **Do not overwrite v1** - create a new file `00-cli_design_analysis_v2.md`
 - **Streamline for final design**: Remove sections discussing pros/cons of alternative approaches (e.g., Section 8 Trade-off Analysis). The design is approved; we need implementation-ready specifications, not design justifications.
 - **Maintain consistency**: Ensure all code examples, tables, and diagrams reflect the new output format
 - **Be comprehensive**: Every mutating command example should demonstrate the new reporting format
 
-## Success Criteria
+##### Success Criteria
 
 - [ ] v2 report created with changelog entry
 - [ ] All mutating command examples show standardized `[CONSEQUENCE_TYPE]` output format
@@ -1272,3 +1272,149 @@ Update the command reference section to show this standardized output format for
 - [ ] Implementation guidance includes result reporting utility
 - [ ] Trade-off analysis and design justification sections removed
 - [ ] README.md updated to reference v2
+
+## 17. Iterating over the CLI design analysis report
+
+(in new thread)
+
+### 17.1 Original
+
+We will be updating report `__reports__\multi_tenancy_analysis\cli_enhancements\00-cli_design_analysis_v2.md` to incorporate additional feedback from the stakeholders.
+The report itself is very rigorous, not too long, clear and clean. Stakeholders want to keep this.
+
+Here is the feedback:
+
+**About password handling in environment**:
+
+- Stakeholders realized that it is industry-standards to offer a `--env-file` option to specify a dotenv file for loading environment variables from. This is a common pattern in CLI tools. Hence, although it is reasonable to be able to overwrite the content of the environment variables in the environment file thanks to the planned argument `--password-env`, or `--user-password-env`, we should offer the user the possibility to just declare them in the dotenv file, pass it to the CLI, and be done with it. What do you think?
+  - This also means that we need a standardized name for all the environment variables. Given that the server itself already uses `ARANGO_ROOT_PASSWORD`, `ARANGO_URL`, `ARANGO_DB`, `ARANGO_USERNAME`, and `ARANGO_PASSWORD`, we should use the same names for the CLI. What do you think?
+  - Then, actually, is there a need for the `--password-env` and `--user-password-env`, and so on?
+  - Moreover, you said that some tools require ``**Requires**: `ARANGO_ROOT_PASSWORD` environment variable``. But isn't it confusing for users to be told that we need this to be exported globally when industry standards rather allow to pass in a dotenv file? What do you think?
+  - Then, let's do this. We will add the `--env-file` option for all command that require authentication via environment variables, and we will change the arguments names to `--password-env` and `--user-password-env` to match the existing environement variables.
+  - Hence, for examples, `db add` would become: `mcp-arangodb-async db add <name> [--with-user <username>] [--env-file <path>] [--arango-root-password-env <var>] [--arango-root-username <username>] [--arango-password-env <var>] [--permission <rw|ro|none>] [--yes] [--dry-run]` 
+  - Thanks to this, users of the CLI may rename their environment variables to whatever they want, and pass them to the CLI via the `--env-file` option. What do you think?
+  - Otherwise, the default environment variable names should be used, and the `--env-file` option should be used to overwrite them. What do you think?
+  - This must be propagated to all commands that require authentication. What do you think?
+
+**About your implementations**:
+
+- Don't forget this is a design report so we don't want implementation specified here to avoid polluting actual implementation steps. Only pseudo-code is acceptable.
+- Actual code snippets can be included only if they directly illustrate your statements, and they must be kept short.
+
+We really don't see any problem in the rest: you can keep it as the base report.
+
+**Your Task**: Update the CLI design analysis report to v3 (create new, don't overwrite) to integrate the feedback above
+
+**Constraint**:
+- the current style is really nice and hits a good balance between rigor and readability, and comprehensiveness. Please keep it as much as possible.
+
+### 17.2 Augmented
+
+Update the CLI design analysis report located at `__reports__\multi_tenancy_analysis\cli_enhancements\00-cli_design_analysis_v2.md` by creating a new version 3 file (`00-cli_design_analysis_v3.md` in the same directory). Do not overwrite the existing v2 file.
+
+**Context**: The current v2 report is well-received by stakeholders for its rigor, clarity, and appropriate length. The goal is to incorporate specific feedback while maintaining the existing quality and style.
+
+**Required Changes - Password and Environment Variable Handling**:
+
+1. **Add `--env-file` option**: Introduce an `--env-file <path>` option for all commands requiring authentication via environment variables, following industry-standard patterns for loading environment variables from dotenv files.
+
+2. **Standardize environment variable names**: Use the same environment variable names already established by the MCP server itself:
+   - `ARANGO_ROOT_PASSWORD`
+   - `ARANGO_URL`
+   - `ARANGO_DB`
+   - `ARANGO_USERNAME`
+   - `ARANGO_PASSWORD`
+
+3. **Rename CLI arguments to match environment variables**: Change argument names from `--password-env` and `--user-password-env` to `--arango-root-password-env` and `--arango-password-env` to align with the standardized environment variable names.
+
+4. **Update command signatures**: For example, the `db add` command should become:
+   ```
+   mcp-arangodb-async db add <name> [--with-user <username>] [--env-file <path>] [--arango-root-password-env <var>] [--arango-root-username <username>] [--arango-password-env <var>] [--permission <rw|ro|none>] [--yes] [--dry-run]
+   ```
+
+5. **Clarify the workflow**: 
+   - Users can define credentials in a dotenv file and pass it via `--env-file`
+   - Users can optionally override default environment variable names using `--arango-root-password-env <var>` and `--arango-password-env <var>` to specify custom variable names
+   - Default behavior: if `--env-file` is provided without override arguments, use the standard environment variable names (`ARANGO_ROOT_PASSWORD`, `ARANGO_PASSWORD`, etc.)
+
+6. **Remove confusing documentation**: Eliminate statements like "**Requires**: `ARANGO_ROOT_PASSWORD` environment variable" that imply global environment export is required. Instead, clarify that credentials can be provided via `--env-file` (industry standard) or through globally exported environment variables.
+
+7. **Propagate changes consistently**: Apply these authentication-related changes to ALL commands that require authentication throughout the report.
+
+**Required Changes - Implementation Details**:
+
+8. **Remove implementation-specific code**: This is a design report, not an implementation guide. Remove any detailed implementation code snippets that don't directly illustrate design concepts.
+
+9. **Keep only illustrative pseudo-code**: Actual code snippets are acceptable only if they directly illustrate design statements, and they must be kept short and conceptual.
+
+**Constraints**:
+- Maintain the current report's style, balance between rigor and readability, and level of comprehensiveness
+- Keep the report concise and clean as in v2
+- Create a new file (`00-cli_design_analysis_v3.md`) rather than overwriting the existing v2 file
+- Preserve all content from v2 that is not affected by the feedback above
+
+## 18. Iterating over the CLI design analysis report
+
+### 18.1 Original
+
+Very good, we are almost there. Some more minor tweaks:
+
+**About the reporting format**:
+
+- We would like to increase readability using colors. What do you think?
+  - Green for added/created/granted
+  - Red for removed/revoke
+  - Yellow for updated
+  - Gray for dry-run
+
+- It feels strange to see mention of `DRY-RUN` when we are not in `DRY-RUN` mode (i.e., in the confirmation prompt)
+  - Rather let's use the present tense of the consequence type, e.g., `[ADD]` rather than `[ADDED - DRY-RUN]`, and so on for the other consequence types when in prompt confirmation.
+  - Colors can be darker equivalent to reflect the action has not yet been performed
+  - Then, of course, use the past tense when in `DRY-RUN` mode or after execution, e.g., `[ADDED - DRY-RUN]` or `[ADDED]`
+
+**About ### 2.1 Command Hierarchy**
+
+- The section describes the hierarchy very well. However, it lists some arguments but not all. This might be confusing when we move to implementation.
+- Thus, leave it like this, but add a note to refer to the command specifications described later in the report.
+
+**Your Task**: Update the CLI design analysis report to v4 (create new, don't overwrite) to integrate the feedback above
+
+**Constraint**:
+
+- the current style is really nice and hits a good balance between rigor and readability, and comprehensiveness. Please keep it as much as possible.
+
+### 18.2 Augmented
+
+Update the CLI design analysis report located at `__reports__\multi_tenancy_analysis\cli_enhancements\00-cli_design_analysis_v3.md` by creating a new version 4 file (`00-cli_design_analysis_v4.md` in the same directory). Do not overwrite the existing v3 file.
+
+**Context**: The current v3 report is well-received by stakeholders for its rigor, clarity, and appropriate length. The goal is to incorporate specific feedback while maintaining the existing quality and style.
+
+**Required Changes - Result Reporting Format with Colors**:
+
+1. **Add color coding to consequence types**: Introduce terminal color codes to improve readability:
+   - **Green** for: `ADDED`, `CREATED`, `GRANTED`
+   - **Red** for: `REMOVED`, `REVOKED`
+   - **Yellow** for: `UPDATED`
+   - **Gray** for: dry-run mode suffix
+
+2. **Use present tense for confirmation prompts**: Change the consequence type tense based on context:
+   - **Confirmation prompts** (before execution): Use present tense `[ADD]`, `[REMOVE]`, `[GRANT]`, `[REVOKE]`, `[UPDATE]` with darker color variants to indicate pending actions
+   - **Dry-run mode output**: Use past tense with dry-run suffix `[ADDED - DRY-RUN]`, `[REMOVED - DRY-RUN]`, etc.
+   - **Actual execution output**: Use past tense `[ADDED]`, `[REMOVED]`, `[GRANTED]`, `[REVOKED]`, `[UPDATED]`
+
+3. **Update Section 3 (Result Reporting Format)**: 
+   - Add a new subsection documenting the color scheme
+   - Update the consequence type naming table to include both present and past tense forms
+   - Revise all examples (Sections 3.3-3.6) to reflect the new tense usage in confirmation prompts vs. execution output
+   - Document the darker color variants for confirmation prompts
+
+**Required Changes - Command Hierarchy Section**:
+
+4. **Add clarifying note to Section 2.1**: Add a note at the end of Section 2.1 (Command Hierarchy) stating that the argument lists shown are illustrative and not exhaustive, and directing readers to Section 5 (Complete Command Reference) for full command specifications with all arguments.
+
+**Constraints**:
+- Maintain the current report's style, balance between rigor and readability, and level of comprehensiveness
+- Keep the report concise and clean as in v3
+- Create a new file (`00-cli_design_analysis_v4.md`) rather than overwriting the existing v3 file
+- Preserve all content from v3 that is not affected by the feedback above
+- Update the changelog to document v4 changes
