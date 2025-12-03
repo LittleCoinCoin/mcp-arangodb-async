@@ -971,3 +971,304 @@ Conduct a comprehensive CLI design analysis and produce actionable recommendatio
 - Addresses all 4 specific concerns with concrete solutions
 - Maintains consistency with existing CLI patterns where appropriate
 - Provides actionable specifications ready for implementation in subsequent milestones
+
+## 15. Iterating over the CLI design analysis report
+
+### 15.1 Original
+
+Nice first draft; I appreciate the thoroughness and clarity. Let's iterate on that. Here are the stakeholder feedback points:
+
+**About `db` and `database`**:
+
+- We suggest to merge the two to only keep `db`. After all `db` was introduced only recently and is not even in pre-release yet so there is no breaking change to worry about. 
+  - This would have the advantage to be more consistent.
+  - The existing `db` command that is for the yaml config would then become `db config` and all the other `database` commands would be at the root `db <command>`.
+
+**About `--dry-run`:**
+
+- We like it; we could even expand it to the `db config` command to see what would be written to the yaml file.
+- Should we also expand it to the `user` CRUD commands as well?
+
+**About `--force`:**
+
+- Good idea.
+- This makes me think all CRUD commands in the CLI `db create`, `db delete`, `db config add`, `db config remove`, `user create`, `user delete`, `user grant`, `user revoke` should probably have a feedback prompt to the user asking for confirmation before executing the command. What do you think?
+  - Then, instead of `--force`, we could have a `--yes` flag to skip the confirmation prompt. What do you think?
+  - In my experience confirmation prompt should be normalized and extracted in a small separate function. What do you think?
+  - We also need an environment variable to skip the confirmation prompt for non-interactive environments. What do you think?
+
+**About ergonomics:**
+
+- semantic `create` vs. `add`: I like `add` better than `create` for the database CRUD commands because it is shorter and more consistent with the `db config` command. What do you think?
+- `remove` vs. `delete`: I like `remove` better than `delete`. We could even have an alias `db rm` for `db remove`. What do you think?
+  - same for `user remove` --> `user rm`
+  - same for `db config remove` --> `db config rm`
+- `list` could also receive an alias `ls` for `db ls` and `db config ls`, `user ls`. What do you think?
+
+### 15.2 Augmented
+
+Thank you for the comprehensive CLI design analysis in `__reports__/multi_tenancy_analysis/cli_enhancements/00-cli_design_analysis_v0.md`. The report is thorough and well-structured. I'd like you to iterate on the design based on the following stakeholder feedback:
+
+#### Required Changes
+
+##### 1. Merge `db` and `database` Commands
+
+**Decision**: Consolidate into a single `db` command hierarchy to improve consistency.
+
+**Rationale**: Since `db` was introduced recently and is not yet in a pre-release, there are no breaking changes to worry about.
+
+**Required Structure**:
+- Existing `db` subcommands (add, remove, list, test, status) → move to `db config` namespace
+- Proposed `database` subcommands (create, delete, list) → move to `db` root level
+
+**New hierarchy**:
+```
+db
+├── config          # YAML configuration management (existing commands moved here)
+│   ├── add
+│   ├── remove
+│   ├── list
+│   ├── test
+│   └── status
+├── add             # ArangoDB database creation (was `database create`)
+├── remove          # ArangoDB database deletion (was `database delete`)
+└── list            # ArangoDB database listing (was `database list`)
+```
+
+##### 2. Expand `--dry-run` Coverage
+
+**Required**: Add `--dry-run` support to:
+- All `db config` commands (to preview YAML file changes)
+- All `user` CRUD commands (create, delete, grant, revoke)
+- All `db` ArangoDB commands (add, remove)
+
+**Question for you**: Should `--dry-run` also apply to read-only commands like `list`, or only mutating operations?
+
+##### 3. Replace `--force` with Interactive Confirmation + `--yes` Flag
+
+**Decision**: Implement a confirmation prompt pattern instead of `--force`.
+
+**Required behavior**:
+- All mutating commands should prompt for confirmation by default before executing
+- Add `--yes` (or `-y`) flag to skip confirmation prompts
+- Add environment variable (e.g., `MCP_ARANGO_AUTO_CONFIRM=1`) to skip prompts in non-interactive environments (CI/CD, scripts)
+
+**Affected commands**:
+- `db add`, `db remove`
+- `db config add`, `db config remove`
+- `user create`, `user delete`, `user grant`, `user revoke`
+
+**Implementation requirements**:
+- Extract confirmation logic into a reusable utility function (e.g., `confirm_action()` in `cli_utils.py`)
+- The function should:
+  - Check for `--yes` flag first
+  - Check for environment variable second
+  - Prompt interactively if neither is set
+  - Return boolean (proceed/cancel)
+
+##### 4. Improve Command Ergonomics with Consistent Naming
+
+**Required changes**:
+
+| Current Proposal | New Requirement | Rationale |
+|------------------|-----------------|-----------|
+| `database create` | `db add` | Shorter, consistent with `db config add` |
+| `database delete` | `db remove` (alias: `db rm`) | Consistent with `db config remove` |
+| `database list` | `db list` (alias: `db ls`) | Shorter, familiar to Unix users |
+| `user create` | `user add` | Consistency across all commands |
+| `user delete` | `user remove` (alias: `user rm`) | Consistency across all commands |
+| `user list` | `user list` (alias: `user ls`) | Add alias for consistency |
+| `db config add` | Keep, add no alias needed | Already consistent |
+| `db config remove` | Keep, add alias: `db config rm` | Add alias for power users |
+| `db config list` | Keep, add alias: `db config ls` | Add alias for power users |
+
+**Alias implementation**: Ensure aliases are documented in help text and command reference.
+
+#### Deliverable
+
+Update the analysis report (`00-cli_design_analysis_v0.md`) to reflect these changes:
+1. Revise Section 3.1 (Command Structure) to show the merged `db` hierarchy
+2. Update Section 3.3 (Safety Features) to replace `--force` with confirmation prompts + `--yes` flag
+3. Expand Section 3.3 to cover `--dry-run` for all mutating commands including `db config` and `user` commands
+4. Update Section 4 (Command Reference) with the new naming conventions and aliases
+5. Update Section 5 (Implementation Guidance) to include:
+   - Confirmation prompt utility function specification
+   - Environment variable handling for non-interactive mode
+   - Alias registration pattern
+6. Update all code examples, diagrams, and tables throughout the document to reflect the new structure
+
+Increment the report version to `v1` and add a changelog section documenting the changes from v0.
+
+**Questions for clarification** (answer these in the updated report):
+- Should `--dry-run` apply to read-only operations or only mutating ones? 
+  - Answer: It should apply to mutating operations only.
+- Should the confirmation prompt show a preview of what will be changed (similar to `--dry-run` output)?
+  - Answer: Yes, it should.
+- What should the environment variable be named? (Suggestion: `MCP_ARANGO_AUTO_CONFIRM` or `MCP_ARANGO_YES`)
+  - Answer: `MCP_ARANGODB_ASYNC_CLI_YES`
+
+## 16. Iterating over the CLI design analysis report
+
+### 16.1 Original
+
+Very nice work! This has become much more consistent. here are minor feedback points:
+
+**About CRUD result feedback:**
+- Current way is correct, but for example:
+```
+# With --yes flag: Skip prompt
+$ mcp-arangodb-async db remove mydb --yes
+✓ Database 'mydb' removed successfully
+```
+  We were thinking it might be good to display more information about the consequences of the operation. For example:
+```
+# With --yes flag: Skip prompt
+$ mcp-arangodb-async db remove mydb --yes
+✓ Database 'mydb' removed successfully
+  2 users removed: user1, user2
+```
+  What do you think?
+And this is actually a general point. Even though the example above is very specific, more transparency about the consequences of any mutating command is useful for users. What do you think?
+Another general statement is that the output format of the consequence should be consistent across all commands. What do you think? For example, for the dry run, you suggested:
+```
+# [DRY RUN] Would perform the following actions:
+#   1. CREATE DATABASE: mydb
+#   2. CREATE USER: myuser (active: true)
+#   3. GRANT PERMISSION: myuser → mydb (permission: rw)
+#
+# No changes made. Remove --dry-run to execute.
+```
+  Then we should have a report after execution of actual mutating commands as well:
+```
+$ mcp-arangodb-async db create mydb
+
+<confirmation prompt>
+
+[ADDED] Database 'mydb'
+  1. Created database: mydb
+  2. Created user: myuser
+  3. Granted permission: myuser → mydb (permission: rw)
+```
+  What do you think?
+
+Also, for consistency with the other commands which might not only have three consequences, we could rather change the template to:
+```
+<command name>:
+[<consequence type> - <optional "DRY-RUN">] <result 1>
+[<consequence type> - <optional "DRY-RUN">] <result 2>
+[<consequence type> - <optional "DRY-RUN">] <result 3>
+...
+```
+  What do you think?
+
+- <consequence type> should probably always be past tense. For example: ADDED, REMOVED, GRANTED, REVOKED, etc.
+
+Generally, the report was good, and stakeholders don't see any blocking issues at this point. 
+
+**Your Task**: Update the CLI design analysis report to v2 (create new, don't overwrite) to integrate the feedback above.
+
+**Constraint**:
+
+- We are moving toward final design report; you can streamline the content to remove discussion or analysis that is not directly relevant to the final design assuming it has been accepted. --> We want a description of the final design, not a discussion of the pros and cons of alternative designs.
+
+### 16.2 Augmented
+
+Excellent work on the v1 CLI design analysis. The stakeholders have reviewed it and approve the overall design direction. They have provided final feedback on **operation result reporting** that needs to be integrated before implementation.
+
+## Required Changes for v2
+
+### 1. Enhanced Operation Result Reporting
+
+**Requirement**: All mutating commands must display comprehensive feedback about the consequences of operations, not just success/failure messages.
+
+**Current approach** (v1):
+```bash
+$ mcp-arangodb-async db remove mydb --yes
+✓ Database 'mydb' removed successfully
+```
+
+**Required approach** (v2):
+```bash
+$ mcp-arangodb-async db remove mydb --yes
+✓ Database 'mydb' removed successfully
+  2 users affected: user1, user2
+```
+
+**Rationale**: Users need transparency about cascading effects and side effects of operations (e.g., which users lost access when a database was deleted, which permissions were granted, etc.).
+
+### 2. Standardized Output Format for All Mutating Commands
+
+**Requirement**: Establish a consistent output format template that works for both `--dry-run` preview mode and actual execution mode.
+
+**Proposed template**:
+```
+<command name>:
+[<CONSEQUENCE_TYPE>] <detailed result description>
+[<CONSEQUENCE_TYPE>] <detailed result description>
+[<CONSEQUENCE_TYPE>] <detailed result description>
+...
+```
+
+For `--dry-run` mode, append "- DRY-RUN" to each consequence type:
+```
+[<CONSEQUENCE_TYPE> - DRY-RUN] <detailed result description>
+```
+
+**Consequence type naming convention**:
+- Use **past tense verbs** in uppercase: `ADDED`, `REMOVED`, `GRANTED`, `REVOKED`, `UPDATED`, `CREATED`, `RESTORED`, `BACKED UP`, `VALIDATED`, etc.
+- Be specific to the operation performed
+- Consequence types should match the command verbs used in the command (e.g., `db add` uses `ADDED`, `user grant` uses `GRANTED`)
+
+**Example for `db add mydb --with-user myuser`**:
+```bash
+$ mcp-arangodb-async db add mydb --with-user myuser --user-password-env MY_PASS --permission rw
+
+The following actions will be performed:
+  [ADDED - DRY-RUN] Database 'mydb'
+  [CREATED - DRY-RUN] User 'myuser' (active: true)
+  [GRANTED - DRY-RUN] Permission rw: myuser → mydb
+
+Are you sure you want to proceed? [y/N]: y
+
+[ADDED] Database 'mydb'
+[CREATED] User 'myuser' (active: true)
+[GRANTED] Permission rw: myuser → mydb
+```
+
+### 3. Apply Consistent Reporting to All Commands
+
+Update the command reference section to show this standardized output format for:
+- `db add` / `db remove`
+- `db config add` / `db config remove`
+- `user add` / `user remove` / `user grant` / `user revoke` / `user password`
+
+## Your Task
+
+**Create `00-cli_design_analysis_v2.md`** (do not overwrite v1) with the following changes:
+
+1. **Update Section 1 (Changelog)**: Add v2 entry documenting the enhanced result reporting requirements
+2. **Update Section 4.3 (Safety Features)**: Revise `--dry-run` and confirmation prompt examples to use the new standardized output format
+3. **Update Section 5 (Command Reference)**: Update all command examples to show the new result reporting format
+4. **Update Section 6 (Implementation Guidance)**: 
+   - Add a new subsection for the result reporting utility function
+   - Provide implementation pattern for consequence tracking and formatted output
+   - Show how to integrate with `DryRunContext` and `confirm_action()`
+5. **Streamline content**: Remove trade-off analysis sections (Section 8) and other comparative discussions that are no longer needed since the design has been approved. Focus on documenting the **final accepted design** rather than alternatives considered.
+6. **Update README.md**: Reference v2 as the current version
+
+## Constraints
+
+- **Do not overwrite v1** - create a new file `00-cli_design_analysis_v2.md`
+- **Streamline for final design**: Remove sections discussing pros/cons of alternative approaches (e.g., Section 8 Trade-off Analysis). The design is approved; we need implementation-ready specifications, not design justifications.
+- **Maintain consistency**: Ensure all code examples, tables, and diagrams reflect the new output format
+- **Be comprehensive**: Every mutating command example should demonstrate the new reporting format
+
+## Success Criteria
+
+- [ ] v2 report created with changelog entry
+- [ ] All mutating command examples show standardized `[CONSEQUENCE_TYPE]` output format
+- [ ] `--dry-run` examples append "- DRY-RUN" to consequence types
+- [ ] Confirmation prompts show preview using the same format
+- [ ] Implementation guidance includes result reporting utility
+- [ ] Trade-off analysis and design justification sections removed
+- [ ] README.md updated to reference v2
