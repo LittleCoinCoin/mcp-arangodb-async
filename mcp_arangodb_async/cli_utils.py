@@ -69,16 +69,16 @@ class ConsequenceType(Enum):
 
 def load_credentials(args: Namespace) -> Dict[str, Any]:
     """Load credentials from environment file or environment variables.
-    
+
     Args:
         args: Parsed command-line arguments with optional env_file,
-              arango_root_password_env, arango_password_env attributes
-    
+              arango_root_password_env, arango_password_env, url attributes
+
     Returns:
         Dictionary with credentials:
         - root_password: Root password for admin operations
         - user_password: User password for self-service operations
-        - url: ArangoDB server URL
+        - url: ArangoDB server URL (--url arg takes precedence over env)
         - username: Username for self-service operations
     """
     # Load from dotenv file if specified
@@ -90,16 +90,19 @@ def load_credentials(args: Namespace) -> Dict[str, Any]:
             print("Warning: python-dotenv not installed, skipping .env file", file=sys.stderr)
         except Exception as e:
             print(f"Warning: Failed to load .env file: {e}", file=sys.stderr)
-    
+
     # Determine variable names (use overrides or defaults)
     root_pw_var = getattr(args, 'arango_root_password_env', None) or "ARANGO_ROOT_PASSWORD"
     user_pw_var = getattr(args, 'arango_password_env', None) or "ARANGO_PASSWORD"
-    
+
+    # URL: command-line argument takes precedence over environment variable
+    url = getattr(args, 'url', None) or os.getenv("ARANGO_URL", "http://localhost:8529")
+
     # Retrieve values from environment
     return {
         "root_password": os.getenv(root_pw_var),
         "user_password": os.getenv(user_pw_var),
-        "url": os.getenv("ARANGO_URL", "http://localhost:8529"),
+        "url": url,
         "username": os.getenv("ARANGO_USERNAME", "root"),
     }
 
