@@ -15,8 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Table of Contents
 
-1. [Version 0.4.7 (Current)](#version-047---2025-11-28)
-2. [Version 0.4.6](#version-046---2025-11-27)
+1. [Version 0.4.8 (Current)](#version-048---2025-12-04)
+2. [Version 0.4.7](#version-047---2025-11-28)
+3. [Version 0.4.6](#version-046---2025-11-27)
 3. [Version 0.4.5](#version-045---2025-11-27)
 3. [Version 0.4.4](#version-044---2025-11-27)
 4. [Version 0.4.3](#version-043---2025-11-24)
@@ -39,9 +40,65 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [0.4.7] - 2025-11-28
+## [0.4.8] - 2025-12-04
 
 **Current Release**
+
+### Added
+
+✅ **Admin CLI for User and Database Management (Milestone 4.3 - Task 4.3.3)**
+- **CLI Commands Implementation:**
+  - Implemented 16 CLI commands for ArangoDB administration:
+    - **Database Operations:** `db add`, `db remove`, `db list` (with `--with-user` atomic operation)
+    - **User Operations:** `user add`, `user remove`, `user list`, `user grant`, `user revoke`
+    - **Self-Service Operations:** `user databases`, `user password`
+    - **Version Command:** `version` to display package version
+  - **Safety Features:**
+    - Interactive confirmation prompts for all destructive operations
+    - `--dry-run` flag to preview changes without execution
+    - `--yes` flag to skip confirmation in automation/CI
+    - Environment variable `MCP_ARANGODB_ASYNC_CLI_YES=1` for CI/CD
+  - **Result Reporting:**
+    - Color-coded output (green=additive, red=destructive, yellow=updates, gray=dry-run)
+    - Tense distinction (present for prompts, past for results)
+    - Side-effect reporting (e.g., permission revocations when deleting users/databases)
+  - **Credential Handling:**
+    - `--env-file` support for loading credentials from dotenv files
+    - Environment variable overrides (`--arango-root-password-env`, `--arango-password-env`)
+    - Consistent with MCP server environment variable names
+  - **Command Aliases:** Unix-style aliases (`rm`, `ls`) for common operations
+
+### Changed
+
+⚠️ **Breaking Change: Database Config Commands Moved**
+- Existing `db add/remove/list/test/status` commands moved to `db config` subcommand
+- **Migration:**
+  - Old: `mcp-arangodb-async db add production ...`
+  - New: `mcp-arangodb-async db config add production ...`
+- **Rationale:** Separate YAML config management from ArangoDB database operations
+
+### Technical Details
+
+- **New Modules:**
+  - `mcp_arangodb_async/cli_utils.py` - Shared utilities (credentials, confirmation, result reporting)
+  - `mcp_arangodb_async/cli_db_arango.py` - ArangoDB database operations
+  - `mcp_arangodb_async/cli_user.py` - ArangoDB user management
+- **Updated Modules:**
+  - `mcp_arangodb_async/__main__.py` - Integrated new command structure
+- **Exit Codes:**
+  - `0` - Success
+  - `1` - Error (validation, connection, permission)
+  - `2` - Operation cancelled by user
+
+### Documentation
+
+- Updated CLI reference with new commands
+- Added examples for all 16 commands
+- Documented safety features and credential handling
+
+---
+
+## [0.4.7] - 2025-11-28
 
 ### Added
 
