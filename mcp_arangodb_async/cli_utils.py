@@ -4,21 +4,29 @@ This module provides shared utilities for CLI commands including:
 - Credential loading from environment files
 - Result reporting with color-coded output
 - Confirmation prompts with dry-run support
+- Database connection utilities
 - Exit code constants
 
 Functions:
 - load_credentials() - Load credentials from env file or environment
 - confirm_action() - Interactive confirmation with --yes bypass
+- get_system_db() - Connect to _system database with warning suppression
 - ResultReporter - Color-coded result reporting class
 """
 
 from __future__ import annotations
 
+import logging
 import os
 import sys
+import warnings
 from typing import Optional, Dict, Any
 from argparse import Namespace
 from enum import Enum
+
+from arango import ArangoClient
+from arango.database import StandardDatabase
+from arango.exceptions import ArangoError
 
 # Exit codes
 EXIT_SUCCESS = 0
@@ -94,6 +102,46 @@ def load_credentials(args: Namespace) -> Dict[str, Any]:
         "url": os.getenv("ARANGO_URL", "http://localhost:8529"),
         "username": os.getenv("ARANGO_USERNAME", "root"),
     }
+
+
+def get_system_db(credentials: dict) -> Optional[StandardDatabase]:
+    """Connect to _system database as root for admin operations.
+
+    Suppresses urllib3 connection warnings for cleaner error output.
+
+    Args:
+        credentials: Dictionary with 'url' and 'root_password' keys
+
+    Returns:
+        StandardDatabase instance for _system database, or None on error
+    """
+    # Suppress urllib3 retry warnings for cleaner output
+    logging.getLogger("urllib3.connectionpool").setLevel(logging.ERROR)
+
+    # Also suppress urllib3 InsecureRequestWarning and other warnings
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", category=Warning, module="urllib3")
+
+        try:
+            client = ArangoClient(hosts=credentials["url"])
+            sys_db = client.db("_system", username="root", password=credentials["root_password"])
+            # Validate connection
+            _ = sys_db.version()
+            return sys_db
+        except ArangoError as e:
+            print(f"Error: Failed to connect to ArangoDB: {e}", file=sys.stderr)
+            return None
+        except Exception as e:
+            # Handle connection refused, timeout, etc.
+            error_msg = str(e)
+            if "Connection refused" in error_msg or "NewConnectionError" in error_msg:
+                print(f"Error: Cannot connect to ArangoDB at {credentials.get('url', 'unknown')}", file=sys.stderr)
+                print("Hint: Is the ArangoDB server running?", file=sys.stderr)
+            elif "timeout" in error_msg.lower():
+                print(f"Error: Connection to ArangoDB timed out", file=sys.stderr)
+            else:
+                print(f"Error: Unexpected error connecting to ArangoDB: {e}", file=sys.stderr)
+            return None
 
 
 def confirm_action(message: str, args: Namespace) -> bool:

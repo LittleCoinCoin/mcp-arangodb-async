@@ -17,15 +17,17 @@ from __future__ import annotations
 
 import sys
 import json
+import logging
 import os
-from typing import Optional
+import warnings
 from argparse import Namespace
+
 from arango import ArangoClient
-from arango.database import StandardDatabase
 from arango.exceptions import ArangoError
 
 from .cli_utils import (
     load_credentials,
+    get_system_db,
     confirm_action,
     ResultReporter,
     ConsequenceType,
@@ -33,29 +35,6 @@ from .cli_utils import (
     EXIT_ERROR,
     EXIT_CANCELLED,
 )
-
-
-def _get_system_db(credentials: dict) -> Optional[StandardDatabase]:
-    """Connect to _system database as root for admin operations.
-    
-    Args:
-        credentials: Dictionary with 'url' and 'root_password' keys
-    
-    Returns:
-        StandardDatabase instance for _system database, or None on error
-    """
-    try:
-        client = ArangoClient(hosts=credentials["url"])
-        sys_db = client.db("_system", username="root", password=credentials["root_password"])
-        # Validate connection
-        _ = sys_db.version()
-        return sys_db
-    except ArangoError as e:
-        print(f"Error: Failed to connect to ArangoDB: {e}", file=sys.stderr)
-        return None
-    except Exception as e:
-        print(f"Error: Unexpected error connecting to ArangoDB: {e}", file=sys.stderr)
-        return None
 
 
 def handle_user_add(args: Namespace) -> int:
@@ -92,7 +71,7 @@ def handle_user_add(args: Namespace) -> int:
         return EXIT_ERROR
 
     # Connect to _system database
-    sys_db = _get_system_db(credentials)
+    sys_db = get_system_db(credentials)
     if not sys_db:
         return EXIT_ERROR
 
@@ -165,7 +144,7 @@ def handle_user_remove(args: Namespace) -> int:
         return EXIT_ERROR
 
     # Connect to _system database
-    sys_db = _get_system_db(credentials)
+    sys_db = get_system_db(credentials)
     if not sys_db:
         return EXIT_ERROR
 
@@ -224,7 +203,7 @@ def handle_user_list(args: Namespace) -> int:
         return EXIT_ERROR
 
     # Connect to _system database
-    sys_db = _get_system_db(credentials)
+    sys_db = get_system_db(credentials)
     if not sys_db:
         return EXIT_ERROR
 
@@ -288,7 +267,7 @@ def handle_user_grant(args: Namespace) -> int:
         return EXIT_ERROR
 
     # Connect to _system database
-    sys_db = _get_system_db(credentials)
+    sys_db = get_system_db(credentials)
     if not sys_db:
         return EXIT_ERROR
 
@@ -359,7 +338,7 @@ def handle_user_revoke(args: Namespace) -> int:
         return EXIT_ERROR
 
     # Connect to _system database
-    sys_db = _get_system_db(credentials)
+    sys_db = get_system_db(credentials)
     if not sys_db:
         return EXIT_ERROR
 
@@ -423,18 +402,30 @@ def handle_user_databases(args: Namespace) -> int:
         print(f"Error: {password_env} environment variable required", file=sys.stderr)
         return EXIT_ERROR
 
+    # Suppress urllib3 warnings for cleaner output
+    logging.getLogger("urllib3.connectionpool").setLevel(logging.ERROR)
+
     # Connect as the user
-    try:
-        client = ArangoClient(hosts=credentials["url"])
-        sys_db = client.db("_system", username=username, password=user_password)
-        # Validate connection
-        _ = sys_db.version()
-    except ArangoError as e:
-        print(f"Error: Failed to connect to ArangoDB: {e}", file=sys.stderr)
-        return EXIT_ERROR
-    except Exception as e:
-        print(f"Error: Unexpected error connecting to ArangoDB: {e}", file=sys.stderr)
-        return EXIT_ERROR
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", category=Warning, module="urllib3")
+        try:
+            client = ArangoClient(hosts=credentials["url"])
+            sys_db = client.db("_system", username=username, password=user_password)
+            # Validate connection
+            _ = sys_db.version()
+        except ArangoError as e:
+            print(f"Error: Failed to connect to ArangoDB: {e}", file=sys.stderr)
+            return EXIT_ERROR
+        except Exception as e:
+            error_msg = str(e)
+            if "Connection refused" in error_msg or "NewConnectionError" in error_msg:
+                print(f"Error: Cannot connect to ArangoDB at {credentials.get('url', 'unknown')}", file=sys.stderr)
+                print("Hint: Is the ArangoDB server running?", file=sys.stderr)
+            elif "timeout" in error_msg.lower():
+                print(f"Error: Connection to ArangoDB timed out", file=sys.stderr)
+            else:
+                print(f"Error: Unexpected error connecting to ArangoDB: {e}", file=sys.stderr)
+            return EXIT_ERROR
 
     # Get user's permissions
     try:
@@ -505,18 +496,30 @@ def handle_user_password(args: Namespace) -> int:
         print(f"Error: {new_password_env} environment variable required", file=sys.stderr)
         return EXIT_ERROR
 
+    # Suppress urllib3 warnings for cleaner output
+    logging.getLogger("urllib3.connectionpool").setLevel(logging.ERROR)
+
     # Connect as the user
-    try:
-        client = ArangoClient(hosts=credentials["url"])
-        sys_db = client.db("_system", username=username, password=current_password)
-        # Validate connection
-        _ = sys_db.version()
-    except ArangoError as e:
-        print(f"Error: Failed to connect to ArangoDB: {e}", file=sys.stderr)
-        return EXIT_ERROR
-    except Exception as e:
-        print(f"Error: Unexpected error connecting to ArangoDB: {e}", file=sys.stderr)
-        return EXIT_ERROR
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", category=Warning, module="urllib3")
+        try:
+            client = ArangoClient(hosts=credentials["url"])
+            sys_db = client.db("_system", username=username, password=current_password)
+            # Validate connection
+            _ = sys_db.version()
+        except ArangoError as e:
+            print(f"Error: Failed to connect to ArangoDB: {e}", file=sys.stderr)
+            return EXIT_ERROR
+        except Exception as e:
+            error_msg = str(e)
+            if "Connection refused" in error_msg or "NewConnectionError" in error_msg:
+                print(f"Error: Cannot connect to ArangoDB at {credentials.get('url', 'unknown')}", file=sys.stderr)
+                print("Hint: Is the ArangoDB server running?", file=sys.stderr)
+            elif "timeout" in error_msg.lower():
+                print(f"Error: Connection to ArangoDB timed out", file=sys.stderr)
+            else:
+                print(f"Error: Unexpected error connecting to ArangoDB: {e}", file=sys.stderr)
+            return EXIT_ERROR
 
     # Update consequence with actual username from credentials
     reporter.consequences.clear()

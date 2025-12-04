@@ -13,14 +13,13 @@ from __future__ import annotations
 
 import sys
 import json
-from typing import Optional
 from argparse import Namespace
-from arango import ArangoClient
-from arango.database import StandardDatabase
+
 from arango.exceptions import ArangoError
 
 from .cli_utils import (
     load_credentials,
+    get_system_db,
     confirm_action,
     ResultReporter,
     ConsequenceType,
@@ -28,29 +27,6 @@ from .cli_utils import (
     EXIT_ERROR,
     EXIT_CANCELLED,
 )
-
-
-def _get_system_db(credentials: dict) -> Optional[StandardDatabase]:
-    """Connect to _system database as root for admin operations.
-    
-    Args:
-        credentials: Dictionary with 'url' and 'root_password' keys
-    
-    Returns:
-        StandardDatabase instance for _system database, or None on error
-    """
-    try:
-        client = ArangoClient(hosts=credentials["url"])
-        sys_db = client.db("_system", username="root", password=credentials["root_password"])
-        # Validate connection
-        _ = sys_db.version()
-        return sys_db
-    except ArangoError as e:
-        print(f"Error: Failed to connect to ArangoDB: {e}", file=sys.stderr)
-        return None
-    except Exception as e:
-        print(f"Error: Unexpected error connecting to ArangoDB: {e}", file=sys.stderr)
-        return None
 
 
 def handle_db_add(args: Namespace) -> int:
@@ -92,7 +68,7 @@ def handle_db_add(args: Namespace) -> int:
         return EXIT_ERROR
 
     # Connect to _system database
-    sys_db = _get_system_db(credentials)
+    sys_db = get_system_db(credentials)
     if not sys_db:
         return EXIT_ERROR
 
@@ -185,7 +161,7 @@ def handle_db_remove(args: Namespace) -> int:
         return EXIT_ERROR
 
     # Connect to _system database
-    sys_db = _get_system_db(credentials)
+    sys_db = get_system_db(credentials)
     if not sys_db:
         return EXIT_ERROR
 
@@ -255,7 +231,7 @@ def handle_db_list(args: Namespace) -> int:
         return EXIT_ERROR
 
     # Connect to _system database
-    sys_db = _get_system_db(credentials)
+    sys_db = get_system_db(credentials)
     if not sys_db:
         return EXIT_ERROR
 

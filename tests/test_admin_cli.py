@@ -92,7 +92,8 @@ def temp_config_dir():
 @pytest.fixture
 def mock_arango_client(mock_sys_db):
     """Mock ArangoClient that returns mock_sys_db."""
-    with patch('mcp_arangodb_async.cli_db_arango.ArangoClient') as mock_client_class:
+    # Mock in cli_utils where get_system_db is now defined
+    with patch('mcp_arangodb_async.cli_utils.ArangoClient') as mock_client_class:
         mock_client = MagicMock()
         mock_client.db.return_value = mock_sys_db
         mock_client_class.return_value = mock_client
@@ -102,11 +103,14 @@ def mock_arango_client(mock_sys_db):
 @pytest.fixture
 def mock_arango_client_user(mock_sys_db):
     """Mock ArangoClient for user module."""
-    with patch('mcp_arangodb_async.cli_user.ArangoClient') as mock_client_class:
-        mock_client = MagicMock()
-        mock_client.db.return_value = mock_sys_db
-        mock_client_class.return_value = mock_client
-        yield mock_client_class
+    # Mock in both cli_utils and cli_user for comprehensive coverage
+    with patch('mcp_arangodb_async.cli_utils.ArangoClient') as mock_client_class_utils:
+        with patch('mcp_arangodb_async.cli_user.ArangoClient') as mock_client_class_user:
+            mock_client = MagicMock()
+            mock_client.db.return_value = mock_sys_db
+            mock_client_class_utils.return_value = mock_client
+            mock_client_class_user.return_value = mock_client
+            yield mock_client_class_utils
 
 
 # ============================================================================
@@ -982,8 +986,8 @@ class TestConnectionErrors:
         """CE-01: Database add handles connection errors gracefully."""
         from arango.exceptions import ArangoError
 
-        # Mock ArangoClient to raise connection error
-        with patch('mcp_arangodb_async.cli_db_arango.ArangoClient') as mock_client_class:
+        # Mock ArangoClient in cli_utils where get_system_db is now defined
+        with patch('mcp_arangodb_async.cli_utils.ArangoClient') as mock_client_class:
             mock_client = MagicMock()
             mock_client.db.side_effect = ArangoError("Connection refused")
             mock_client_class.return_value = mock_client
@@ -1013,8 +1017,8 @@ class TestConnectionErrors:
         """CE-02: User add handles connection errors gracefully."""
         from arango.exceptions import ArangoError
 
-        # Mock ArangoClient to raise connection error
-        with patch('mcp_arangodb_async.cli_user.ArangoClient') as mock_client_class:
+        # Mock ArangoClient in cli_utils where get_system_db is now defined
+        with patch('mcp_arangodb_async.cli_utils.ArangoClient') as mock_client_class:
             mock_client = MagicMock()
             mock_client.db.side_effect = ArangoError("Connection timeout")
             mock_client_class.return_value = mock_client

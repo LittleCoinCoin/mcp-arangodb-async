@@ -13,7 +13,9 @@ from __future__ import annotations
 import sys
 import json
 import argparse
+import logging
 import os
+import warnings
 
 from .config import load_config
 from .db import get_client_and_db, health_check
@@ -345,55 +347,68 @@ def main() -> int:
 
     cfg = load_config()
 
+    # Suppress urllib3 warnings for cleaner output in health check
+    logging.getLogger("urllib3.connectionpool").setLevel(logging.ERROR)
+
     # CLI diagnostic mode (health check or info)
-    try:
-        client, db = get_client_and_db(cfg)
-        if run_health:
-            info = health_check(db)
-            print(
-                json.dumps(
-                    {
-                        "ok": True,
-                        "url": cfg.arango_url,
-                        "db": cfg.database,
-                        "user": cfg.username,
-                        "info": info,
-                    },
-                    ensure_ascii=False,
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", category=Warning, module="urllib3")
+        try:
+            client, db = get_client_and_db(cfg)
+            if run_health:
+                info = health_check(db)
+                print(
+                    json.dumps(
+                        {
+                            "ok": True,
+                            "url": cfg.arango_url,
+                            "db": cfg.database,
+                            "user": cfg.username,
+                            "info": info,
+                        },
+                        ensure_ascii=False,
+                    )
                 )
-            )
-        else:
-            version = db.version()
-            print(
-                f"Connected to ArangoDB {version} at {cfg.arango_url}, DB='{cfg.database}' as user '{cfg.username}'"
-            )
-            # Optional: quick sanity query to list collections
-            try:
-                cols = [c["name"] for c in db.collections() if not c.get("isSystem")]
-                print(f"Non-system collections: {cols}")
-            except Exception as e:
-                # Collection listing failed, but don't crash the health check
-                print(f"Warning: Could not list collections: {e}")
-        client.close()
-        return 0
-    except Exception as e:
-        if run_health:
-            print(
-                json.dumps(
-                    {
-                        "ok": False,
-                        "error": str(e),
-                        "url": cfg.arango_url,
-                        "db": cfg.database,
-                        "user": cfg.username,
-                    },
-                    ensure_ascii=False,
-                ),
-                file=sys.stderr,
-            )
-        else:
-            print(f"Connection failed: {e}", file=sys.stderr)
-        return 1
+            else:
+                version = db.version()
+                print(
+                    f"Connected to ArangoDB {version} at {cfg.arango_url}, DB='{cfg.database}' as user '{cfg.username}'"
+                )
+                # Optional: quick sanity query to list collections
+                try:
+                    cols = [c["name"] for c in db.collections() if not c.get("isSystem")]
+                    print(f"Non-system collections: {cols}")
+                except Exception as e:
+                    # Collection listing failed, but don't crash the health check
+                    print(f"Warning: Could not list collections: {e}")
+            client.close()
+            return 0
+        except Exception as e:
+            if run_health:
+                print(
+                    json.dumps(
+                        {
+                            "ok": False,
+                            "error": str(e),
+                            "url": cfg.arango_url,
+                            "db": cfg.database,
+                            "user": cfg.username,
+                        },
+                        ensure_ascii=False,
+                    ),
+                    file=sys.stderr,
+                )
+            else:
+                # Provide cleaner error message for common connection issues
+                error_msg = str(e)
+                if "Connection refused" in error_msg or "NewConnectionError" in error_msg:
+                    print(f"Error: Cannot connect to ArangoDB at {cfg.arango_url}", file=sys.stderr)
+                    print("Hint: Is the ArangoDB server running?", file=sys.stderr)
+                elif "timeout" in error_msg.lower():
+                    print(f"Error: Connection to ArangoDB timed out", file=sys.stderr)
+                else:
+                    print(f"Connection failed: {e}", file=sys.stderr)
+            return 1
 
 
 if __name__ == "__main__":
