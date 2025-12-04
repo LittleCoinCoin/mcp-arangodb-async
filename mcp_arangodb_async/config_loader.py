@@ -20,11 +20,12 @@ class ConfigFileLoader:
 
     def __init__(self, config_path: str = "config/databases.yaml"):
         """Initialize ConfigFileLoader.
-        
+
         Args:
-            config_path: Path to YAML configuration file
+            config_path: Path to YAML configuration file (stored as absolute path)
         """
-        self.config_path = config_path
+        # Always store as absolute path for clear display
+        self.config_path = os.path.abspath(config_path)
         self.default_database: Optional[str] = None
         self._databases: Dict[str, DatabaseConfig] = {}
 

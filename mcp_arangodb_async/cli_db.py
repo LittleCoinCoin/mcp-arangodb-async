@@ -81,7 +81,7 @@ def handle_add(args: Namespace) -> int:
 
         # Report success
         reporter.report_result()
-        print(f"\nConfiguration saved to: {os.path.abspath(loader.config_path)}")
+        print(f"\nConfiguration saved to: {loader.config_path}")
 
         return EXIT_SUCCESS
     except Exception as e:
@@ -132,7 +132,7 @@ def handle_remove(args: Namespace) -> int:
 
         # Report success
         reporter.report_result()
-        print(f"Configuration saved to: {os.path.abspath(loader.config_path)}")
+        print(f"Configuration saved to: {loader.config_path}")
 
         return EXIT_SUCCESS
     except Exception as e:
