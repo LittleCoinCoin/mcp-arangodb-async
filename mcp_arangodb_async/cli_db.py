@@ -26,25 +26,45 @@ from .multi_db_manager import DatabaseConfig, MultiDatabaseConnectionManager
 
 def handle_add(args: Namespace) -> int:
     """Add a new database configuration.
-    
+
     Args:
         args: Parsed command-line arguments
-        
+
     Returns:
-        Exit code (0 for success, 1 for error)
+        Exit code (0 for success, 1 for error, 2 for cancelled)
     """
+    from .cli_utils import ResultReporter, ConsequenceType, confirm_action, EXIT_SUCCESS, EXIT_ERROR, EXIT_CANCELLED
+
+    # Build consequence list based on arguments
+    dry_run = getattr(args, 'dry_run', False)
+    reporter = ResultReporter("db config add", dry_run=dry_run)
+    reporter.add(ConsequenceType.ADDED, f"Database configuration '{args.key}'")
+    reporter.add(ConsequenceType.ADDED, f"  URL: {args.url}")
+    reporter.add(ConsequenceType.ADDED, f"  Database: {args.database}")
+    reporter.add(ConsequenceType.ADDED, f"  Username: {args.username}")
+
+    # Dry-run mode: report and exit
+    if dry_run:
+        reporter.report_result()
+        return EXIT_SUCCESS
+
     try:
         # Load existing configuration
         loader = ConfigFileLoader(args.config_path)
         loader.load()
-        
+
         # Check for duplicate key
         existing_databases = loader.get_configured_databases()
         if args.key in existing_databases:
             print(f"Error: Database '{args.key}' already exists", file=sys.stderr)
             print("Use 'db remove' to remove it first, or choose a different key", file=sys.stderr)
-            return 1
-        
+            return EXIT_ERROR
+
+        # Confirmation prompt
+        if not confirm_action(reporter.report_prompt() + "\n\nAre you sure you want to proceed?", args):
+            print("Operation cancelled", file=sys.stderr)
+            return EXIT_CANCELLED
+
         # Create new database configuration
         new_config = DatabaseConfig(
             url=args.url,
@@ -54,58 +74,70 @@ def handle_add(args: Namespace) -> int:
             timeout=args.timeout,
             description=args.description
         )
-        
+
         # Add and save
         loader.add_database(args.key, new_config)
         loader.save_to_yaml()
-        
-        print(f"✓ Database '{args.key}' added successfully")
-        print(f"  URL: {args.url}")
-        print(f"  Database: {args.database}")
-        print(f"  Username: {args.username}")
-        print(f"  Password env: {args.password_env}")
-        print(f"  Timeout: {args.timeout}s")
-        if args.description:
-            print(f"  Description: {args.description}")
-        print(f"\nConfiguration saved to: {loader.config_path}")
-        
-        return 0
+
+        # Report success
+        reporter.report_result()
+        print(f"\nConfiguration saved to: {os.path.abspath(loader.config_path)}")
+
+        return EXIT_SUCCESS
     except Exception as e:
         print(f"Error adding database: {e}", file=sys.stderr)
-        return 1
+        return EXIT_ERROR
 
 
 def handle_remove(args: Namespace) -> int:
     """Remove a database configuration.
-    
+
     Args:
         args: Parsed command-line arguments
-        
+
     Returns:
-        Exit code (0 for success, 1 for error)
+        Exit code (0 for success, 1 for error, 2 for cancelled)
     """
+    from .cli_utils import ResultReporter, ConsequenceType, confirm_action, EXIT_SUCCESS, EXIT_ERROR, EXIT_CANCELLED
+
+    # Build consequence list based on arguments
+    dry_run = getattr(args, 'dry_run', False)
+    reporter = ResultReporter("db config remove", dry_run=dry_run)
+    reporter.add(ConsequenceType.REMOVED, f"Database configuration '{args.key}'")
+
+    # Dry-run mode: report and exit
+    if dry_run:
+        reporter.report_result()
+        return EXIT_SUCCESS
+
     try:
         # Load existing configuration
         loader = ConfigFileLoader(args.config_path)
         loader.load()
-        
+
         # Check if database exists
         existing_databases = loader.get_configured_databases()
         if args.key not in existing_databases:
             print(f"Error: Database '{args.key}' not found", file=sys.stderr)
-            return 1
-        
+            return EXIT_ERROR
+
+        # Confirmation prompt
+        if not confirm_action(reporter.report_prompt() + "\n\nAre you sure you want to proceed?", args):
+            print("Operation cancelled", file=sys.stderr)
+            return EXIT_CANCELLED
+
         # Remove and save
         loader.remove_database(args.key)
         loader.save_to_yaml()
-        
-        print(f"✓ Database '{args.key}' removed successfully")
-        print(f"Configuration saved to: {loader.config_path}")
-        
-        return 0
+
+        # Report success
+        reporter.report_result()
+        print(f"Configuration saved to: {os.path.abspath(loader.config_path)}")
+
+        return EXIT_SUCCESS
     except Exception as e:
         print(f"Error removing database: {e}", file=sys.stderr)
-        return 1
+        return EXIT_ERROR
 
 
 def handle_list(args: Namespace) -> int:

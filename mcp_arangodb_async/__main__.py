@@ -110,6 +110,8 @@ def main() -> int:
         default="config/databases.yaml",
         help="Path to configuration file (default: config/databases.yaml)",
     )
+    config_add_parser.add_argument("--dry-run", action="store_true", help="Preview changes without executing")
+    config_add_parser.add_argument("--yes", "-y", action="store_true", help="Skip confirmation prompt")
 
     # db config remove subcommand
     config_remove_parser = db_config_subparsers.add_parser("remove", aliases=["rm"], help="Remove a database configuration")
@@ -119,6 +121,8 @@ def main() -> int:
         default="config/databases.yaml",
         help="Path to configuration file (default: config/databases.yaml)",
     )
+    config_remove_parser.add_argument("--dry-run", action="store_true", help="Preview changes without executing")
+    config_remove_parser.add_argument("--yes", "-y", action="store_true", help="Skip confirmation prompt")
 
     # db config list subcommand
     config_list_parser = db_config_subparsers.add_parser("list", aliases=["ls"], help="List all configured databases")

@@ -141,7 +141,7 @@ class TestDBConfig:
     def test_config_add_success(self, temp_config_dir, capsys):
         """DC-01: Successfully add new database configuration."""
         from mcp_arangodb_async import cli_db
-        
+
         config_path = Path(temp_config_dir) / "databases.yaml"
         args = Namespace(
             key="testdb",
@@ -152,8 +152,10 @@ class TestDBConfig:
             timeout=30.0,
             description="Test database",
             config_path=str(config_path),
+            dry_run=False,
+            yes=True,
         )
-        
+
         result = cli_db.handle_add(args)
         assert result == EXIT_SUCCESS
 
@@ -176,6 +178,8 @@ class TestDBConfig:
             timeout=30.0,
             description="Test database",
             config_path=str(config_path),
+            dry_run=False,
+            yes=True,
         )
         cli_db.handle_add(args1)
 
@@ -189,6 +193,8 @@ class TestDBConfig:
             timeout=30.0,
             description="Duplicate",
             config_path=str(config_path),
+            dry_run=False,
+            yes=True,
         )
         result = cli_db.handle_add(args2)
         assert result == EXIT_ERROR
@@ -209,6 +215,8 @@ class TestDBConfig:
             timeout=30.0,
             description="Test database",
             config_path=str(config_path),
+            dry_run=False,
+            yes=True,
         )
         cli_db.handle_add(args_add)
 
@@ -216,6 +224,8 @@ class TestDBConfig:
         args_remove = Namespace(
             key="testdb",
             config_path=str(config_path),
+            dry_run=False,
+            yes=True,
         )
         result = cli_db.handle_remove(args_remove)
         assert result == EXIT_SUCCESS
@@ -237,6 +247,8 @@ class TestDBConfig:
                 timeout=30.0,
                 description=f"Database {i}",
                 config_path=str(config_path),
+                dry_run=False,
+                yes=True,
             )
             cli_db.handle_add(args)
 
@@ -266,6 +278,8 @@ class TestDBConfig:
             timeout=30.0,
             description="Test database",
             config_path=str(config_path),
+            dry_run=False,
+            yes=True,
         )
         cli_db.handle_add(args_add)
 
@@ -308,6 +322,8 @@ class TestDBConfig:
             timeout=30.0,
             description="Test database",
             config_path=str(config_path),
+            dry_run=False,
+            yes=True,
         )
         cli_db.handle_add(args_add)
 
@@ -344,6 +360,8 @@ class TestDBConfig:
             timeout=30.0,
             description="Test database",
             config_path=str(config_path),
+            dry_run=False,
+            yes=True,
         )
         cli_db.handle_add(args_add)
 
