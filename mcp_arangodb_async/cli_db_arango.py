@@ -55,7 +55,7 @@ def _get_system_db(credentials: dict) -> Optional[StandardDatabase]:
 
 def handle_db_add(args: Namespace) -> int:
     """Create a new ArangoDB database.
-    
+
     Args:
         args: Parsed command-line arguments with:
             - name: Database name
@@ -65,21 +65,37 @@ def handle_db_add(args: Namespace) -> int:
             - env_file: Optional .env file path
             - dry_run: Whether to simulate only
             - yes: Skip confirmation prompt
-    
+
     Returns:
         Exit code (0=success, 1=error, 2=cancelled)
     """
-    # Load credentials
+    # Build consequence list based on arguments
+    reporter = ResultReporter("db add", dry_run=args.dry_run)
+    reporter.add(ConsequenceType.ADDED, f"Database '{args.name}'")
+
+    # Handle --with-user atomic operation
+    with_user = getattr(args, 'with_user', None)
+    permission = getattr(args, 'permission', 'rw')
+    if with_user:
+        reporter.add(ConsequenceType.ADDED, f"User '{with_user}' (active: true)")
+        reporter.add(ConsequenceType.GRANTED, f"Permission {permission}: {with_user} → {args.name}")
+
+    # Dry-run mode: report and exit without database connection
+    if args.dry_run:
+        reporter.report_result()
+        return EXIT_SUCCESS
+
+    # Load credentials (only needed for actual execution)
     credentials = load_credentials(args)
     if not credentials.get("root_password"):
         print("Error: ARANGO_ROOT_PASSWORD environment variable required", file=sys.stderr)
         return EXIT_ERROR
-    
+
     # Connect to _system database
     sys_db = _get_system_db(credentials)
     if not sys_db:
         return EXIT_ERROR
-    
+
     # Check if database already exists
     try:
         if sys_db.has_database(args.name):
@@ -88,13 +104,8 @@ def handle_db_add(args: Namespace) -> int:
     except ArangoError as e:
         print(f"Error: Failed to check database existence: {e}", file=sys.stderr)
         return EXIT_ERROR
-    
-    # Build consequence list
-    reporter = ResultReporter("db add", dry_run=args.dry_run)
-    reporter.add(ConsequenceType.ADDED, f"Database '{args.name}'")
-    
-    # Handle --with-user atomic operation
-    with_user = getattr(args, 'with_user', None)
+
+    # Validate --with-user requirements
     if with_user:
         # Check if user already exists
         try:
@@ -104,44 +115,33 @@ def handle_db_add(args: Namespace) -> int:
         except ArangoError as e:
             print(f"Error: Failed to check user existence: {e}", file=sys.stderr)
             return EXIT_ERROR
-        
+
         # Get user password
         user_password = credentials.get("user_password")
         if not user_password:
             password_env = getattr(args, 'arango_password_env', 'ARANGO_PASSWORD')
             print(f"Error: {password_env} environment variable required for user creation", file=sys.stderr)
             return EXIT_ERROR
-        
-        reporter.add(ConsequenceType.ADDED, f"User '{with_user}' (active: true)")
-        
-        # Get permission level
-        permission = getattr(args, 'permission', 'rw')
-        reporter.add(ConsequenceType.GRANTED, f"Permission {permission}: {with_user} → {args.name}")
-    
-    # Dry-run mode: just report and exit
-    if args.dry_run:
-        reporter.report_result()
-        return EXIT_SUCCESS
-    
+
     # Confirmation prompt
     if not confirm_action(reporter.report_prompt() + "\n\nAre you sure you want to proceed?", args):
         print("Operation cancelled", file=sys.stderr)
         return EXIT_CANCELLED
-    
+
     # Execute operations
     try:
         # Create database
         sys_db.create_database(args.name)
-        
+
         # Create user and grant permission if requested
         if with_user:
             sys_db.create_user(with_user, user_password, active=True)
             sys_db.update_permission(with_user, permission, args.name)
-        
+
         # Report success
         reporter.report_result()
         return EXIT_SUCCESS
-        
+
     except ArangoError as e:
         print(f"Error: Failed to create database: {e}", file=sys.stderr)
         return EXIT_ERROR
@@ -163,7 +163,22 @@ def handle_db_remove(args: Namespace) -> int:
     Returns:
         Exit code (0=success, 1=error, 2=cancelled)
     """
-    # Load credentials
+    # Prevent deletion of _system database (can check without connection)
+    if args.name == "_system":
+        print("Error: Cannot delete _system database", file=sys.stderr)
+        return EXIT_ERROR
+
+    # Build consequence list based on arguments
+    reporter = ResultReporter("db remove", dry_run=args.dry_run)
+    reporter.add(ConsequenceType.REMOVED, f"Database '{args.name}'")
+
+    # Dry-run mode: report and exit without database connection
+    # Note: Cannot show affected users without connection, but that's acceptable for dry-run
+    if args.dry_run:
+        reporter.report_result()
+        return EXIT_SUCCESS
+
+    # Load credentials (only needed for actual execution)
     credentials = load_credentials(args)
     if not credentials.get("root_password"):
         print("Error: ARANGO_ROOT_PASSWORD environment variable required", file=sys.stderr)
@@ -183,16 +198,7 @@ def handle_db_remove(args: Namespace) -> int:
         print(f"Error: Failed to check database existence: {e}", file=sys.stderr)
         return EXIT_ERROR
 
-    # Prevent deletion of _system database
-    if args.name == "_system":
-        print("Error: Cannot delete _system database", file=sys.stderr)
-        return EXIT_ERROR
-
-    # Build consequence list
-    reporter = ResultReporter("db remove", dry_run=args.dry_run)
-    reporter.add(ConsequenceType.REMOVED, f"Database '{args.name}'")
-
-    # Check for users with permissions to this database
+    # Check for users with permissions to this database (for informative output)
     try:
         all_users = sys_db.users()
         affected_users = []
@@ -212,11 +218,6 @@ def handle_db_remove(args: Namespace) -> int:
     except ArangoError:
         # If we can't query users, just proceed with database deletion
         pass
-
-    # Dry-run mode: just report and exit
-    if args.dry_run:
-        reporter.report_result()
-        return EXIT_SUCCESS
 
     # Confirmation prompt
     if not confirm_action(reporter.report_prompt() + "\n\nAre you sure you want to proceed?", args):

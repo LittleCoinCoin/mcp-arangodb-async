@@ -60,7 +60,7 @@ def _get_system_db(credentials: dict) -> Optional[StandardDatabase]:
 
 def handle_user_add(args: Namespace) -> int:
     """Create a new ArangoDB user.
-    
+
     Args:
         args: Parsed command-line arguments with:
             - username: Username to create
@@ -69,21 +69,33 @@ def handle_user_add(args: Namespace) -> int:
             - env_file: Optional .env file path
             - dry_run: Whether to simulate only
             - yes: Skip confirmation prompt
-    
+
     Returns:
         Exit code (0=success, 1=error, 2=cancelled)
     """
-    # Load credentials
+    # Get active flag
+    active = getattr(args, 'active', True)
+
+    # Build consequence list based on arguments
+    reporter = ResultReporter("user add", dry_run=args.dry_run)
+    reporter.add(ConsequenceType.ADDED, f"User '{args.username}' (active: {str(active).lower()})")
+
+    # Dry-run mode: report and exit without database connection
+    if args.dry_run:
+        reporter.report_result()
+        return EXIT_SUCCESS
+
+    # Load credentials (only needed for actual execution)
     credentials = load_credentials(args)
     if not credentials.get("root_password"):
         print("Error: ARANGO_ROOT_PASSWORD environment variable required", file=sys.stderr)
         return EXIT_ERROR
-    
+
     # Connect to _system database
     sys_db = _get_system_db(credentials)
     if not sys_db:
         return EXIT_ERROR
-    
+
     # Check if user already exists
     try:
         if sys_db.has_user(args.username):
@@ -92,31 +104,19 @@ def handle_user_add(args: Namespace) -> int:
     except ArangoError as e:
         print(f"Error: Failed to check user existence: {e}", file=sys.stderr)
         return EXIT_ERROR
-    
+
     # Get user password
     user_password = credentials.get("user_password")
     if not user_password:
         password_env = getattr(args, 'arango_password_env', 'ARANGO_PASSWORD')
         print(f"Error: {password_env} environment variable required for user creation", file=sys.stderr)
         return EXIT_ERROR
-    
-    # Get active flag
-    active = getattr(args, 'active', True)
-    
-    # Build consequence list
-    reporter = ResultReporter("user add", dry_run=args.dry_run)
-    reporter.add(ConsequenceType.ADDED, f"User '{args.username}' (active: {str(active).lower()})")
-    
-    # Dry-run mode: just report and exit
-    if args.dry_run:
-        reporter.report_result()
-        return EXIT_SUCCESS
-    
+
     # Confirmation prompt
     if not confirm_action(reporter.report_prompt() + "\n\nAre you sure you want to proceed?", args):
         print("Operation cancelled", file=sys.stderr)
         return EXIT_CANCELLED
-    
+
     # Execute operation
     try:
         sys_db.create_user(args.username, user_password, active=active)
@@ -143,7 +143,22 @@ def handle_user_remove(args: Namespace) -> int:
     Returns:
         Exit code (0=success, 1=error, 2=cancelled)
     """
-    # Load credentials
+    # Prevent deletion of root user (can check without connection)
+    if args.username == "root":
+        print("Error: Cannot delete root user", file=sys.stderr)
+        return EXIT_ERROR
+
+    # Build consequence list based on arguments
+    reporter = ResultReporter("user remove", dry_run=args.dry_run)
+    reporter.add(ConsequenceType.REMOVED, f"User '{args.username}'")
+
+    # Dry-run mode: report and exit without database connection
+    # Note: Cannot show revoked permissions without connection, but that's acceptable for dry-run
+    if args.dry_run:
+        reporter.report_result()
+        return EXIT_SUCCESS
+
+    # Load credentials (only needed for actual execution)
     credentials = load_credentials(args)
     if not credentials.get("root_password"):
         print("Error: ARANGO_ROOT_PASSWORD environment variable required", file=sys.stderr)
@@ -163,16 +178,7 @@ def handle_user_remove(args: Namespace) -> int:
         print(f"Error: Failed to check user existence: {e}", file=sys.stderr)
         return EXIT_ERROR
 
-    # Prevent deletion of root user
-    if args.username == "root":
-        print("Error: Cannot delete root user", file=sys.stderr)
-        return EXIT_ERROR
-
-    # Build consequence list
-    reporter = ResultReporter("user remove", dry_run=args.dry_run)
-    reporter.add(ConsequenceType.REMOVED, f"User '{args.username}'")
-
-    # Check for user's database permissions
+    # Check for user's database permissions (for informative output)
     try:
         perms = sys_db.permissions(args.username)
         for db_name, perm in perms.items():
@@ -181,11 +187,6 @@ def handle_user_remove(args: Namespace) -> int:
     except ArangoError:
         # If we can't query permissions, just proceed with user deletion
         pass
-
-    # Dry-run mode: just report and exit
-    if args.dry_run:
-        reporter.report_result()
-        return EXIT_SUCCESS
 
     # Confirmation prompt
     if not confirm_action(reporter.report_prompt() + "\n\nAre you sure you want to proceed?", args):
@@ -268,7 +269,19 @@ def handle_user_grant(args: Namespace) -> int:
     Returns:
         Exit code (0=success, 1=error, 2=cancelled)
     """
-    # Load credentials
+    # Get permission level
+    permission = getattr(args, 'permission', 'rw')
+
+    # Build consequence list based on arguments
+    reporter = ResultReporter("user grant", dry_run=args.dry_run)
+    reporter.add(ConsequenceType.GRANTED, f"Permission {permission}: {args.username} → {args.database}")
+
+    # Dry-run mode: report and exit without database connection
+    if args.dry_run:
+        reporter.report_result()
+        return EXIT_SUCCESS
+
+    # Load credentials (only needed for actual execution)
     credentials = load_credentials(args)
     if not credentials.get("root_password"):
         print("Error: ARANGO_ROOT_PASSWORD environment variable required", file=sys.stderr)
@@ -296,18 +309,6 @@ def handle_user_grant(args: Namespace) -> int:
     except ArangoError as e:
         print(f"Error: Failed to check database existence: {e}", file=sys.stderr)
         return EXIT_ERROR
-
-    # Get permission level
-    permission = getattr(args, 'permission', 'rw')
-
-    # Build consequence list
-    reporter = ResultReporter("user grant", dry_run=args.dry_run)
-    reporter.add(ConsequenceType.GRANTED, f"Permission {permission}: {args.username} → {args.database}")
-
-    # Dry-run mode: just report and exit
-    if args.dry_run:
-        reporter.report_result()
-        return EXIT_SUCCESS
 
     # Confirmation prompt
     if not confirm_action(reporter.report_prompt() + "\n\nAre you sure you want to proceed?", args):
@@ -341,7 +342,17 @@ def handle_user_revoke(args: Namespace) -> int:
     Returns:
         Exit code (0=success, 1=error, 2=cancelled)
     """
-    # Load credentials
+    # Build consequence list based on arguments
+    # Note: Cannot show current permission without connection - acceptable for dry-run
+    reporter = ResultReporter("user revoke", dry_run=args.dry_run)
+    reporter.add(ConsequenceType.REVOKED, f"Permission: {args.username} → {args.database}")
+
+    # Dry-run mode: report and exit without database connection
+    if args.dry_run:
+        reporter.report_result()
+        return EXIT_SUCCESS
+
+    # Load credentials (only needed for actual execution)
     credentials = load_credentials(args)
     if not credentials.get("root_password"):
         print("Error: ARANGO_ROOT_PASSWORD environment variable required", file=sys.stderr)
@@ -361,25 +372,17 @@ def handle_user_revoke(args: Namespace) -> int:
         print(f"Error: Failed to check user existence: {e}", file=sys.stderr)
         return EXIT_ERROR
 
-    # Get current permission
+    # Get current permission (for informative output)
     current_perm = None
     try:
         perms = sys_db.permissions(args.username)
         current_perm = perms.get(args.database, 'none')
+        # Update consequence with current permission info
+        if current_perm and current_perm != 'none':
+            reporter.consequences.clear()
+            reporter.add(ConsequenceType.REVOKED, f"Permission: {args.username} → {args.database} (was: {current_perm})")
     except ArangoError:
         pass
-
-    # Build consequence list
-    reporter = ResultReporter("user revoke", dry_run=args.dry_run)
-    if current_perm and current_perm != 'none':
-        reporter.add(ConsequenceType.REVOKED, f"Permission: {args.username} → {args.database} (was: {current_perm})")
-    else:
-        reporter.add(ConsequenceType.REVOKED, f"Permission: {args.username} → {args.database}")
-
-    # Dry-run mode: just report and exit
-    if args.dry_run:
-        reporter.report_result()
-        return EXIT_SUCCESS
 
     # Confirmation prompt
     if not confirm_action(reporter.report_prompt() + "\n\nAre you sure you want to proceed?", args):
@@ -473,7 +476,19 @@ def handle_user_password(args: Namespace) -> int:
     Returns:
         Exit code (0=success, 1=error, 2=cancelled)
     """
-    # Load credentials
+    # Get username for consequence reporting (use env var or default)
+    username = os.getenv("ARANGO_USERNAME", "root")
+
+    # Build consequence list based on arguments
+    reporter = ResultReporter("user password", dry_run=args.dry_run)
+    reporter.add(ConsequenceType.UPDATED, f"Password for user '{username}'")
+
+    # Dry-run mode: report and exit without database connection
+    if args.dry_run:
+        reporter.report_result()
+        return EXIT_SUCCESS
+
+    # Load credentials (only needed for actual execution)
     credentials = load_credentials(args)
     username = credentials.get("username", "root")
     current_password = credentials.get("user_password")
@@ -503,14 +518,9 @@ def handle_user_password(args: Namespace) -> int:
         print(f"Error: Unexpected error connecting to ArangoDB: {e}", file=sys.stderr)
         return EXIT_ERROR
 
-    # Build consequence list
-    reporter = ResultReporter("user password", dry_run=args.dry_run)
+    # Update consequence with actual username from credentials
+    reporter.consequences.clear()
     reporter.add(ConsequenceType.UPDATED, f"Password for user '{username}'")
-
-    # Dry-run mode: just report and exit
-    if args.dry_run:
-        reporter.report_result()
-        return EXIT_SUCCESS
 
     # Confirmation prompt
     if not confirm_action(reporter.report_prompt() + "\n\nAre you sure you want to proceed?", args):
