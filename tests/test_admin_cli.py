@@ -6,13 +6,15 @@ Tests are organized according to the Test Definition Report v1.
 Test Classes:
 - TestVersionCommand (1 test)
 - TestDBConfig (7 tests)
-- TestDBAdmin (5 tests)
-- TestUserAdmin (10 tests)
+- TestDBAdmin (6 tests) - includes atomic operation test
+- TestUserAdmin (11 tests) - includes root user protection test
 - TestSafetyFeatures (3 tests)
 - TestAuthentication (2 tests)
 - TestOutputFormatting (2 tests)
+- TestConnectionErrors (3 tests) - P1 connection error handling
 
-Total: 30 tests targeting >90% code coverage
+Total: 35 tests (30 original + 5 additional P0/P1 tests)
+Coverage: Targets critical paths and error handling
 """
 
 import pytest
@@ -410,6 +412,42 @@ class TestDBAdmin:
 
         del os.environ["ARANGO_ROOT_PASSWORD"]
 
+    def test_db_add_with_user_atomic(self, mock_arango_client, mock_sys_db, capsys):
+        """DA-02b: Successfully create database with user atomically (--with-user)."""
+        mock_sys_db.has_database.return_value = False
+        mock_sys_db.has_user.return_value = False
+
+        args = Namespace(
+            name="newdb",
+            with_user="newuser",  # Atomic operation
+            permission="rw",
+            env_file=None,
+            arango_root_password_env=None,
+            arango_password_env=None,
+            dry_run=False,
+            yes=True,
+        )
+
+        os.environ["ARANGO_ROOT_PASSWORD"] = "rootpass"
+        os.environ["ARANGO_PASSWORD"] = "userpass"
+
+        result = cli_db_arango.handle_db_add(args)
+        assert result == EXIT_SUCCESS
+
+        # Verify all three operations were called
+        mock_sys_db.create_database.assert_called_once_with("newdb")
+        mock_sys_db.create_user.assert_called_once_with("newuser", "userpass", active=True)
+        mock_sys_db.update_permission.assert_called_once_with("newuser", "rw", "newdb")
+
+        # Verify output shows all three consequences
+        captured = capsys.readouterr()
+        assert "Database 'newdb'" in captured.out
+        assert "User 'newuser'" in captured.out
+        assert "Permission rw: newuser → newdb" in captured.out
+
+        del os.environ["ARANGO_ROOT_PASSWORD"]
+        del os.environ["ARANGO_PASSWORD"]
+
     def test_db_remove_success(self, mock_arango_client, mock_sys_db, capsys):
         """DA-03: Successfully delete database."""
         mock_sys_db.has_database.return_value = True
@@ -576,6 +614,32 @@ class TestUserAdmin:
 
         captured = capsys.readouterr()
         assert "not found" in captured.err
+
+        del os.environ["ARANGO_ROOT_PASSWORD"]
+
+    def test_user_remove_root_protection(self, mock_arango_client_user, mock_sys_db, capsys):
+        """UA-04b: Cannot delete root user (security protection)."""
+        mock_sys_db.has_user.return_value = True
+
+        args = Namespace(
+            username="root",  # Attempt to delete root user
+            env_file=None,
+            arango_root_password_env=None,
+            dry_run=False,
+            yes=True,
+        )
+
+        os.environ["ARANGO_ROOT_PASSWORD"] = "rootpass"
+
+        result = cli_user.handle_user_remove(args)
+        assert result == EXIT_ERROR
+
+        # Verify error message
+        captured = capsys.readouterr()
+        assert "Cannot delete root user" in captured.err
+
+        # Verify delete was NOT called
+        mock_sys_db.delete_user.assert_not_called()
 
         del os.environ["ARANGO_ROOT_PASSWORD"]
 
@@ -887,4 +951,101 @@ class TestOutputFormatting:
         assert "Error" in captured.err or "not found" in captured.err
 
         del os.environ["ARANGO_ROOT_PASSWORD"]
+
+
+# ============================================================================
+# TestConnectionErrors (3 tests)
+# ============================================================================
+
+class TestConnectionErrors:
+    """Tests for connection error handling across CLI modules."""
+
+    def test_db_add_connection_error(self, capsys):
+        """CE-01: Database add handles connection errors gracefully."""
+        from arango.exceptions import ArangoError
+
+        # Mock ArangoClient to raise connection error
+        with patch('mcp_arangodb_async.cli_db_arango.ArangoClient') as mock_client_class:
+            mock_client = MagicMock()
+            mock_client.db.side_effect = ArangoError("Connection refused")
+            mock_client_class.return_value = mock_client
+
+            args = Namespace(
+                name="testdb",
+                with_user=None,
+                permission="rw",
+                env_file=None,
+                arango_root_password_env=None,
+                arango_password_env=None,
+                dry_run=False,
+                yes=True,
+            )
+
+            os.environ["ARANGO_ROOT_PASSWORD"] = "rootpass"
+
+            result = cli_db_arango.handle_db_add(args)
+            assert result == EXIT_ERROR
+
+            captured = capsys.readouterr()
+            assert "Failed to connect" in captured.err
+
+            del os.environ["ARANGO_ROOT_PASSWORD"]
+
+    def test_user_add_connection_error(self, capsys):
+        """CE-02: User add handles connection errors gracefully."""
+        from arango.exceptions import ArangoError
+
+        # Mock ArangoClient to raise connection error
+        with patch('mcp_arangodb_async.cli_user.ArangoClient') as mock_client_class:
+            mock_client = MagicMock()
+            mock_client.db.side_effect = ArangoError("Connection timeout")
+            mock_client_class.return_value = mock_client
+
+            args = Namespace(
+                username="testuser",
+                active=True,
+                env_file=None,
+                arango_root_password_env=None,
+                arango_password_env=None,
+                dry_run=False,
+                yes=True,
+            )
+
+            os.environ["ARANGO_ROOT_PASSWORD"] = "rootpass"
+            os.environ["ARANGO_PASSWORD"] = "userpass"
+
+            result = cli_user.handle_user_add(args)
+            assert result == EXIT_ERROR
+
+            captured = capsys.readouterr()
+            assert "Failed to connect" in captured.err
+
+            del os.environ["ARANGO_ROOT_PASSWORD"]
+            del os.environ["ARANGO_PASSWORD"]
+
+    def test_user_databases_connection_error(self, capsys):
+        """CE-03: User databases (self-service) handles connection errors gracefully."""
+        from arango.exceptions import ArangoError
+
+        # Mock ArangoClient to raise connection error
+        with patch('mcp_arangodb_async.cli_user.ArangoClient') as mock_client_class:
+            mock_client = MagicMock()
+            mock_client.db.side_effect = ArangoError("Authentication failed")
+            mock_client_class.return_value = mock_client
+
+            args = Namespace(
+                env_file=None,
+                arango_password_env=None,
+                json=False,
+            )
+
+            os.environ["ARANGO_PASSWORD"] = "userpass"
+
+            result = cli_user.handle_user_databases(args)
+            assert result == EXIT_ERROR
+
+            captured = capsys.readouterr()
+            assert "Failed to connect" in captured.err
+
+            del os.environ["ARANGO_PASSWORD"]
 
