@@ -979,12 +979,19 @@ class TestOutputFormatting:
     """Tests for output formatting and result reporting."""
 
     def test_success_output_format(self, capsys):
-        """OF-01: Success output contains consequence tags."""
+        """OF-01: Success output contains consequence tags with past tense.
+        
+        Per design doc v4, execution results use past tense (ADDED, REMOVED, etc.)
+        while confirmation prompts use present tense (ADD, REMOVE, etc.).
+        """
         reporter = ResultReporter("test command", dry_run=False)
-        reporter.add(ConsequenceType.ADDED, "Test item")
+        # Use present tense when adding consequences
+        reporter.add(ConsequenceType.ADD, "Test item")
+        # report_result() automatically converts to past tense
         reporter.report_result()
 
         captured = capsys.readouterr()
+        # Result should show past tense
         assert "[ADDED]" in captured.out
         assert "Test item" in captured.out
 

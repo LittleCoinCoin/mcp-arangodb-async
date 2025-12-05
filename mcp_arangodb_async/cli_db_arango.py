@@ -52,10 +52,10 @@ def handle_db_add(args: Namespace) -> int:
     # For dry-run mode, we show optimistic consequences (user will be created)
     # Actual behavior depends on runtime check of user existence
     reporter = ResultReporter("db add", dry_run=args.dry_run)
-    reporter.add(ConsequenceType.ADDED, f"Database '{args.name}'")
+    reporter.add(ConsequenceType.ADD, f"Database '{args.name}'")
     if with_user:
-        reporter.add(ConsequenceType.ADDED, f"User '{with_user}' (active: true)")
-        reporter.add(ConsequenceType.GRANTED, f"Permission {permission}: {with_user} → {args.name}")
+        reporter.add(ConsequenceType.ADD, f"User '{with_user}' (active: true)")
+        reporter.add(ConsequenceType.GRANT, f"Permission {permission}: {with_user} → {args.name}")
 
     # Dry-run mode: report and exit without database connection
     if args.dry_run:
@@ -103,12 +103,12 @@ def handle_db_add(args: Namespace) -> int:
         
         # Rebuild reporter with accurate consequences based on user existence
         reporter = ResultReporter("db add", dry_run=False)
-        reporter.add(ConsequenceType.ADDED, f"Database '{args.name}'")
+        reporter.add(ConsequenceType.ADD, f"Database '{args.name}'")
         if user_exists:
             reporter.add(ConsequenceType.EXISTS, f"User '{with_user}' (already exists)")
         else:
-            reporter.add(ConsequenceType.ADDED, f"User '{with_user}' (active: true)")
-        reporter.add(ConsequenceType.GRANTED, f"Permission {permission}: {with_user} → {args.name}")
+            reporter.add(ConsequenceType.ADD, f"User '{with_user}' (active: true)")
+        reporter.add(ConsequenceType.GRANT, f"Permission {permission}: {with_user} → {args.name}")
 
     # Confirmation prompt
     if not confirm_action(reporter.report_prompt() + "\n\nAre you sure you want to proceed?", args):
@@ -158,7 +158,7 @@ def handle_db_remove(args: Namespace) -> int:
 
     # Build consequence list based on arguments
     reporter = ResultReporter("db remove", dry_run=args.dry_run)
-    reporter.add(ConsequenceType.REMOVED, f"Database '{args.name}'")
+    reporter.add(ConsequenceType.REMOVE, f"Database '{args.name}'")
 
     # Dry-run mode: report and exit without database connection
     # Note: Cannot show affected users without connection, but that's acceptable for dry-run
@@ -202,7 +202,7 @@ def handle_db_remove(args: Namespace) -> int:
 
         # Add revocation consequences
         for username, perm in affected_users:
-            reporter.add(ConsequenceType.REVOKED, f"Permission: {username} → {args.name} (was: {perm})")
+            reporter.add(ConsequenceType.REVOKE, f"Permission: {username} → {args.name} (was: {perm})")
     except ArangoError:
         # If we can't query users, just proceed with database deletion
         pass

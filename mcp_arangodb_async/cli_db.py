@@ -38,10 +38,10 @@ def handle_add(args: Namespace) -> int:
     # Build consequence list based on arguments
     dry_run = getattr(args, 'dry_run', False)
     reporter = ResultReporter("db config add", dry_run=dry_run)
-    reporter.add(ConsequenceType.ADDED, f"Database configuration '{args.key}'")
-    reporter.add(ConsequenceType.ADDED, f"  URL: {args.url}")
-    reporter.add(ConsequenceType.ADDED, f"  Database: {args.database}")
-    reporter.add(ConsequenceType.ADDED, f"  Username: {args.username}")
+    reporter.add(ConsequenceType.ADD, f"Database configuration '{args.key}'")
+    reporter.add(ConsequenceType.ADD, f"  URL: {args.url}")
+    reporter.add(ConsequenceType.ADD, f"  Database: {args.database}")
+    reporter.add(ConsequenceType.ADD, f"  Username: {args.username}")
 
     # Dry-run mode: report and exit
     if dry_run:
@@ -104,7 +104,7 @@ def handle_remove(args: Namespace) -> int:
     # Build consequence list based on arguments
     dry_run = getattr(args, 'dry_run', False)
     reporter = ResultReporter("db config remove", dry_run=dry_run)
-    reporter.add(ConsequenceType.REMOVED, f"Database configuration '{args.key}'")
+    reporter.add(ConsequenceType.REMOVE, f"Database configuration '{args.key}'")
 
     # Dry-run mode: report and exit
     if dry_run:

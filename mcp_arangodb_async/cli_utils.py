@@ -128,36 +128,52 @@ class CLIEnvVar(Enum):
 
 # ANSI color codes
 class Color(Enum):
-    """ANSI color codes for terminal output."""
-    GREEN = "\033[92m"
-    GREEN_DIM = "\033[32m"
-    RED = "\033[91m"
-    RED_DIM = "\033[31m"
-    YELLOW = "\033[93m"
-    YELLOW_DIM = "\033[33m"
-    GRAY = "\033[90m"
-    RESET = "\033[0m"
+    """ANSI color codes for terminal output.
+    
+    Uses SGR (Select Graphic Rendition) parameters:
+    - Bright/bold: codes 90-97 (bright colors) or 1;3x (bold + color)
+    - Dim: code 2 combined with color (2;3x)
+    - Standard: codes 30-37
+    """
+    # Bright colors for execution results (completed actions)
+    GREEN = "\033[92m"       # Bright green
+    RED = "\033[91m"         # Bright red
+    YELLOW = "\033[93m"      # Bright yellow
+    # Dim colors for confirmation prompts (pending actions)
+    GREEN_DIM = "\033[2;32m" # Dim green (SGR 2 = dim, 32 = green)
+    RED_DIM = "\033[2;31m"   # Dim red (SGR 2 = dim, 31 = red)
+    YELLOW_DIM = "\033[2;33m" # Dim yellow (SGR 2 = dim, 33 = yellow)
+    # Utility colors
+    GRAY = "\033[90m"        # Bright black (gray)
+    RESET = "\033[0m"        # Reset all attributes
 
 
 class ConsequenceType(Enum):
-    """Consequence types for result reporting."""
-    ADD = ("ADD", Color.GREEN_DIM, Color.GREEN)
-    ADDED = ("ADDED", Color.GREEN_DIM, Color.GREEN)
-    CREATE = ("CREATE", Color.GREEN_DIM, Color.GREEN)
-    CREATED = ("CREATED", Color.GREEN_DIM, Color.GREEN)
-    GRANT = ("GRANT", Color.GREEN_DIM, Color.GREEN)
-    GRANTED = ("GRANTED", Color.GREEN_DIM, Color.GREEN)
-    REMOVE = ("REMOVE", Color.RED_DIM, Color.RED)
-    REMOVED = ("REMOVED", Color.RED_DIM, Color.RED)
-    REVOKE = ("REVOKE", Color.RED_DIM, Color.RED)
-    REVOKED = ("REVOKED", Color.RED_DIM, Color.RED)
-    UPDATE = ("UPDATE", Color.YELLOW_DIM, Color.YELLOW)
-    UPDATED = ("UPDATED", Color.YELLOW_DIM, Color.YELLOW)
-    # Informational types for existing resources that are reused
-    EXISTS = ("EXISTS", Color.GRAY, Color.GRAY)
+    """Consequence types for result reporting.
     
-    def __init__(self, label: str, prompt_color: Color, result_color: Color):
-        self.label = label
+    Each type defines both present and past tense labels:
+    - Present tense (prompt_label): Used in confirmation prompts for pending actions
+    - Past tense (result_label): Used in execution results for completed actions
+    
+    Colors:
+    - prompt_color: Dimmed color for confirmation prompts (not yet executed)
+    - result_color: Bright color for execution results (completed)
+    """
+    # Additive/constructive actions (green)
+    ADD = ("ADD", "ADDED", Color.GREEN_DIM, Color.GREEN)
+    CREATE = ("CREATE", "CREATED", Color.GREEN_DIM, Color.GREEN)
+    GRANT = ("GRANT", "GRANTED", Color.GREEN_DIM, Color.GREEN)
+    # Destructive actions (red)
+    REMOVE = ("REMOVE", "REMOVED", Color.RED_DIM, Color.RED)
+    REVOKE = ("REVOKE", "REVOKED", Color.RED_DIM, Color.RED)
+    # Modification actions (yellow)
+    UPDATE = ("UPDATE", "UPDATED", Color.YELLOW_DIM, Color.YELLOW)
+    # Informational types (gray) - no tense change
+    EXISTS = ("EXISTS", "EXISTS", Color.GRAY, Color.GRAY)
+    
+    def __init__(self, prompt_label: str, result_label: str, prompt_color: Color, result_color: Color):
+        self.prompt_label = prompt_label  # Present tense: "ADD", "REMOVE"
+        self.result_label = result_label  # Past tense: "ADDED", "REMOVED"
         self.prompt_color = prompt_color
         self.result_color = result_color
 
@@ -315,6 +331,9 @@ class ResultReporter:
 
     def report_prompt(self) -> str:
         """Generate confirmation prompt with present-tense consequences.
+        
+        Uses dimmed colors and present tense labels (e.g., [ADD], [REMOVE])
+        to visually indicate pending actions that haven't executed yet.
 
         Returns:
             Formatted prompt string with color-coded consequences
@@ -326,12 +345,17 @@ class ResultReporter:
         for consequence_type, message in self.consequences:
             color = consequence_type.prompt_color.value
             reset = Color.RESET.value
-            lines.append(f"  {color}[{consequence_type.label}]{reset} {message}")
+            # Use present tense (prompt_label) for confirmation prompts
+            lines.append(f"  {color}[{consequence_type.prompt_label}]{reset} {message}")
 
         return "\n".join(lines)
 
     def report_result(self):
-        """Print execution results with past-tense consequences."""
+        """Print execution results with past-tense consequences.
+        
+        Uses bright colors and past tense labels (e.g., [ADDED], [REMOVED])
+        to indicate completed actions.
+        """
         if not self.consequences:
             return
 
@@ -342,16 +366,16 @@ class ResultReporter:
         # Print consequences
         for consequence_type, message in self.consequences:
             if self.dry_run:
-                # Dry-run: use result color + gray suffix
+                # Dry-run: use result color + gray suffix with past tense
                 color = consequence_type.result_color.value
-                gray = Color.GRAY.value
                 reset = Color.RESET.value
-                print(f"{color}[{consequence_type.label} - DRY-RUN]{reset} {message}")
+                # Use past tense (result_label) even in dry-run to show what WOULD happen
+                print(f"{color}[{consequence_type.result_label} - DRY-RUN]{reset} {message}")
             else:
-                # Actual execution: use bright result color
+                # Actual execution: use bright result color with past tense
                 color = consequence_type.result_color.value
                 reset = Color.RESET.value
-                print(f"{color}[{consequence_type.label}]{reset} {message}")
+                print(f"{color}[{consequence_type.result_label}]{reset} {message}")
 
         # Print dry-run footer
         if self.dry_run:

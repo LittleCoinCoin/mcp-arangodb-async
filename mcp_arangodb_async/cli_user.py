@@ -58,7 +58,7 @@ def handle_user_add(args: Namespace) -> int:
 
     # Build consequence list based on arguments
     reporter = ResultReporter("user add", dry_run=args.dry_run)
-    reporter.add(ConsequenceType.ADDED, f"User '{args.username}' (active: {str(active).lower()})")
+    reporter.add(ConsequenceType.ADD, f"User '{args.username}' (active: {str(active).lower()})")
 
     # Dry-run mode: report and exit without database connection
     if args.dry_run:
@@ -130,7 +130,7 @@ def handle_user_remove(args: Namespace) -> int:
 
     # Build consequence list based on arguments
     reporter = ResultReporter("user remove", dry_run=args.dry_run)
-    reporter.add(ConsequenceType.REMOVED, f"User '{args.username}'")
+    reporter.add(ConsequenceType.REMOVE, f"User '{args.username}'")
 
     # Dry-run mode: report and exit without database connection
     # Note: Cannot show revoked permissions without connection, but that's acceptable for dry-run
@@ -163,7 +163,7 @@ def handle_user_remove(args: Namespace) -> int:
         perms = sys_db.permissions(args.username)
         for db_name, perm in perms.items():
             if perm != 'none':
-                reporter.add(ConsequenceType.REVOKED, f"Permission: {args.username} → {db_name} (was: {perm})")
+                reporter.add(ConsequenceType.REVOKE, f"Permission: {args.username} → {db_name} (was: {perm})")
     except ArangoError:
         # If we can't query permissions, just proceed with user deletion
         pass
@@ -254,7 +254,7 @@ def handle_user_grant(args: Namespace) -> int:
 
     # Build consequence list based on arguments
     reporter = ResultReporter("user grant", dry_run=args.dry_run)
-    reporter.add(ConsequenceType.GRANTED, f"Permission {permission}: {args.username} → {args.database}")
+    reporter.add(ConsequenceType.GRANT, f"Permission {permission}: {args.username} → {args.database}")
 
     # Dry-run mode: report and exit without database connection
     if args.dry_run:
@@ -325,7 +325,7 @@ def handle_user_revoke(args: Namespace) -> int:
     # Build consequence list based on arguments
     # Note: Cannot show current permission without connection - acceptable for dry-run
     reporter = ResultReporter("user revoke", dry_run=args.dry_run)
-    reporter.add(ConsequenceType.REVOKED, f"Permission: {args.username} → {args.database}")
+    reporter.add(ConsequenceType.REVOKE, f"Permission: {args.username} → {args.database}")
 
     # Dry-run mode: report and exit without database connection
     if args.dry_run:
@@ -360,7 +360,7 @@ def handle_user_revoke(args: Namespace) -> int:
         # Update consequence with current permission info
         if current_perm and current_perm != 'none':
             reporter.consequences.clear()
-            reporter.add(ConsequenceType.REVOKED, f"Permission: {args.username} → {args.database} (was: {current_perm})")
+            reporter.add(ConsequenceType.REVOKE, f"Permission: {args.username} → {args.database} (was: {current_perm})")
     except ArangoError:
         pass
 
@@ -573,7 +573,7 @@ def handle_user_password(args: Namespace) -> int:
 
     # Build consequence list based on arguments
     reporter = ResultReporter("user password", dry_run=args.dry_run)
-    reporter.add(ConsequenceType.UPDATED, f"Password for user '{username}'")
+    reporter.add(ConsequenceType.UPDATE, f"Password for user '{username}'")
 
     # Dry-run mode: report and exit without database connection
     if args.dry_run:
