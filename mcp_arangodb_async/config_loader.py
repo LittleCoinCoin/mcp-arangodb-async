@@ -28,6 +28,8 @@ class ConfigFileLoader:
         self.config_path = os.path.abspath(config_path)
         self.default_database: Optional[str] = None
         self._databases: Dict[str, DatabaseConfig] = {}
+        # Track source of configuration (yaml or env_vars)
+        self._loaded_from_yaml: bool = False
 
     def load(self) -> None:
         """Load configurations from YAML file and environment variables.
@@ -41,8 +43,19 @@ class ConfigFileLoader:
         """
         if os.path.exists(self.config_path):
             self._load_from_yaml()
+            self._loaded_from_yaml = True
         else:
             self._load_from_env_vars()
+            self._loaded_from_yaml = False
+
+    @property
+    def loaded_from_yaml(self) -> bool:
+        """Check if configuration was loaded from YAML file.
+        
+        Returns:
+            True if loaded from YAML file, False if from environment variables
+        """
+        return self._loaded_from_yaml
 
     def _load_from_yaml(self) -> None:
         """Load configuration from YAML file.
@@ -77,13 +90,14 @@ class ConfigFileLoader:
         url = os.getenv("ARANGO_URL", "http://localhost:8529")
         database = os.getenv("ARANGO_DB", "_system")
         username = os.getenv("ARANGO_USERNAME", "root")
+        timeout = float(os.getenv("ARANGO_TIMEOUT_SEC", "30.0"))
         
         self._databases["default"] = DatabaseConfig(
             url=url,
             database=database,
             username=username,
             password_env="ARANGO_PASSWORD",
-            timeout=30.0
+            timeout=timeout
         )
         self.default_database = "default"
 
