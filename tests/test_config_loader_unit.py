@@ -273,3 +273,52 @@ class TestConfigFileLoader:
         databases = loader.get_configured_databases()
         assert "db1" in databases
 
+    def test_load_yaml_only_no_env_fallback(self):
+        """Test load_yaml_only does not fall back to env vars when file missing.
+        
+        This ensures db config add/remove only operate on explicitly configured
+        databases and don't merge with environment variable defaults.
+        """
+        # Use a non-existent config path
+        nonexistent_path = os.path.join(self.temp_dir, "nonexistent.yaml")
+        loader = ConfigFileLoader(nonexistent_path)
+        
+        # Set env vars that would be picked up by load() but not load_yaml_only()
+        with patch.dict(os.environ, {
+            "ARANGO_URL": "http://env-test:8529",
+            "ARANGO_DB": "env_database",
+            "ARANGO_USERNAME": "env_user"
+        }):
+            loader.load_yaml_only()
+        
+        # Should have empty databases (no env fallback)
+        databases = loader.get_configured_databases()
+        assert len(databases) == 0, "load_yaml_only should not fall back to env vars"
+        assert loader.default_database is None
+        assert loader.loaded_from_yaml is False
+
+    def test_load_yaml_only_loads_existing_yaml(self):
+        """Test load_yaml_only correctly loads existing YAML file."""
+        config_data = {
+            "default_database": "db1",
+            "databases": {
+                "db1": {
+                    "url": "http://db1:8529",
+                    "database": "db1",
+                    "username": "user1",
+                    "password_env": "DB1_PASSWORD"
+                }
+            }
+        }
+
+        with open(self.config_path, 'w') as f:
+            yaml.dump(config_data, f)
+
+        loader = ConfigFileLoader(self.config_path)
+        loader.load_yaml_only()
+
+        databases = loader.get_configured_databases()
+        assert "db1" in databases
+        assert loader.default_database == "db1"
+        assert loader.loaded_from_yaml is True
+

@@ -49,9 +49,10 @@ def handle_add(args: Namespace) -> int:
         return EXIT_SUCCESS
 
     try:
-        # Load existing configuration
+        # Load existing configuration from YAML only (don't merge with env vars)
+        # This ensures we only add what the user explicitly requests
         loader = ConfigFileLoader(args.config_path)
-        loader.load()
+        loader.load_yaml_only()
 
         # Check for duplicate key
         existing_databases = loader.get_configured_databases()
@@ -111,9 +112,10 @@ def handle_remove(args: Namespace) -> int:
         return EXIT_SUCCESS
 
     try:
-        # Load existing configuration
+        # Load existing configuration from YAML only (don't merge with env vars)
+        # This ensures we only operate on explicitly configured databases
         loader = ConfigFileLoader(args.config_path)
-        loader.load()
+        loader.load_yaml_only()
 
         # Check if database exists
         existing_databases = loader.get_configured_databases()

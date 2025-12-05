@@ -48,6 +48,25 @@ class ConfigFileLoader:
             self._load_from_env_vars()
             self._loaded_from_yaml = False
 
+    def load_yaml_only(self) -> None:
+        """Load configurations from YAML file only (no env var fallback).
+        
+        Use this method when you need to manage the config file directly
+        (e.g., adding/removing entries) without merging with environment
+        variable defaults.
+        
+        Raises:
+            yaml.YAMLError: If YAML file is invalid
+        """
+        if os.path.exists(self.config_path):
+            self._load_from_yaml()
+            self._loaded_from_yaml = True
+        else:
+            # No file exists - start with empty config
+            self._databases = {}
+            self.default_database = None
+            self._loaded_from_yaml = False
+
     @property
     def loaded_from_yaml(self) -> bool:
         """Check if configuration was loaded from YAML file.
