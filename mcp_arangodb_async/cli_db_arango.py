@@ -35,7 +35,7 @@ def handle_db_add(args: Namespace) -> int:
     Args:
         args: Parsed command-line arguments with:
             - name: Database name
-            - with_user: Optional username to create and grant access
+            - with_user: Optional username to grant access (creates user if not exists)
             - arango_password_env: Password env var for new user
             - permission: Permission level (rw, ro, none)
             - env_file: Optional .env file path
@@ -45,13 +45,14 @@ def handle_db_add(args: Namespace) -> int:
     Returns:
         Exit code (0=success, 1=error, 2=cancelled)
     """
-    # Build consequence list based on arguments
-    reporter = ResultReporter("db add", dry_run=args.dry_run)
-    reporter.add(ConsequenceType.ADDED, f"Database '{args.name}'")
-
     # Handle --with-user atomic operation
     with_user = getattr(args, 'with_user', None)
     permission = getattr(args, 'permission', 'rw')
+    
+    # For dry-run mode, we show optimistic consequences (user will be created)
+    # Actual behavior depends on runtime check of user existence
+    reporter = ResultReporter("db add", dry_run=args.dry_run)
+    reporter.add(ConsequenceType.ADDED, f"Database '{args.name}'")
     if with_user:
         reporter.add(ConsequenceType.ADDED, f"User '{with_user}' (active: true)")
         reporter.add(ConsequenceType.GRANTED, f"Permission {permission}: {with_user} → {args.name}")
@@ -82,22 +83,32 @@ def handle_db_add(args: Namespace) -> int:
         return EXIT_ERROR
 
     # Validate --with-user requirements
+    user_exists = False
+    user_password = None
     if with_user:
         # Check if user already exists
         try:
-            if sys_db.has_user(with_user):
-                print(f"Error: User '{with_user}' already exists", file=sys.stderr)
-                return EXIT_ERROR
+            user_exists = sys_db.has_user(with_user)
         except ArangoError as e:
             print(f"Error: Failed to check user existence: {e}", file=sys.stderr)
             return EXIT_ERROR
 
-        # Get user password
-        user_password = credentials.get("user_password")
-        if not user_password:
-            password_env = getattr(args, 'arango_password_env', 'ARANGO_PASSWORD')
-            print(f"Error: {password_env} environment variable required for user creation", file=sys.stderr)
-            return EXIT_ERROR
+        # Only require password if user doesn't exist (we need to create them)
+        if not user_exists:
+            user_password = credentials.get("user_password")
+            if not user_password:
+                password_env = getattr(args, 'arango_password_env', 'ARANGO_PASSWORD')
+                print(f"Error: {password_env} environment variable required for user creation", file=sys.stderr)
+                return EXIT_ERROR
+        
+        # Rebuild reporter with accurate consequences based on user existence
+        reporter = ResultReporter("db add", dry_run=False)
+        reporter.add(ConsequenceType.ADDED, f"Database '{args.name}'")
+        if user_exists:
+            reporter.add(ConsequenceType.EXISTS, f"User '{with_user}' (already exists)")
+        else:
+            reporter.add(ConsequenceType.ADDED, f"User '{with_user}' (active: true)")
+        reporter.add(ConsequenceType.GRANTED, f"Permission {permission}: {with_user} → {args.name}")
 
     # Confirmation prompt
     if not confirm_action(reporter.report_prompt() + "\n\nAre you sure you want to proceed?", args):
@@ -109,9 +120,10 @@ def handle_db_add(args: Namespace) -> int:
         # Create database
         sys_db.create_database(args.name)
 
-        # Create user and grant permission if requested
+        # Create user (if needed) and grant permission if requested
         if with_user:
-            sys_db.create_user(with_user, user_password, active=True)
+            if not user_exists:
+                sys_db.create_user(with_user, user_password, active=True)
             sys_db.update_permission(with_user, permission, args.name)
 
         # Report success

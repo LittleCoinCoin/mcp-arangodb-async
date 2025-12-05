@@ -153,6 +153,8 @@ class ConsequenceType(Enum):
     REVOKED = ("REVOKED", Color.RED_DIM, Color.RED)
     UPDATE = ("UPDATE", Color.YELLOW_DIM, Color.YELLOW)
     UPDATED = ("UPDATED", Color.YELLOW_DIM, Color.YELLOW)
+    # Informational types for existing resources that are reused
+    EXISTS = ("EXISTS", Color.GRAY, Color.GRAY)
     
     def __init__(self, label: str, prompt_color: Color, result_color: Color):
         self.label = label

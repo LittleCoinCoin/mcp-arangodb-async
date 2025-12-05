@@ -191,7 +191,7 @@ def main() -> int:
     # db add subcommand (ArangoDB database creation)
     db_add_parser = db_subparsers.add_parser("add", help="Create ArangoDB database")
     db_add_parser.add_argument("name", help="Database name")
-    db_add_parser.add_argument("--with-user", help="Create user and grant access")
+    db_add_parser.add_argument("--with-user", help="Grant access to user (creates user if not exists)")
     db_add_parser.add_argument("--permission", choices=["rw", "ro", "none"], default="rw", help="Permission level (default: rw)")
     db_add_parser.add_argument("--url", help="ArangoDB server URL (default: ARANGO_URL env or http://localhost:8529)")
     db_add_parser.add_argument("--env-file", help="Path to .env file")

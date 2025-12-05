@@ -473,6 +473,43 @@ class TestDBAdmin:
         del os.environ["ARANGO_ROOT_PASSWORD"]
         del os.environ["ARANGO_PASSWORD"]
 
+    def test_db_add_with_user_existing_user(self, mock_arango_client, mock_sys_db, capsys):
+        """DA-02c: Successfully create database and grant to existing user (--with-user)."""
+        mock_sys_db.has_database.return_value = False
+        mock_sys_db.has_user.return_value = True  # User already exists
+
+        args = Namespace(
+            name="newdb",
+            with_user="existinguser",  # Existing user
+            permission="ro",
+            env_file=None,
+            arango_root_password_env=None,
+            arango_password_env=None,
+            dry_run=False,
+            yes=True,
+        )
+
+        # Only root password needed - no user password required for existing user
+        os.environ["ARANGO_ROOT_PASSWORD"] = "rootpass"
+
+        result = cli_db_arango.handle_db_add(args)
+        assert result == EXIT_SUCCESS
+
+        # Verify database was created
+        mock_sys_db.create_database.assert_called_once_with("newdb")
+        # Verify user was NOT created (already exists)
+        mock_sys_db.create_user.assert_not_called()
+        # Verify permission was granted
+        mock_sys_db.update_permission.assert_called_once_with("existinguser", "ro", "newdb")
+
+        # Verify output shows EXISTS for user and GRANTED for permission
+        captured = capsys.readouterr()
+        assert "Database 'newdb'" in captured.out
+        assert "already exists" in captured.out  # User exists message
+        assert "Permission ro: existinguser → newdb" in captured.out
+
+        del os.environ["ARANGO_ROOT_PASSWORD"]
+
     def test_db_remove_success(self, mock_arango_client, mock_sys_db, capsys):
         """DA-03: Successfully delete database."""
         mock_sys_db.has_database.return_value = True
