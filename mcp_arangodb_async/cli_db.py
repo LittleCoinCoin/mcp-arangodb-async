@@ -156,6 +156,31 @@ def handle_list(args: Namespace) -> int:
         
         databases = loader.get_configured_databases()
         
+        # Check if config was loaded from YAML file or environment variables
+        if not loader.loaded_from_yaml:
+            # No config file - indicate graceful degradation
+            print(f"No config file at expected path: {loader.config_path}")
+            print()
+            if databases:
+                print("Database information from environment variables:")
+                print()
+                for key, config in databases.items():
+                    print(f"  {key}:")
+                    print(f"    URL: {config.url}")
+                    print(f"    Database: {config.database}")
+                    print(f"    Username: {config.username}")
+                    print(f"    Password env: {config.password_env}")
+                    print(f"    Timeout: {config.timeout}s")
+                    if config.description:
+                        print(f"    Description: {config.description}")
+                    print()
+                print("Note: Create a config file to define multiple databases and customize settings.")
+            else:
+                print("No database configuration found in environment variables.")
+                print("Note: Create a config file or set ARANGO_URL, ARANGO_DB, ARANGO_USERNAME environment variables.")
+            return 0
+        
+        # Config file exists
         if not databases:
             print("No databases configured")
             print(f"Configuration file: {loader.config_path}")
