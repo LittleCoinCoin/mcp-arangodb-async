@@ -566,8 +566,10 @@ def handle_user_password(args: Namespace) -> int:
     Returns:
         Exit code (0=success, 1=error, 2=cancelled)
     """
-    # Get username for consequence reporting (use env var or default)
-    username = os.getenv("ARANGO_USERNAME", "root")
+    # Load credentials first (loads dotenv file, then retrieves all env vars)
+    # This ensures ARANGO_USERNAME and ARANGO_NEW_PASSWORD are available
+    credentials = load_credentials(args)
+    username = credentials.get("username", "root")
 
     # Build consequence list based on arguments
     reporter = ResultReporter("user password", dry_run=args.dry_run)
@@ -578,20 +580,18 @@ def handle_user_password(args: Namespace) -> int:
         reporter.report_result()
         return EXIT_SUCCESS
 
-    # Load credentials (only needed for actual execution)
-    credentials = load_credentials(args)
-    username = credentials.get("username", "root")
+    # Validate credentials (already loaded above)
     current_password = credentials.get("user_password")
 
     if not current_password:
-        password_env = getattr(args, 'arango_password_env', 'ARANGO_PASSWORD')
+        password_env = credentials.get("_env_vars", {}).get("user_password_env", "ARANGO_PASSWORD")
         print(f"Error: {password_env} environment variable required", file=sys.stderr)
         return EXIT_ERROR
 
-    # Get new password
-    new_password_env = getattr(args, 'new_password_env', 'ARANGO_NEW_PASSWORD')
-    new_password = os.getenv(new_password_env)
+    # Get new password from credentials (loaded via CLIEnvVar enum)
+    new_password = credentials.get("new_password")
     if not new_password:
+        new_password_env = credentials.get("_env_vars", {}).get("new_password_env", "ARANGO_NEW_PASSWORD")
         print(f"Error: {new_password_env} environment variable required", file=sys.stderr)
         return EXIT_ERROR
 
@@ -605,10 +605,6 @@ def handle_user_password(args: Namespace) -> int:
         if error:
             print(f"Error: {error}", file=sys.stderr)
             return EXIT_ERROR
-
-    # Update consequence with actual username from credentials
-    reporter.consequences.clear()
-    reporter.add(ConsequenceType.UPDATED, f"Password for user '{username}'")
 
     # Confirmation prompt
     if not confirm_action(reporter.report_prompt() + "\n\nAre you sure you want to proceed?", args):

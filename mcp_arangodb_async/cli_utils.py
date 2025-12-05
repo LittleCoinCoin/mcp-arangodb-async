@@ -12,6 +12,9 @@ Functions:
 - confirm_action() - Interactive confirmation with --yes bypass
 - get_system_db() - Connect to _system database with warning suppression
 - ResultReporter - Color-coded result reporting class
+
+Enums:
+- CLIEnvVar - All supported CLI environment variables (auto-loaded from dotenv)
 """
 
 from __future__ import annotations
@@ -32,6 +35,96 @@ from arango.exceptions import ArangoError
 EXIT_SUCCESS = 0
 EXIT_ERROR = 1
 EXIT_CANCELLED = 2
+
+
+class CLIEnvVar(Enum):
+    """All supported CLI environment variables.
+    
+    These environment variables are automatically loaded from the dotenv file
+    specified via --env-file. Developers adding new environment variables
+    should add them to this enum to ensure they are:
+    1. Automatically loaded from dotenv files
+    2. Documented in a centralized location
+    3. Consistently named and accessible
+    
+    Each enum value is a tuple of:
+    - var_name: The actual environment variable name (e.g., "ARANGO_PASSWORD")
+    - description: Human-readable description for documentation
+    - default: Default value if not set (None means required)
+    - category: Logical grouping (connection, auth, config)
+    
+    Usage:
+        credentials = load_credentials(args)
+        password = credentials.get(CLIEnvVar.ARANGO_PASSWORD.key)
+        
+    Or use the helper method:
+        password = CLIEnvVar.ARANGO_PASSWORD.get()  # After dotenv is loaded
+    """
+    
+    # Connection settings
+    ARANGO_URL = ("ARANGO_URL", "ArangoDB server URL", "http://localhost:8529", "connection")
+    ARANGO_DB = ("ARANGO_DB", "Default database name", None, "connection")
+    
+    # Authentication - Admin
+    ARANGO_ROOT_PASSWORD = ("ARANGO_ROOT_PASSWORD", "Root password for admin operations", None, "auth")
+    
+    # Authentication - User
+    ARANGO_USERNAME = ("ARANGO_USERNAME", "Username for user operations", "root", "auth")
+    ARANGO_PASSWORD = ("ARANGO_PASSWORD", "Password for user operations", None, "auth")
+    ARANGO_NEW_PASSWORD = ("ARANGO_NEW_PASSWORD", "New password for password change", None, "auth")
+    
+    # Configuration
+    MCP_DEFAULT_DATABASE = ("MCP_DEFAULT_DATABASE", "Default database for MCP operations", None, "config")
+    LOG_LEVEL = ("LOG_LEVEL", "Logging level (DEBUG, INFO, WARNING, ERROR)", None, "config")
+    
+    def __init__(self, var_name: str, description: str, default: Optional[str], category: str):
+        self.var_name = var_name
+        self.description = description
+        self.default_value = default
+        self.category = category
+    
+    @property
+    def key(self) -> str:
+        """Return the key to use in credentials dict (lowercase without ARANGO_ prefix)."""
+        name = self.var_name
+        if name.startswith("ARANGO_"):
+            name = name[7:]  # Remove "ARANGO_" prefix
+        return name.lower()
+    
+    def get(self, default: Optional[str] = None) -> Optional[str]:
+        """Get the value from environment, falling back to default.
+        
+        Args:
+            default: Override default value (uses enum default if not provided)
+            
+        Returns:
+            Environment variable value or default
+        """
+        if default is None:
+            default = self.default_value
+        return os.getenv(self.var_name, default)
+    
+    @classmethod
+    def get_by_category(cls, category: str) -> list["CLIEnvVar"]:
+        """Get all env vars in a category.
+        
+        Args:
+            category: Category name (connection, auth, config)
+            
+        Returns:
+            List of CLIEnvVar members in that category
+        """
+        return [e for e in cls if e.category == category]
+    
+    @classmethod
+    def get_all_names(cls) -> list[str]:
+        """Get all environment variable names.
+        
+        Returns:
+            List of all env var names (e.g., ["ARANGO_URL", "ARANGO_DB", ...])
+        """
+        return [e.var_name for e in cls]
+
 
 # ANSI color codes
 class Color(Enum):
@@ -69,6 +162,10 @@ class ConsequenceType(Enum):
 
 def load_credentials(args: Namespace) -> Dict[str, Any]:
     """Load credentials from environment file or environment variables.
+    
+    Loads all environment variables defined in CLIEnvVar after loading
+    the dotenv file (if specified). This ensures consistent access to
+    all supported environment variables.
 
     Args:
         args: Parsed command-line arguments with optional env_file,
@@ -77,44 +174,49 @@ def load_credentials(args: Namespace) -> Dict[str, Any]:
     Returns:
         Dictionary with credentials:
         - root_password: Root password for admin operations
-        - user_password: User password for self-service operations
+        - user_password: User password for self-service operations  
+        - new_password: New password for password change operations
         - url: ArangoDB server URL (--url arg takes precedence over env)
         - username: Username for self-service operations
+        - database: Database name from environment
+        - _env_vars: Dictionary mapping credential keys to their env var names
     """
-    # Load from dotenv file if specified
+    # Load from dotenv file if specified (MUST happen before any os.getenv calls)
+    # Use override=True to ensure CLI-specified env file takes precedence over
+    # any previously loaded .env files (e.g., from config.py module import)
     if hasattr(args, 'env_file') and args.env_file:
         try:
             from dotenv import load_dotenv
-            load_dotenv(args.env_file)
+            load_dotenv(args.env_file, override=True)
         except ImportError:
             print("Warning: python-dotenv not installed, skipping .env file", file=sys.stderr)
         except Exception as e:
             print(f"Warning: Failed to load .env file: {e}", file=sys.stderr)
 
-    # Determine variable names (use overrides or defaults)
-    root_pw_var = getattr(args, 'arango_root_password_env', None) or "ARANGO_ROOT_PASSWORD"
-    user_pw_var = getattr(args, 'arango_password_env', None) or "ARANGO_PASSWORD"
+    # Determine variable names (use CLI overrides or defaults from enum)
+    root_pw_var = getattr(args, 'arango_root_password_env', None) or CLIEnvVar.ARANGO_ROOT_PASSWORD.var_name
+    user_pw_var = getattr(args, 'arango_password_env', None) or CLIEnvVar.ARANGO_PASSWORD.var_name
+    new_pw_var = getattr(args, 'new_password_env', None) or CLIEnvVar.ARANGO_NEW_PASSWORD.var_name
 
     # URL: command-line argument takes precedence over environment variable
-    url = getattr(args, 'url', None) or os.getenv("ARANGO_URL", "http://localhost:8529")
+    url = getattr(args, 'url', None) or CLIEnvVar.ARANGO_URL.get()
 
-    # Database: from environment variable (used for user self-service commands)
-    database = os.getenv("ARANGO_DB")
-
-    # Retrieve values from environment
+    # Retrieve values from environment using CLIEnvVar
     return {
         "root_password": os.getenv(root_pw_var),
         "user_password": os.getenv(user_pw_var),
+        "new_password": os.getenv(new_pw_var),  # New: for password change
         "url": url,
-        "username": os.getenv("ARANGO_USERNAME", "root"),
-        "database": database,  # May be None if not set
+        "username": CLIEnvVar.ARANGO_USERNAME.get(),
+        "database": CLIEnvVar.ARANGO_DB.get(),  # May be None if not set
         # Include env var names for error messages (never expose actual values)
         "_env_vars": {
             "root_password_env": root_pw_var,
             "user_password_env": user_pw_var,
-            "url_env": "ARANGO_URL",
-            "username_env": "ARANGO_USERNAME",
-            "database_env": "ARANGO_DB",
+            "new_password_env": new_pw_var,
+            "url_env": CLIEnvVar.ARANGO_URL.var_name,
+            "username_env": CLIEnvVar.ARANGO_USERNAME.var_name,
+            "database_env": CLIEnvVar.ARANGO_DB.var_name,
         },
     }
 
