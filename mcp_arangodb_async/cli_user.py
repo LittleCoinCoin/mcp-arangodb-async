@@ -35,6 +35,7 @@ from .cli_utils import (
     EXIT_ERROR,
     EXIT_CANCELLED,
 )
+from .config_loader import ConfigFileLoader
 
 
 def handle_user_add(args: Namespace) -> int:
@@ -381,6 +382,117 @@ def handle_user_revoke(args: Namespace) -> int:
         return EXIT_ERROR
 
 
+def _connect_as_user(credentials: dict, username: str, password: str) -> tuple:
+    """Connect to ArangoDB as a specific user.
+
+    Uses the database resolution system via ConfigFileLoader:
+    1. Load configured databases from YAML config or environment variables
+    2. Try each configured database in order until one works
+    3. Fall back to _system only if no configured databases exist
+    
+    This leverages the existing multi-tenancy configuration system, ensuring
+    non-root users can connect using databases they have access to.
+    
+    Args:
+        credentials: Dictionary with:
+            - 'url': ArangoDB server URL (fallback if no config)
+            - '_env_vars': Dict of env var names for error messages
+        username: Username to authenticate as
+        password: Password for authentication
+        
+    Returns:
+        Tuple of (db_connection, error_message). If successful, error_message is None.
+        If failed, db_connection is None and error_message contains the error.
+    """
+    env_vars = credentials.get("_env_vars", {})
+    
+    # Load database configurations using ConfigFileLoader
+    # This respects YAML config files AND environment variables (ARANGO_DB, etc.)
+    config_loader = ConfigFileLoader()
+    config_loader.load()
+    configured_dbs = config_loader.get_configured_databases()
+    
+    # Build list of (url, database_name, source_description) tuples to try
+    databases_to_try = []
+    
+    if configured_dbs:
+        # Use configured databases - they contain URL, database name, etc.
+        for db_key, db_config in configured_dbs.items():
+            source = "YAML config" if config_loader.loaded_from_yaml else "environment variables"
+            databases_to_try.append((
+                db_config.url,
+                db_config.database,
+                f"{db_key} (from {source})"
+            ))
+    else:
+        # No configuration found - use credentials URL and fall back to _system
+        databases_to_try.append((
+            credentials.get("url", "http://localhost:8529"),
+            "_system",
+            "fallback (no config)"
+        ))
+    
+    last_error = None
+    attempted = []
+    
+    for url, db_name, source in databases_to_try:
+        attempted.append(f"'{db_name}' at {url} ({source})")
+        try:
+            client = ArangoClient(hosts=url)
+            db = client.db(db_name, username=username, password=password)
+            # Validate connection by calling a lightweight endpoint
+            # This will fail fast if authentication or authorization fails
+            _ = db.databases_accessible_to_user()
+            return db, None
+        except ArangoError as e:
+            last_error = e
+            # Continue to try next database
+            continue
+        except Exception as e:
+            error_msg = str(e)
+            if "Connection refused" in error_msg or "NewConnectionError" in error_msg:
+                return None, (
+                    f"Cannot connect to ArangoDB at {url}\n"
+                    f"  Source: {source}\n"
+                    "Hint: Is the ArangoDB server running?"
+                )
+            elif "timeout" in error_msg.lower():
+                return None, (
+                    f"Connection to ArangoDB timed out\n"
+                    f"  URL: {url} ({source})"
+                )
+            else:
+                last_error = e
+                continue
+    
+    # All database attempts failed - provide detailed error message
+    config_source = "YAML config" if config_loader.loaded_from_yaml else "environment variables"
+    error_details = [
+        f"Failed to authenticate user '{username}' to ArangoDB",
+        f"  Configuration source: {config_source}",
+        f"  Username source: {env_vars.get('username_env', 'ARANGO_USERNAME')}",
+        f"  Password source: {env_vars.get('user_password_env', 'ARANGO_PASSWORD')}",
+        "",
+        "  Attempted connections:",
+    ]
+    for attempt in attempted:
+        error_details.append(f"    - {attempt}")
+    
+    if last_error:
+        error_details.append("")
+        error_details.append(f"  Last error: {last_error}")
+    
+    error_details.append("")
+    error_details.append("Hints:")
+    error_details.append("  - Verify your credentials are correct")
+    error_details.append("  - Set ARANGO_DB to a database you have access to")
+    error_details.append("  - Non-root users typically cannot access '_system' database")
+    if not config_loader.loaded_from_yaml:
+        error_details.append("  - Or create a config file with 'mcp-arangodb-async db add'")
+    
+    return None, "\n".join(error_details)
+
+
 def handle_user_databases(args: Namespace) -> int:
     """List databases accessible to current user (self-service).
 
@@ -408,42 +520,29 @@ def handle_user_databases(args: Namespace) -> int:
     # Connect as the user
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore", category=Warning, module="urllib3")
-        try:
-            client = ArangoClient(hosts=credentials["url"])
-            sys_db = client.db("_system", username=username, password=user_password)
-            # Validate connection
-            _ = sys_db.version()
-        except ArangoError as e:
-            print(f"Error: Failed to connect to ArangoDB: {e}", file=sys.stderr)
-            return EXIT_ERROR
-        except Exception as e:
-            error_msg = str(e)
-            if "Connection refused" in error_msg or "NewConnectionError" in error_msg:
-                print(f"Error: Cannot connect to ArangoDB at {credentials.get('url', 'unknown')}", file=sys.stderr)
-                print("Hint: Is the ArangoDB server running?", file=sys.stderr)
-            elif "timeout" in error_msg.lower():
-                print(f"Error: Connection to ArangoDB timed out", file=sys.stderr)
-            else:
-                print(f"Error: Unexpected error connecting to ArangoDB: {e}", file=sys.stderr)
+        db, error = _connect_as_user(credentials, username, user_password)
+        if error:
+            print(f"Error: {error}", file=sys.stderr)
             return EXIT_ERROR
 
-    # Get user's permissions
+    # Get user's accessible databases using the proper API
     try:
-        perms = sys_db.permissions(username)
-
-        # Filter to databases with non-none permissions
-        accessible_dbs = {db: perm for db, perm in perms.items() if perm != 'none'}
+        # Use databases_accessible_to_user() which calls /_api/database/user
+        # This endpoint returns databases the authenticated user can access
+        accessible_dbs = db.databases_accessible_to_user()
 
         # JSON output
         if getattr(args, 'json', False):
-            print(json.dumps(accessible_dbs, indent=2))
+            # Convert to dict format with "rw" permission for consistency
+            # (the API only returns databases user has access to)
+            result = {db_name: "accessible" for db_name in accessible_dbs}
+            print(json.dumps(result, indent=2))
             return EXIT_SUCCESS
 
         # Human-readable output
         print(f"Accessible databases for user '{username}' ({len(accessible_dbs)}):")
-        for db_name in sorted(accessible_dbs.keys()):
-            perm = accessible_dbs[db_name]
-            print(f"  - {db_name} (permission: {perm})")
+        for db_name in sorted(accessible_dbs):
+            print(f"  - {db_name}")
 
         return EXIT_SUCCESS
     except ArangoError as e:
@@ -499,26 +598,12 @@ def handle_user_password(args: Namespace) -> int:
     # Suppress urllib3 warnings for cleaner output
     logging.getLogger("urllib3.connectionpool").setLevel(logging.ERROR)
 
-    # Connect as the user
+    # Connect as the user (users can update their own password per ArangoDB API)
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore", category=Warning, module="urllib3")
-        try:
-            client = ArangoClient(hosts=credentials["url"])
-            sys_db = client.db("_system", username=username, password=current_password)
-            # Validate connection
-            _ = sys_db.version()
-        except ArangoError as e:
-            print(f"Error: Failed to connect to ArangoDB: {e}", file=sys.stderr)
-            return EXIT_ERROR
-        except Exception as e:
-            error_msg = str(e)
-            if "Connection refused" in error_msg or "NewConnectionError" in error_msg:
-                print(f"Error: Cannot connect to ArangoDB at {credentials.get('url', 'unknown')}", file=sys.stderr)
-                print("Hint: Is the ArangoDB server running?", file=sys.stderr)
-            elif "timeout" in error_msg.lower():
-                print(f"Error: Connection to ArangoDB timed out", file=sys.stderr)
-            else:
-                print(f"Error: Unexpected error connecting to ArangoDB: {e}", file=sys.stderr)
+        db, error = _connect_as_user(credentials, username, current_password)
+        if error:
+            print(f"Error: {error}", file=sys.stderr)
             return EXIT_ERROR
 
     # Update consequence with actual username from credentials
@@ -530,9 +615,9 @@ def handle_user_password(args: Namespace) -> int:
         print("Operation cancelled", file=sys.stderr)
         return EXIT_CANCELLED
 
-    # Execute operation
+    # Execute operation - users can update their own password
     try:
-        sys_db.update_user(username, password=new_password)
+        db.update_user(username, password=new_password)
         reporter.report_result()
         return EXIT_SUCCESS
     except ArangoError as e:

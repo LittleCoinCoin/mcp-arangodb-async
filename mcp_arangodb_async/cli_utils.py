@@ -98,12 +98,24 @@ def load_credentials(args: Namespace) -> Dict[str, Any]:
     # URL: command-line argument takes precedence over environment variable
     url = getattr(args, 'url', None) or os.getenv("ARANGO_URL", "http://localhost:8529")
 
+    # Database: from environment variable (used for user self-service commands)
+    database = os.getenv("ARANGO_DB")
+
     # Retrieve values from environment
     return {
         "root_password": os.getenv(root_pw_var),
         "user_password": os.getenv(user_pw_var),
         "url": url,
         "username": os.getenv("ARANGO_USERNAME", "root"),
+        "database": database,  # May be None if not set
+        # Include env var names for error messages (never expose actual values)
+        "_env_vars": {
+            "root_password_env": root_pw_var,
+            "user_password_env": user_pw_var,
+            "url_env": "ARANGO_URL",
+            "username_env": "ARANGO_USERNAME",
+            "database_env": "ARANGO_DB",
+        },
     }
 
 
