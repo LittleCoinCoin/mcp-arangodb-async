@@ -299,6 +299,50 @@ class TestCLIList:
         captured = capsys.readouterr()
         assert "No databases configured" in captured.out
 
+    def test_list_databases_no_config_file_env_fallback(self, capsys):
+        """Test listing when config file doesn't exist - uses env var fallback."""
+        # Use a path that doesn't exist
+        nonexistent_config = os.path.join(self.temp_dir, "nonexistent", "databases.yaml")
+        args = Namespace(config_path=nonexistent_config)
+
+        # Environment variables provide default config (graceful degradation)
+        with patch.dict(os.environ, {
+            "ARANGO_URL": "http://test:8529",
+            "ARANGO_DB": "test_db",
+            "ARANGO_USERNAME": "testuser",
+        }, clear=False):
+            result = handle_list(args)
+
+        assert result == 0
+        captured = capsys.readouterr()
+        # Should indicate no config file at expected path
+        assert "No config file at expected path:" in captured.out
+        assert nonexistent_config.replace("/", os.sep) in captured.out or "nonexistent" in captured.out
+        # Should indicate graceful degradation
+        assert "environment variables" in captured.out.lower() or "graceful degradation" in captured.out.lower()
+        # Should still show the database info from env vars
+        assert "http://test:8529" in captured.out
+        assert "test_db" in captured.out
+        assert "testuser" in captured.out
+
+    @patch.dict(os.environ, {}, clear=True)
+    def test_list_databases_no_config_file_default_env_fallback(self, capsys):
+        """Test listing when config file doesn't exist - uses default env values."""
+        # Use a path that doesn't exist
+        nonexistent_config = os.path.join(self.temp_dir, "nonexistent", "databases.yaml")
+        args = Namespace(config_path=nonexistent_config)
+
+        result = handle_list(args)
+
+        assert result == 0
+        captured = capsys.readouterr()
+        # Should indicate no config file at expected path
+        assert "No config file at expected path:" in captured.out
+        # Should show default values from env fallback
+        assert "http://localhost:8529" in captured.out
+        assert "_system" in captured.out
+        assert "root" in captured.out
+
     def test_list_databases_error_handling(self, capsys):
         """Test error handling when listing databases fails."""
         args = Namespace(config_path="/invalid/path/databases.yaml")

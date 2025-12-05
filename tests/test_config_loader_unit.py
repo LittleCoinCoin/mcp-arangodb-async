@@ -52,6 +52,7 @@ class TestConfigFileLoader:
         loader.load()
         
         assert loader.default_database == "production"
+        assert loader.loaded_from_yaml is True  # Verify source tracking
         databases = loader.get_configured_databases()
         assert len(databases) == 2
         assert "production" in databases
@@ -70,6 +71,7 @@ class TestConfigFileLoader:
         loader.load()
         
         assert loader.default_database == "default"
+        assert loader.loaded_from_yaml is False  # Verify source tracking
         databases = loader.get_configured_databases()
         assert len(databases) == 1
         assert "default" in databases
