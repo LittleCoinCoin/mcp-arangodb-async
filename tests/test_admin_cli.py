@@ -294,10 +294,13 @@ class TestDBConfig:
         async def mock_test_connection(key):
             return {"connected": True, "version": "3.11.0", "error": None}
 
+        async def mock_close_all():
+            pass
+
         with patch('mcp_arangodb_async.cli_db.MultiDatabaseConnectionManager') as mock_manager_class:
             mock_manager = MagicMock()
             mock_manager.test_connection = mock_test_connection
-            mock_manager.close_all = MagicMock(return_value=asyncio.coroutine(lambda: None)())
+            mock_manager.close_all = mock_close_all
             mock_manager_class.return_value = mock_manager
 
             args_test = Namespace(

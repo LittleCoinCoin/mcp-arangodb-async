@@ -11,17 +11,54 @@ Functions:
 from __future__ import annotations
 
 import sys
-import json
 import argparse
-import logging
 import os
-import warnings
 
-from .config import load_config
-from .db import get_client_and_db, health_check
 from . import cli_db
 from . import cli_db_arango
+from . import cli_health
 from . import cli_user
+
+
+def _run_mcp_server(args: argparse.Namespace) -> int:
+    """Run the MCP server with specified transport configuration.
+    
+    Args:
+        args: Parsed command-line arguments with transport, host, port options
+        
+    Returns:
+        Exit code: 0 for success, 1 for error
+    """
+    try:
+        from .entry import main as entry_main
+
+        # Build transport config from args and env vars
+        transport = getattr(args, "transport", None) or os.getenv("MCP_TRANSPORT", "stdio")
+
+        if transport == "http":
+            from .transport_config import TransportConfig
+
+            transport_config = TransportConfig(
+                transport="http",
+                http_host=getattr(args, "host", None) or os.getenv("MCP_HTTP_HOST", "0.0.0.0"),
+                http_port=getattr(args, "port", None) or int(os.getenv("MCP_HTTP_PORT", "8000")),
+                http_stateless=getattr(args, "stateless", False)
+                or os.getenv("MCP_HTTP_STATELESS", "false").lower() == "true",
+                http_cors_origins=os.getenv("MCP_HTTP_CORS_ORIGINS", "*").split(","),
+            )
+            entry_main(transport_config)
+        else:
+            # Default stdio transport - no config needed
+            entry_main()
+
+        return 0
+    except ImportError as e:
+        print(f"Error: Could not import MCP server entry point: {e}", file=sys.stderr)
+        print("Please ensure the package is properly installed.", file=sys.stderr)
+        return 1
+    except Exception as e:
+        print(f"Error starting MCP server: {e}", file=sys.stderr)
+        return 1
 
 
 def main() -> int:
@@ -254,16 +291,11 @@ def main() -> int:
 
     # Handle version command
     if args.command == "version":
-        try:
-            from importlib.metadata import version
-            pkg_version = version("mcp-arangodb-async")
-        except Exception:
-            pkg_version = "unknown"
+        return cli_health.handle_version(args)
 
-        import sys
-        print(f"mcp-arangodb-async version {pkg_version}")
-        print(f"Python {sys.version.split()[0]}")
-        return 0
+    # Handle health command
+    if args.command == "health":
+        return cli_health.handle_health(args)
 
     # Handle db subcommands
     if args.command == "db":
@@ -313,112 +345,9 @@ def main() -> int:
             user_parser.print_help()
             return 1
 
-    # Determine mode: if no command, default to MCP server
-    run_health = args.command == "health"
-    run_server = args.command == "server" or args.command is None
-
-    # Delegate to MCP server entry point
-    if run_server:
-        try:
-            from .entry import main as entry_main
-
-            # NEW: Build transport config from args and env vars
-            transport = getattr(args, "transport", None) or os.getenv("MCP_TRANSPORT", "stdio")
-
-            if transport == "http":
-                # Only import TransportConfig if HTTP transport is requested
-                from .transport_config import TransportConfig
-
-                transport_config = TransportConfig(
-                    transport="http",
-                    http_host=getattr(args, "host", None) or os.getenv("MCP_HTTP_HOST", "0.0.0.0"),
-                    http_port=getattr(args, "port", None) or int(os.getenv("MCP_HTTP_PORT", "8000")),
-                    http_stateless=getattr(args, "stateless", False)
-                    or os.getenv("MCP_HTTP_STATELESS", "false").lower() == "true",
-                    http_cors_origins=os.getenv("MCP_HTTP_CORS_ORIGINS", "*").split(
-                        ","
-                    ),
-                )
-                entry_main(transport_config)
-            else:
-                # Default stdio transport - no config needed
-                entry_main()
-
-            return 0
-        except ImportError as e:
-            print(
-                f"Error: Could not import MCP server entry point: {e}", file=sys.stderr
-            )
-            print("Please ensure the package is properly installed.", file=sys.stderr)
-            return 1
-        except Exception as e:
-            print(f"Error starting MCP server: {e}", file=sys.stderr)
-            return 1
-
-    cfg = load_config()
-
-    # Suppress urllib3 warnings for cleaner output in health check
-    logging.getLogger("urllib3.connectionpool").setLevel(logging.ERROR)
-
-    # CLI diagnostic mode (health check or info)
-    with warnings.catch_warnings():
-        warnings.filterwarnings("ignore", category=Warning, module="urllib3")
-        try:
-            client, db = get_client_and_db(cfg)
-            if run_health:
-                info = health_check(db)
-                print(
-                    json.dumps(
-                        {
-                            "ok": True,
-                            "url": cfg.arango_url,
-                            "db": cfg.database,
-                            "user": cfg.username,
-                            "info": info,
-                        },
-                        ensure_ascii=False,
-                    )
-                )
-            else:
-                version = db.version()
-                print(
-                    f"Connected to ArangoDB {version} at {cfg.arango_url}, DB='{cfg.database}' as user '{cfg.username}'"
-                )
-                # Optional: quick sanity query to list collections
-                try:
-                    cols = [c["name"] for c in db.collections() if not c.get("isSystem")]
-                    print(f"Non-system collections: {cols}")
-                except Exception as e:
-                    # Collection listing failed, but don't crash the health check
-                    print(f"Warning: Could not list collections: {e}")
-            client.close()
-            return 0
-        except Exception as e:
-            if run_health:
-                print(
-                    json.dumps(
-                        {
-                            "ok": False,
-                            "error": str(e),
-                            "url": cfg.arango_url,
-                            "db": cfg.database,
-                            "user": cfg.username,
-                        },
-                        ensure_ascii=False,
-                    ),
-                    file=sys.stderr,
-                )
-            else:
-                # Provide cleaner error message for common connection issues
-                error_msg = str(e)
-                if "Connection refused" in error_msg or "NewConnectionError" in error_msg:
-                    print(f"Error: Cannot connect to ArangoDB at {cfg.arango_url}", file=sys.stderr)
-                    print("Hint: Is the ArangoDB server running?", file=sys.stderr)
-                elif "timeout" in error_msg.lower():
-                    print(f"Error: Connection to ArangoDB timed out", file=sys.stderr)
-                else:
-                    print(f"Connection failed: {e}", file=sys.stderr)
-            return 1
+    # Default: run MCP server (when no command or 'server' command)
+    if args.command == "server" or args.command is None:
+        return _run_mcp_server(args)
 
 
 if __name__ == "__main__":
