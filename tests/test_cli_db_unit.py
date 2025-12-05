@@ -40,19 +40,21 @@ class TestCLIAdd:
             timeout=60.0,
             description="Production database",
             config_path=self.config_path,
+            dry_run=False,
+            yes=True,  # Skip confirmation prompt
         )
 
         result = handle_add(args)
 
         assert result == 0
         captured = capsys.readouterr()
-        assert "✓ Database 'production' added successfully" in captured.out
+        # New ResultReporter format uses [ADDED] tags
+        assert "[ADDED]" in captured.out
+        assert "Database configuration 'production'" in captured.out
         assert "URL: http://localhost:8529" in captured.out
         assert "Database: prod_db" in captured.out
         assert "Username: admin" in captured.out
-        assert "Password env: PROD_PASSWORD" in captured.out
-        assert "Timeout: 60.0s" in captured.out
-        assert "Description: Production database" in captured.out
+        assert "Configuration saved to:" in captured.out
 
         # Verify file was created
         assert os.path.exists(self.config_path)
@@ -74,14 +76,18 @@ class TestCLIAdd:
             timeout=30.0,
             description=None,
             config_path=self.config_path,
+            dry_run=False,
+            yes=True,  # Skip confirmation prompt
         )
 
         result = handle_add(args)
 
         assert result == 0
         captured = capsys.readouterr()
-        assert "✓ Database 'staging' added successfully" in captured.out
-        assert "Description:" not in captured.out
+        # New ResultReporter format uses [ADDED] tags
+        assert "[ADDED]" in captured.out
+        assert "Database configuration 'staging'" in captured.out
+        assert "Configuration saved to:" in captured.out
 
     def test_add_database_duplicate_key(self, capsys):
         """Test adding a database with duplicate key."""
@@ -109,6 +115,8 @@ class TestCLIAdd:
             timeout=30.0,
             description=None,
             config_path=self.config_path,
+            dry_run=False,
+            yes=True,  # Skip confirmation prompt
         )
 
         result = handle_add(args)
@@ -129,10 +137,13 @@ class TestCLIAdd:
             timeout=30.0,
             description=None,
             config_path="/invalid/path/databases.yaml",
+            dry_run=False,
+            yes=True,  # Skip confirmation prompt
         )
 
         with patch("mcp_arangodb_async.cli_db.ConfigFileLoader") as mock_loader:
-            mock_loader.return_value.load.side_effect = Exception("Test error")
+            # Mock load_yaml_only which is what handle_add actually calls
+            mock_loader.return_value.load_yaml_only.side_effect = Exception("Test error")
             result = handle_add(args)
 
         assert result == 1
@@ -179,13 +190,18 @@ class TestCLIRemove:
         args = Namespace(
             key="production",
             config_path=self.config_path,
+            dry_run=False,
+            yes=True,  # Skip confirmation prompt
         )
 
         result = handle_remove(args)
 
         assert result == 0
         captured = capsys.readouterr()
-        assert "✓ Database 'production' removed successfully" in captured.out
+        # New ResultReporter format uses [REMOVED] tags
+        assert "[REMOVED]" in captured.out
+        assert "Database configuration 'production'" in captured.out
+        assert "Configuration saved to:" in captured.out
 
         # Verify database was removed
         with open(self.config_path, 'r') as f:
@@ -204,6 +220,8 @@ class TestCLIRemove:
         args = Namespace(
             key="nonexistent",
             config_path=self.config_path,
+            dry_run=False,
+            yes=True,  # Skip confirmation prompt
         )
 
         result = handle_remove(args)
@@ -217,10 +235,13 @@ class TestCLIRemove:
         args = Namespace(
             key="test",
             config_path="/invalid/path/databases.yaml",
+            dry_run=False,
+            yes=True,  # Skip confirmation prompt
         )
 
         with patch("mcp_arangodb_async.cli_db.ConfigFileLoader") as mock_loader:
-            mock_loader.return_value.load.side_effect = Exception("Test error")
+            # Mock load_yaml_only which is what handle_remove actually calls
+            mock_loader.return_value.load_yaml_only.side_effect = Exception("Test error")
             result = handle_remove(args)
 
         assert result == 1
