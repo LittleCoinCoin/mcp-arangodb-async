@@ -31,7 +31,7 @@ class TestPerToolDatabaseOverride:
             "staging": {}
         }
 
-    @pytest.mark.anyio
+    @pytest.mark.asyncio
     async def test_per_tool_override_takes_precedence(self):
         """Test that per-tool database override takes highest priority."""
         # Set focused database
@@ -46,7 +46,7 @@ class TestPerToolDatabaseOverride:
 
         assert result == "analytics"
 
-    @pytest.mark.anyio
+    @pytest.mark.asyncio
     async def test_per_tool_override_does_not_mutate_state(self):
         """Test that per-tool override does NOT mutate focused_database state.
 
@@ -71,7 +71,7 @@ class TestPerToolDatabaseOverride:
         # Verify focused database was NOT mutated
         assert self.session_state.get_focused_database(self.session_id) == "staging"
 
-    @pytest.mark.anyio
+    @pytest.mark.asyncio
     async def test_per_tool_override_empty_string_skips_to_next_level(self):
         """Test that empty string database override skips to next level."""
         await self.session_state.set_focused_database(self.session_id, "staging")
@@ -84,7 +84,7 @@ class TestPerToolDatabaseOverride:
         # Should fall back to focused database (Level 2)
         assert result == "staging"
 
-    @pytest.mark.anyio
+    @pytest.mark.asyncio
     async def test_per_tool_override_none_skips_to_next_level(self):
         """Test that None database override skips to next level."""
         await self.session_state.set_focused_database(self.session_id, "staging")
@@ -108,7 +108,7 @@ class TestPerToolDatabaseOverride:
 
         assert result == "analytics"
 
-    @pytest.mark.anyio
+    @pytest.mark.asyncio
     async def test_multiple_tool_calls_with_different_overrides(self):
         """Test multiple tool calls with different database overrides."""
         await self.session_state.set_focused_database(self.session_id, "default_db")
