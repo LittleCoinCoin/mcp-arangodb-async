@@ -7,6 +7,9 @@ This script tests all three design patterns through the actual MCP server:
 3. Tool Unloading (Workflow Stage Progression)
 
 Run this script to validate that all pattern workflows execute correctly.
+
+Note: This script requires a running ArangoDB instance and proper configuration
+      via environment variables or .env file.
 """
 
 import asyncio
@@ -21,11 +24,20 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from mcp_arangodb_async.entry import server
 from mcp_arangodb_async.config import load_config
 from mcp_arangodb_async.db import get_client_and_db
+from mcp_arangodb_async.session_state import SessionState
 from unittest.mock import Mock, patch
 
 
 async def setup_server():
-    """Initialize the MCP server with database connection."""
+    """Initialize the MCP server with database connection and session state.
+    
+    Creates a mock request context that includes:
+    - Database connection (db, client)
+    - SessionState instance for per-session state management
+    - Test session ID for state isolation
+    
+    This mirrors the production lifespan_context setup in entry.py.
+    """
     print("=" * 80)
     print("Setting up MCP server connection...")
     print("=" * 80)
@@ -38,9 +50,20 @@ async def setup_server():
     client, db = get_client_and_db(config)
     print(f"✓ Connected to ArangoDB at {config.arango_url}")
     
-    # Create mock context with database
+    # Create SessionState for per-session state management (multi-tenancy support)
+    session_state = SessionState()
+    test_session_id = "manual_test_session"
+    session_state.initialize_session(test_session_id)
+    print(f"✓ SessionState initialized with session: {test_session_id}")
+    
+    # Create mock context with database AND session state
+    # This mirrors production lifespan_context structure
     mock_ctx = Mock()
-    mock_ctx.lifespan_context = {"db": db, "client": client}
+    mock_ctx.lifespan_context = {
+        "db": db,
+        "client": client,
+        "session_state": session_state
+    }
     
     return mock_ctx, db, client
 
