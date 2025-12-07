@@ -2620,6 +2620,30 @@ def handle_get_database_resolution(
     resolution["resolved_database"] = resolved_db
     resolution["resolved_level"] = resolved_level
 
+    # Add comprehensive configuration information
+    if config_loader:
+        resolution["configuration"] = {
+            "source": "yaml_file" if getattr(config_loader, "loaded_from_yaml", False) else "environment_variables",
+            "config_path": getattr(config_loader, "config_path", None) if getattr(config_loader, "loaded_from_yaml", False) else None,
+            "default_database": getattr(config_loader, "default_database", None),
+            "total_databases": len(config_loader.get_configured_databases()),
+            "database_keys": list(config_loader.get_configured_databases().keys())
+        }
+        
+        # Add details for each configured database
+        resolution["databases"] = {}
+        for db_key, db_config in config_loader.get_configured_databases().items():
+            resolution["databases"][db_key] = {
+                "url": getattr(db_config, "url", None),
+                "database": getattr(db_config, "database", None),
+                "username": getattr(db_config, "username", None),
+                "timeout": getattr(db_config, "timeout", None)
+            }
+    else:
+        resolution["configuration"] = {
+            "error": "config_loader not available"
+        }
+
     return resolution
 
 
