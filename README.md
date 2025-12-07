@@ -307,8 +307,7 @@ The server exposes **49 MCP tools** organized into 11 categories:
 - `arango_get_focused_database` - Get currently focused database
 - `arango_list_available_databases` - List all configured databases
 - `arango_get_database_resolution` - Show database resolution algorithm
-- `arango_test_database_connection` - Test connection to specific database
-- `arango_get_multi_database_status` - Get status of all databases
+- `arango_database_status` - Get comprehensive status of all databases
 
 ### Core Data Operations (7 tools)
 - `arango_query` - Execute AQL queries

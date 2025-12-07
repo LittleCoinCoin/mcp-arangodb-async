@@ -7,8 +7,7 @@ from mcp_arangodb_async.handlers import (
     handle_get_focused_database,
     handle_list_available_databases,
     handle_get_database_resolution,
-    handle_test_database_connection,
-    handle_get_multi_database_status,
+    handle_arango_database_status,
 )
 from mcp_arangodb_async.session_state import SessionState
 from mcp_arangodb_async.multi_db_manager import MultiDatabaseConnectionManager
@@ -220,79 +219,8 @@ class TestMultiTenancyTools:
         assert result["resolved_level"] == "5_first_configured"
 
     @pytest.mark.asyncio
-    async def test_test_database_connection_success(self):
-        """Test database connection test successfully."""
-        # Mock successful connection
-        mock_client = Mock()
-        mock_test_db = Mock()
-        mock_test_db.version.return_value = "3.11.0"
-        self.db_manager.get_connection = AsyncMock(return_value=(mock_client, mock_test_db))
-
-        args = {
-            "database": "production",
-            **self._create_session_context()
-        }
-
-        result = await handle_test_database_connection(self.mock_db, args)
-
-        assert result["success"] is True
-        assert result["database"] == "production"
-        assert result["version"] == "3.11.0"
-        assert result["url"] == "http://localhost:8529"
-        assert result["database_name"] == "prod_db"
-
-    @pytest.mark.asyncio
-    async def test_test_database_connection_failure(self):
-        """Test database connection test with connection failure."""
-        # Mock connection failure
-        self.db_manager.get_connection = AsyncMock(side_effect=Exception("Connection refused"))
-
-        args = {
-            "database": "production",
-            **self._create_session_context()
-        }
-
-        result = await handle_test_database_connection(self.mock_db, args)
-
-        assert result["success"] is False
-        assert result["database"] == "production"
-        assert "Connection refused" in result["error"]
-
-    @pytest.mark.asyncio
-    async def test_test_database_connection_invalid_database(self):
-        """Test database connection test with invalid database key."""
-        args = {
-            "database": "nonexistent",
-            **self._create_session_context()
-        }
-
-        result = await handle_test_database_connection(self.mock_db, args)
-
-        assert result["success"] is False
-        assert "not configured" in result["error"]
-        assert "available_databases" in result
-
-    @pytest.mark.asyncio
-    async def test_test_database_connection_no_db_manager(self):
-        """Test database connection test without db_manager."""
-        args = {
-            "database": "production",
-            "_session_context": {
-                "session_state": self.session_state,
-                "session_id": self.session_id,
-                "db_manager": None,
-                "config_loader": self.config_loader
-            }
-        }
-
-        result = await handle_test_database_connection(self.mock_db, args)
-
-        assert result["success"] is False
-        assert "Database manager not available" in result["error"]
-
-    @pytest.mark.asyncio
-    async def test_get_multi_database_status_all_connected(self):
-        """Test getting status of all databases when all are connected."""
+    async def test_database_status_all_connected(self):
+        """Test database status when all databases are connected."""
         await self.session_state.set_focused_database(self.session_id, "production")
 
         # Mock successful connections for both databases
@@ -308,10 +236,15 @@ class TestMultiTenancyTools:
         self.db_manager.get_connection = mock_get_connection
 
         args = self._create_session_context()
-        result = await handle_get_multi_database_status(self.mock_db, args)
+        result = await handle_arango_database_status(self.mock_db, args)
 
-        assert result["total_count"] == 2
-        assert result["focused_database"] == "production"
+        # Check summary
+        assert result["summary"]["total"] == 2
+        assert result["summary"]["connected"] == 2
+        assert result["summary"]["failed"] == 0
+        assert result["summary"]["focused_database"] == "production"
+        
+        # Check session info
         assert result["session_id"] == self.session_id
         assert len(result["databases"]) == 2
 
@@ -328,8 +261,8 @@ class TestMultiTenancyTools:
         assert staging_db["is_focused"] is False
 
     @pytest.mark.asyncio
-    async def test_get_multi_database_status_mixed_connectivity(self):
-        """Test getting status when some databases fail to connect."""
+    async def test_database_status_mixed_connectivity(self):
+        """Test database status when some databases fail to connect."""
         # Mock mixed connectivity
         async def mock_get_connection(db_key):
             if db_key == "production":
@@ -343,9 +276,12 @@ class TestMultiTenancyTools:
         self.db_manager.get_connection = mock_get_connection
 
         args = self._create_session_context()
-        result = await handle_get_multi_database_status(self.mock_db, args)
+        result = await handle_arango_database_status(self.mock_db, args)
 
-        assert result["total_count"] == 2
+        # Check summary
+        assert result["summary"]["total"] == 2
+        assert result["summary"]["connected"] == 1
+        assert result["summary"]["failed"] == 1
 
         # Check production database status (connected)
         prod_db = next(db for db in result["databases"] if db["key"] == "production")
@@ -358,8 +294,8 @@ class TestMultiTenancyTools:
         assert "Connection timeout" in staging_db["error"]
 
     @pytest.mark.asyncio
-    async def test_get_multi_database_status_no_db_manager(self):
-        """Test getting multi-database status without db_manager."""
+    async def test_database_status_no_db_manager(self):
+        """Test database status without db_manager."""
         args = {
             "_session_context": {
                 "session_state": self.session_state,
@@ -369,15 +305,17 @@ class TestMultiTenancyTools:
             }
         }
 
-        result = await handle_get_multi_database_status(self.mock_db, args)
+        result = await handle_arango_database_status(self.mock_db, args)
 
-        assert result["total_count"] == 0
+        assert result["summary"]["total"] == 0
+        assert result["summary"]["connected"] == 0
+        assert result["summary"]["failed"] == 0
         assert result["databases"] == []
         assert "Database manager not available" in result["error"]
 
     @pytest.mark.asyncio
-    async def test_get_multi_database_status_no_focused_database(self):
-        """Test getting multi-database status when no database is focused."""
+    async def test_database_status_no_focused_database(self):
+        """Test database status when no database is focused."""
         # Mock successful connections
         async def mock_get_connection(db_key):
             mock_client = Mock()
@@ -388,8 +326,64 @@ class TestMultiTenancyTools:
         self.db_manager.get_connection = mock_get_connection
 
         args = self._create_session_context()
-        result = await handle_get_multi_database_status(self.mock_db, args)
+        result = await handle_arango_database_status(self.mock_db, args)
 
-        assert result["focused_database"] is None
+        assert result["summary"]["focused_database"] is None
         assert all(not db["is_focused"] for db in result["databases"])
+
+    @pytest.mark.asyncio
+    async def test_database_status_with_focused_database(self):
+        """Test database status with a focused database set."""
+        await self.session_state.set_focused_database(self.session_id, "staging")
+
+        # Mock successful connections
+        async def mock_get_connection(db_key):
+            mock_client = Mock()
+            mock_test_db = Mock()
+            mock_test_db.version.return_value = "3.11.0"
+            return mock_client, mock_test_db
+
+        self.db_manager.get_connection = mock_get_connection
+
+        args = self._create_session_context()
+        result = await handle_arango_database_status(self.mock_db, args)
+
+        assert result["summary"]["focused_database"] == "staging"
+        
+        # Check that staging is marked as focused
+        staging_db = next(db for db in result["databases"] if db["key"] == "staging")
+        assert staging_db["is_focused"] is True
+        
+        # Check that production is not focused
+        prod_db = next(db for db in result["databases"] if db["key"] == "production")
+        assert prod_db["is_focused"] is False
+
+    @pytest.mark.asyncio
+    async def test_database_status_summary_counts(self):
+        """Test that summary counts are accurate."""
+        # Mock one success, one failure
+        async def mock_get_connection(db_key):
+            if db_key == "production":
+                mock_client = Mock()
+                mock_test_db = Mock()
+                mock_test_db.version.return_value = "3.11.0"
+                return mock_client, mock_test_db
+            else:
+                raise Exception("Connection failed")
+
+        self.db_manager.get_connection = mock_get_connection
+
+        args = self._create_session_context()
+        result = await handle_arango_database_status(self.mock_db, args)
+
+        # Verify summary counts match actual database statuses
+        assert result["summary"]["total"] == len(result["databases"])
+        
+        connected_count = sum(1 for db in result["databases"] if db["status"] == "connected")
+        assert result["summary"]["connected"] == connected_count
+        
+        failed_count = sum(1 for db in result["databases"] if db["status"] == "error")
+        assert result["summary"]["failed"] == failed_count
+        
+        assert result["summary"]["connected"] + result["summary"]["failed"] == result["summary"]["total"]
 

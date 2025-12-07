@@ -154,8 +154,6 @@ from .tools import (
     ARANGO_GET_FOCUSED_DATABASE,
     ARANGO_LIST_AVAILABLE_DATABASES,
     ARANGO_GET_DATABASE_RESOLUTION,
-    ARANGO_TEST_DATABASE_CONNECTION,
-    ARANGO_GET_MULTI_DATABASE_STATUS,
 )
 
 # Configure logger for handlers
@@ -186,37 +184,59 @@ def handle_errors(func):
 
     The _invoke_handler function in entry.py provides additional signature detection
     for test compatibility, but this decorator handles the core dual signature support.
+    
+    Supports both synchronous and asynchronous handlers.
     """
+    import asyncio
+    from functools import wraps
 
-    def wrapper(
-        db: StandardDatabase, args: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
-        try:
-            # Handle parameter-less operations (e.g., list_collections)
-            # These handlers accept Optional[Dict[str, Any]] = None in their signature
-            if args is None:
-                return func(db)
-            else:
-                # Handle standard operations that require args parameter
-                # These handlers expect Dict[str, Any] (non-optional)
-                return func(db, args)
-        except KeyError as e:
-            logger.error(f"Missing required parameter in {func.__name__}: {e}")
+    # Common error handling logic
+    def handle_exception(e: Exception, func_name: str) -> Dict[str, Any]:
+        if isinstance(e, KeyError):
+            logger.error(f"Missing required parameter in {func_name}: {e}")
             return {
                 "error": f"Missing required parameter: {str(e)}",
                 "type": "KeyError",
             }
-        except ArangoError as e:
-            logger.error(f"ArangoDB error in {func.__name__}: {e}")
+        elif isinstance(e, ArangoError):
+            logger.error(f"ArangoDB error in {func_name}: {e}")
             return {
                 "error": f"Database operation failed: {str(e)}",
                 "type": "ArangoError",
             }
-        except Exception as e:
-            logger.exception(f"Unexpected error in {func.__name__}")
+        else:
+            logger.exception(f"Unexpected error in {func_name}")
             return {"error": f"Operation failed: {str(e)}", "type": type(e).__name__}
 
-    return wrapper
+    # Check if the function is async
+    if asyncio.iscoroutinefunction(func):
+        @wraps(func)
+        async def async_wrapper(
+            db: StandardDatabase, args: Optional[Dict[str, Any]] = None
+        ) -> Dict[str, Any]:
+            try:
+                if args is None:
+                    return await func(db)
+                else:
+                    return await func(db, args)
+            except Exception as e:
+                return handle_exception(e, func.__name__)
+        
+        return async_wrapper
+    else:
+        @wraps(func)
+        def sync_wrapper(
+            db: StandardDatabase, args: Optional[Dict[str, Any]] = None
+        ) -> Dict[str, Any]:
+            try:
+                if args is None:
+                    return func(db)
+                else:
+                    return func(db, args)
+            except Exception as e:
+                return handle_exception(e, func.__name__)
+        
+        return sync_wrapper
 
 
 @contextmanager
@@ -281,8 +301,6 @@ from .models import (
     GetFocusedDatabaseArgs,
     ListAvailableDatabasesArgs,
     GetDatabaseResolutionArgs,
-    TestDatabaseConnectionArgs,
-    GetMultiDatabaseStatusArgs,
 )
 
 
@@ -1769,71 +1787,96 @@ def handle_graph_statistics(
 
 @register_tool(
     name=ARANGO_DATABASE_STATUS,
-    description="Check database connection status and return diagnostic information.",
+    description="Get connection status for all configured databases, showing which databases are accessible, their versions, and which database is currently focused.",
     model=ArangoDatabaseStatusArgs,
 )
 @handle_errors
-def handle_arango_database_status(
+async def handle_arango_database_status(
     db: StandardDatabase, args: Optional[Dict[str, Any]] = None
 ) -> Dict[str, Any]:
-    """Check database connection status and return diagnostic information.
+    """Get status of all configured databases with summary.
 
-    This tool provides visibility into the database connection state, which is
-    especially useful when the database is unavailable at startup or during
-    operation. It complements MCP protocol logging by providing a proactive
-    way for users to check connection status.
+    This tool provides comprehensive visibility into the multi-database connection
+    state, showing all configured databases, their connectivity status, versions,
+    and which database is currently focused for the session.
 
     Operator model:
       Preconditions:
-        - None (works even when database is unavailable)
+        - None (works even when databases are unavailable)
       Effects:
-        - Returns connection status (connected: true/false)
-        - If connected: returns server version and database name
-        - If not connected: returns diagnostic information
+        - Returns connection status for all configured databases
+        - Shows which database is focused for current session
+        - Provides summary counts (total, connected, failed)
         - No database mutations
+
+    Args:
+        db: ArangoDB database instance (not used, but required for handler signature)
+        args: Optional arguments (may contain session context)
+
+    Returns:
+        Dictionary with summary and detailed status of all databases
     """
-    # Check if database connection is available
-    if db is None:
-        import os
+    # Extract session context
+    if args is None:
+        args = {}
+    session_ctx = args.pop("_session_context", {})
+    db_manager = session_ctx.get("db_manager")
+    session_state = session_ctx.get("session_state")
+    session_id = session_ctx.get("session_id", "stdio")
 
+    if not db_manager:
         return {
-            "connected": False,
-            "message": "Database connection is not available",
-            "config": {
-                "url": os.getenv("ARANGO_URL", "http://localhost:8529"),
-                "database": os.getenv("ARANGO_DB", "_system"),
+            "summary": {
+                "total": 0,
+                "connected": 0,
+                "failed": 0,
+                "focused_database": None
             },
-            "suggestion": "Please ensure ArangoDB is running and accessible. Check ARANGO_URL and ARANGO_DB environment variables.",
+            "databases": [],
+            "session_id": session_id,
+            "error": "Database manager not available"
         }
 
-    # Database is connected - get server info
-    try:
-        version_info = db.version()
-        server_version = (
-            version_info
-            if isinstance(version_info, str)
-            else version_info.get("version", "unknown")
-        )
+    configured_dbs = db_manager.get_configured_databases()
+    focused_db = session_state.get_focused_database(session_id) if session_state else None
 
-        return {
-            "connected": True,
-            "database": db.name,
-            "server_version": server_version,
-            "message": "Database connection is active",
-        }
-    except Exception as e:
-        # Connection exists but query failed
-        import os
+    databases = []
+    connected_count = 0
+    failed_count = 0
 
-        return {
-            "connected": False,
-            "message": f"Database connection exists but query failed: {str(e)}",
-            "config": {
-                "url": os.getenv("ARANGO_URL", "http://localhost:8529"),
-                "database": os.getenv("ARANGO_DB", "_system"),
-            },
-            "suggestion": "Database connection may be stale or server may be unresponsive.",
+    for db_key, db_config in configured_dbs.items():
+        db_status = {
+            "key": db_key,
+            "url": db_config.url,
+            "database": db_config.database,
+            "username": db_config.username,
+            "is_focused": db_key == focused_db
         }
+
+        # Test connection
+        try:
+            client, test_db = await db_manager.get_connection(db_key)
+            version = test_db.version()
+            db_status["status"] = "connected"
+            db_status["version"] = version
+            connected_count += 1
+        except Exception as e:
+            db_status["status"] = "error"
+            db_status["error"] = str(e)
+            failed_count += 1
+
+        databases.append(db_status)
+
+    return {
+        "summary": {
+            "total": len(databases),
+            "connected": connected_count,
+            "failed": failed_count,
+            "focused_database": focused_db
+        },
+        "databases": databases,
+        "session_id": session_id
+    }
 
 
 # ============================================================================
@@ -2647,133 +2690,7 @@ def handle_get_database_resolution(
     return resolution
 
 
-@handle_errors
-@register_tool(
-    name=ARANGO_TEST_DATABASE_CONNECTION,
-    description="Test connection to a specific database to verify credentials and connectivity.",
-    model=TestDatabaseConnectionArgs,
-)
-async def handle_test_database_connection(
-    db: StandardDatabase, args: Dict[str, Any]
-) -> Dict[str, Any]:
-    """Test connection to a specific database.
 
-    Args:
-        db: ArangoDB database instance (not used, but required for handler signature)
-        args: Validated TestDatabaseConnectionArgs with database key
-
-    Returns:
-        Dictionary with connection test results
-    """
-    # Extract session context
-    session_ctx = args.pop("_session_context", {})
-    db_manager = session_ctx.get("db_manager")
-
-    database_key = args["database"]
-
-    if not db_manager:
-        return {
-            "success": False,
-            "database": database_key,
-            "error": "Database manager not available"
-        }
-
-    # Check if database is configured
-    configured_dbs = db_manager.get_configured_databases()
-    if database_key not in configured_dbs:
-        return {
-            "success": False,
-            "database": database_key,
-            "error": f"Database '{database_key}' not configured",
-            "available_databases": list(configured_dbs.keys())
-        }
-
-    # Attempt to connect and get version
-    try:
-        client, test_db = await db_manager.get_connection(database_key)
-        version = test_db.version()
-
-        return {
-            "success": True,
-            "database": database_key,
-            "version": version,
-            "url": configured_dbs[database_key].url,
-            "database_name": configured_dbs[database_key].database
-        }
-    except Exception as e:
-        return {
-            "success": False,
-            "database": database_key,
-            "error": str(e),
-            "url": configured_dbs[database_key].url,
-            "database_name": configured_dbs[database_key].database
-        }
-
-
-@handle_errors
-@register_tool(
-    name=ARANGO_GET_MULTI_DATABASE_STATUS,
-    description="Get connection status for all configured databases, showing which databases are accessible and their versions.",
-    model=GetMultiDatabaseStatusArgs,
-)
-async def handle_get_multi_database_status(
-    db: StandardDatabase, args: Optional[Dict[str, Any]] = None
-) -> Dict[str, Any]:
-    """Get status of all configured databases.
-
-    Args:
-        db: ArangoDB database instance (not used, but required for handler signature)
-        args: Optional arguments (may contain session context)
-
-    Returns:
-        Dictionary with status of all databases
-    """
-    # Extract session context
-    if args is None:
-        args = {}
-    session_ctx = args.pop("_session_context", {})
-    db_manager = session_ctx.get("db_manager")
-    session_state = session_ctx.get("session_state")
-    session_id = session_ctx.get("session_id", "stdio")
-
-    if not db_manager:
-        return {
-            "databases": [],
-            "total_count": 0,
-            "error": "Database manager not available"
-        }
-
-    configured_dbs = db_manager.get_configured_databases()
-    focused_db = session_state.get_focused_database(session_id) if session_state else None
-
-    databases = []
-    for db_key, db_config in configured_dbs.items():
-        db_status = {
-            "key": db_key,
-            "url": db_config.url,
-            "database": db_config.database,
-            "username": db_config.username,
-            "is_focused": db_key == focused_db
-        }
-
-        # Test connection
-        try:
-            client, test_db = await db_manager.get_connection(db_key)
-            version = test_db.version()
-            db_status["status"] = "connected"
-            db_status["version"] = version
-        except Exception as e:
-            db_status["status"] = "error"
-            db_status["error"] = str(e)
-
-        databases.append(db_status)
-
-    return {
-        "databases": databases,
-        "total_count": len(databases),
-        "focused_database": focused_db,
-        "session_id": session_id
-    }
 
 
 # Register aliases for backward compatibility

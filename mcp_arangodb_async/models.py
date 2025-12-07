@@ -54,8 +54,6 @@ Multi-Tenancy:
     - GetFocusedDatabaseArgs
     - ListAvailableDatabasesArgs
     - GetDatabaseResolutionArgs
-    - TestDatabaseConnectionArgs
-    - GetMultiDatabaseStatusArgs
 """
 
 from __future__ import annotations
@@ -544,13 +542,4 @@ class GetDatabaseResolutionArgs(BaseModel):
     pass
 
 
-class TestDatabaseConnectionArgs(BaseModel):
-    """Arguments for arango_test_database_connection."""
-    database: str = Field(
-        description="Database key to test connection for"
-    )
 
-
-class GetMultiDatabaseStatusArgs(BaseModel):
-    """Arguments for arango_get_multi_database_status."""
-    pass

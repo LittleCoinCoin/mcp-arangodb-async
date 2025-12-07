@@ -230,66 +230,28 @@ Show the database resolution algorithm and current state. Explains which databas
 
 ---
 
-### arango_test_database_connection
+### arango_database_status
 
-Test connection to a specific database configuration.
-
-**Parameters:**
-- `database_key` (string, required) - Database key to test
-
-**Returns:**
-- `database_key` (string) - Database key that was tested
-- `connected` (boolean) - Whether connection succeeded
-- `version` (string, optional) - ArangoDB version if connected
-- `error` (string, optional) - Error message if connection failed
-- `message` (string) - Human-readable status message
-
-**Example:**
-```json
-{
-  "database_key": "production"
-}
-```
-
-**Result (Success):**
-```json
-{
-  "database_key": "production",
-  "connected": true,
-  "version": "3.11.0",
-  "message": "Connection successful"
-}
-```
-
-**Result (Failure):**
-```json
-{
-  "database_key": "staging",
-  "connected": false,
-  "error": "Connection refused",
-  "message": "Connection failed"
-}
-```
-
-**Use Cases:**
-- Verify database connectivity before operations
-- Troubleshoot connection issues
-- Health checks for configured databases
-- Pre-deployment validation
-
----
-
-### arango_get_multi_database_status
-
-Get connection status for all configured databases.
+Get comprehensive connection status for all configured databases, showing which databases are accessible, their versions, and which database is currently focused.
 
 **Parameters:** None
 
 **Returns:**
-- `databases` (array) - Status for each database
-- `total` (number) - Total number of databases
-- `connected` (number) - Number of successful connections
-- `failed` (number) - Number of failed connections
+- `summary` (object) - Quick overview of database status
+  - `total` (number) - Total number of configured databases
+  - `connected` (number) - Number of successfully connected databases
+  - `failed` (number) - Number of failed connections
+  - `focused_database` (string | null) - Currently focused database key
+- `databases` (array) - Detailed status for each database
+  - `key` (string) - Database configuration key
+  - `url` (string) - Database URL
+  - `database` (string) - Database name
+  - `username` (string) - Username for connection
+  - `is_focused` (boolean) - Whether this is the focused database
+  - `status` (string) - Connection status ("connected" or "error")
+  - `version` (string, optional) - ArangoDB version if connected
+  - `error` (string, optional) - Error message if connection failed
+- `session_id` (string) - Current session identifier
 
 **Example:**
 ```json
@@ -299,29 +261,52 @@ Get connection status for all configured databases.
 **Result:**
 ```json
 {
+  "summary": {
+    "total": 3,
+    "connected": 2,
+    "failed": 1,
+    "focused_database": "production"
+  },
   "databases": [
     {
       "key": "production",
-      "connected": true,
+      "url": "http://localhost:8529",
+      "database": "prod_db",
+      "username": "admin",
+      "is_focused": true,
+      "status": "connected",
       "version": "3.11.0"
     },
     {
       "key": "staging",
-      "connected": false,
+      "url": "http://localhost:8530",
+      "database": "staging_db",
+      "username": "admin",
+      "is_focused": false,
+      "status": "connected",
+      "version": "3.10.5"
+    },
+    {
+      "key": "development",
+      "url": "http://localhost:8531",
+      "database": "dev_db",
+      "username": "admin",
+      "is_focused": false,
+      "status": "error",
       "error": "Connection refused"
     }
   ],
-  "total": 2,
-  "connected": 1,
-  "failed": 1
+  "session_id": "stdio"
 }
 ```
 
 **Use Cases:**
-- Health check for all databases
-- Monitoring and alerting
-- Pre-deployment validation
-- Troubleshooting connectivity issues
+- Get comprehensive overview of all database connections
+- Verify which databases are accessible
+- Check which database is currently focused
+- Troubleshoot connection issues across multiple databases
+- Health checks for multi-database deployments
+- Monitor database availability
 
 ---
 

@@ -382,86 +382,7 @@ Show the database resolution algorithm and current state.
 
 **Example:** See [Database Resolution](#database-resolution) section above.
 
----
 
-### arango_test_database_connection
-
-Test connection to a specific database.
-
-**Parameters:**
-
-- `database_key` (string, required) - Database key to test
-
-**Example:**
-
-```json
-{
-  "tool": "arango_test_database_connection",
-  "arguments": {
-    "database_key": "production"
-  }
-}
-```
-
-**Response (Success):**
-
-```json
-{
-  "database_key": "production",
-  "connected": true,
-  "version": "3.11.0",
-  "message": "Connection successful"
-}
-```
-
-**Response (Failure):**
-
-```json
-{
-  "database_key": "staging",
-  "connected": false,
-  "error": "Connection refused",
-  "message": "Connection failed"
-}
-```
-
----
-
-### arango_get_multi_database_status
-
-Get status of all configured databases.
-
-**Parameters:** None
-
-**Example:**
-
-```json
-{
-  "tool": "arango_get_multi_database_status"
-}
-```
-
-**Response:**
-
-```json
-{
-  "databases": [
-    {
-      "key": "production",
-      "connected": true,
-      "version": "3.11.0"
-    },
-    {
-      "key": "staging",
-      "connected": false,
-      "error": "Connection refused"
-    }
-  ],
-  "total": 2,
-  "connected": 1,
-  "failed": 1
-}
-```
 
 ---
 
@@ -717,15 +638,9 @@ Always check database resolution before destructive operations:
 Test database connections before starting work:
 
 ```json
-// Test all databases
+// Check status of all databases
 {
-  "tool": "arango_get_multi_database_status"
-}
-
-// Or test specific database
-{
-  "tool": "arango_test_database_connection",
-  "arguments": {"database_key": "production"}
+  "tool": "arango_database_status"
 }
 ```
 
@@ -776,16 +691,15 @@ python -m mcp_arangodb_async db add xyz ...
 
 **Symptom:** Error "Failed to connect to database 'xyz'"
 
-**Solution:** Test connection:
+**Solution:** Check database status:
 
 ```json
 {
-  "tool": "arango_test_database_connection",
-  "arguments": {"database_key": "xyz"}
+  "tool": "arango_database_status"
 }
 ```
 
-Check:
+Review the status for database 'xyz' and check:
 1. ArangoDB server is running
 2. URL and port are correct
 3. Credentials are valid
@@ -804,6 +718,6 @@ Check:
 **Next Steps:**
 
 1. Configure your databases using the [CLI tool](cli-reference.md)
-2. Test connections using `arango_test_database_connection`
+2. Check database status using `arango_database_status`
 3. Set focused database using `arango_set_focused_database`
 4. Start using data operation tools with automatic database resolution
