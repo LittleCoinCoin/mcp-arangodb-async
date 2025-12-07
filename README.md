@@ -236,17 +236,19 @@ Work with multiple databases using YAML configuration:
 
 ```bash
 # Same server, same user = same password env var
-python -m mcp_arangodb_async db add production \
+maa db add production \
   --url http://localhost:8529 \
   --database myapp_prod \
   --username admin \
   --password-env ARANGO_PASSWORD
 
-python -m mcp_arangodb_async db add staging \
+maa db add staging \
   --url http://localhost:8529 \
   --database myapp_staging \
   --username admin \
   --password-env ARANGO_PASSWORD
+
+# Note: 'maa' is a short alias for 'mcp-arangodb-async'
 ```
 
 **2. Set password for the user:**
@@ -259,7 +261,8 @@ export ARANGO_PASSWORD="admin-password"
 **3. Restart the MCP server** to pick up the new configuration:
 
 ```bash
-python -m mcp_arangodb_async server
+maa server
+# Or: python -m mcp_arangodb_async server
 ```
 
 **Note:** The MCP server connects to existing databases. Use `scripts/setup-arango.ps1` or ArangoDB's web UI to create databases and users first.

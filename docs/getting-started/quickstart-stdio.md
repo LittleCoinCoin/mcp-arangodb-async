@@ -248,7 +248,8 @@ MCP_COMPAT_TOOLSET=full
 ### 5.1 Run Health Check
 
 ```powershell
-python -m mcp_arangodb_async --health
+maa --health
+# Or: python -m mcp_arangodb_async --health
 ```
 
 **Expected Output:**

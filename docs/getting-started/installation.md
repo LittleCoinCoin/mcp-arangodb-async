@@ -350,7 +350,8 @@ LOG_LEVEL=INFO
 ### Health Check
 
 ```powershell
-python -m mcp_arangodb_async --health
+maa --health
+# Or: python -m mcp_arangodb_async --health
 ```
 
 **Expected Output:**
@@ -363,7 +364,8 @@ python -m mcp_arangodb_async --health
 ### Test Server Startup
 
 ```powershell
-python -m mcp_arangodb_async
+maa server
+# Or: python -m mcp_arangodb_async
 ```
 
 **Expected Output:**

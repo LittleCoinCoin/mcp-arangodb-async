@@ -1,6 +1,6 @@
 # CLI Reference
 
-Complete documentation for the `mcp-arangodb-async db` command-line tool for database configuration management.
+Complete documentation for the `mcp-arangodb-async` (or `maa`) command-line tool for database configuration management.
 
 **Audience:** System Administrators and DevOps Engineers  
 **Prerequisites:** File system access to configuration files, Python 3.11+  
@@ -23,7 +23,7 @@ Complete documentation for the `mcp-arangodb-async db` command-line tool for dat
 
 ## Overview
 
-The `mcp-arangodb-async db` CLI tool provides admin-controlled database configuration management. It enables adding, removing, listing, testing, and monitoring database configurations without code changes or server restarts.
+The `mcp-arangodb-async` (or `maa` for short) CLI tool provides admin-controlled database configuration management. It enables adding, removing, listing, testing, and monitoring database configurations without code changes or server restarts.
 
 ### Key Features
 
@@ -50,8 +50,11 @@ pip install mcp-arangodb-async
 Verify installation:
 
 ```bash
-python -m mcp_arangodb_async db --help
+maa db --help
+# Or: python -m mcp_arangodb_async db --help
 ```
+
+**Note:** Both `maa` and `mcp-arangodb-async` commands are available. Use `maa` for brevity.
 
 ---
 
@@ -154,7 +157,7 @@ Add a new database configuration to the YAML file.
 **Syntax:**
 
 ```bash
-python -m mcp_arangodb_async db add <key> \
+maa db add <key> \
   --url <url> \
   --database <database> \
   --username <username> \
@@ -178,7 +181,7 @@ python -m mcp_arangodb_async db add <key> \
 **Example:**
 
 ```bash
-python -m mcp_arangodb_async db add production \
+maa db add production \
   --url http://localhost:8529 \
   --database myapp_prod \
   --username admin \
@@ -210,7 +213,7 @@ Remove a database configuration from the YAML file.
 **Syntax:**
 
 ```bash
-python -m mcp_arangodb_async db remove <key> [--config-path <path>]
+maa db remove <key> [--config-path <path>]
 ```
 
 **Parameters:**
@@ -221,7 +224,7 @@ python -m mcp_arangodb_async db remove <key> [--config-path <path>]
 **Example:**
 
 ```bash
-python -m mcp_arangodb_async db remove staging
+maa db remove staging
 ```
 
 **Output:**
@@ -240,7 +243,7 @@ List all configured databases with their details.
 **Syntax:**
 
 ```bash
-python -m mcp_arangodb_async db list [--config-path <path>]
+maa db list [--config-path <path>]
 ```
 
 **Parameters:**
@@ -250,7 +253,7 @@ python -m mcp_arangodb_async db list [--config-path <path>]
 **Example:**
 
 ```bash
-python -m mcp_arangodb_async db list
+maa db list
 ```
 
 **Output:**
@@ -286,7 +289,7 @@ Test connection to a specific database configuration.
 **Syntax:**
 
 ```bash
-python -m mcp_arangodb_async db test <key> [--config-path <path>]
+maa db test <key> [--config-path <path>]
 ```
 
 **Parameters:**
@@ -297,7 +300,7 @@ python -m mcp_arangodb_async db test <key> [--config-path <path>]
 **Example (Success):**
 
 ```bash
-python -m mcp_arangodb_async db test production
+maa db test production
 ```
 
 **Output:**
@@ -310,7 +313,7 @@ python -m mcp_arangodb_async db test production
 **Example (Failure):**
 
 ```bash
-python -m mcp_arangodb_async db test staging
+maa db test staging
 ```
 
 **Output:**
@@ -334,7 +337,7 @@ Show database resolution status and configuration overview.
 **Syntax:**
 
 ```bash
-python -m mcp_arangodb_async db status [--config-path <path>]
+maa db status [--config-path <path>]
 ```
 
 **Parameters:**
@@ -344,7 +347,7 @@ python -m mcp_arangodb_async db status [--config-path <path>]
 **Example:**
 
 ```bash
-python -m mcp_arangodb_async db status
+maa db status
 ```
 
 **Output:**
@@ -386,7 +389,7 @@ Set up production and staging databases:
 
 ```bash
 # Add production database
-python -m mcp_arangodb_async db add production \
+maa db add production \
   --url http://localhost:8529 \
   --database myapp_prod \
   --username admin \
@@ -395,7 +398,7 @@ python -m mcp_arangodb_async db add production \
   --description "Production database"
 
 # Add staging database
-python -m mcp_arangodb_async db add staging \
+maa db add staging \
   --url http://staging:8529 \
   --database myapp_staging \
   --username admin \
@@ -408,11 +411,11 @@ export MCP_ARANGO_PROD_PASSWORD="prod-password"
 export MCP_ARANGO_STAGING_PASSWORD="staging-password"
 
 # Test connections
-python -m mcp_arangodb_async db test production
-python -m mcp_arangodb_async db test staging
+maa db test production
+maa db test staging
 
 # Verify configuration
-python -m mcp_arangodb_async db list
+maa db list
 ```
 
 ---
@@ -423,10 +426,10 @@ Replace an existing database configuration:
 
 ```bash
 # Remove old configuration
-python -m mcp_arangodb_async db remove production
+maa db remove production
 
 # Add new configuration
-python -m mcp_arangodb_async db add production \
+maa db add production \
   --url http://new-server:8529 \
   --database myapp_prod_v2 \
   --username admin \
@@ -435,7 +438,7 @@ python -m mcp_arangodb_async db add production \
   --description "Production database (migrated)"
 
 # Test new configuration
-python -m mcp_arangodb_async db test production
+maa db test production
 ```
 
 ---
@@ -446,7 +449,7 @@ Configure databases for development, staging, and production:
 
 ```bash
 # Development (local)
-python -m mcp_arangodb_async db add dev \
+maa db add dev \
   --url http://localhost:8529 \
   --database myapp_dev \
   --username root \
@@ -454,7 +457,7 @@ python -m mcp_arangodb_async db add dev \
   --description "Local development database"
 
 # Staging (remote)
-python -m mcp_arangodb_async db add staging \
+maa db add staging \
   --url http://staging.example.com:8529 \
   --database myapp_staging \
   --username admin \
@@ -462,7 +465,7 @@ python -m mcp_arangodb_async db add staging \
   --description "Staging environment"
 
 # Production (remote, high timeout)
-python -m mcp_arangodb_async db add production \
+maa db add production \
   --url http://prod.example.com:8529 \
   --database myapp_prod \
   --username admin \
@@ -477,7 +480,7 @@ export MCP_ARANGO_PROD_PASSWORD="prod-secret"
 
 # Verify all connections
 for db in dev staging production; do
-  python -m mcp_arangodb_async db test $db
+  maa db test $db
 done
 ```
 
@@ -548,8 +551,8 @@ Use 'db remove' to remove it first, or choose a different key
 Remove the existing configuration first:
 
 ```bash
-python -m mcp_arangodb_async db remove production
-python -m mcp_arangodb_async db add production ...
+maa db remove production
+maa db add production ...
 ```
 
 ---
@@ -567,7 +570,7 @@ Error: Database 'staging' not found
 List configured databases to verify the key:
 
 ```bash
-python -m mcp_arangodb_async db list
+maa db list
 ```
 
 ---
@@ -592,7 +595,7 @@ curl http://localhost:8529/_api/version
 2. **Check URL and port:**
 
 ```bash
-python -m mcp_arangodb_async db list
+maa db list
 ```
 
 3. **Verify credentials:**
