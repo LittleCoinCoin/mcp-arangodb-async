@@ -19,7 +19,7 @@ import asyncio
 import json
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from typing import Any, Callable, Dict, List
+from typing import Any, Callable, Dict, List, Optional
 from types import SimpleNamespace
 
 import mcp.server.stdio
@@ -40,6 +40,10 @@ from .multi_db_manager import MultiDatabaseConnectionManager
 from .config_loader import ConfigFileLoader
 from .db_resolver import resolve_database
 from .session_utils import extract_session_id
+
+# Module-level variable to store config file path (set by main() before server starts)
+_config_file_path: Optional[str] = None
+
 from .handlers import (
     handle_arango_query,
     handle_backup,
@@ -192,10 +196,22 @@ async def server_lifespan(server: Server) -> AsyncIterator[Dict[str, Any]]:
     # Initialize multi-tenancy components
     logger.info("Initializing multi-tenancy components...")
 
-    # Load database configurations
-    config_loader = ConfigFileLoader()
+    # Load database configurations using module-level config file path
+    # Priority: module-level var > ARANGO_DATABASES_CONFIG_FILE env var > default
+    global _config_file_path
+    config_path = _config_file_path or os.getenv("ARANGO_DATABASES_CONFIG_FILE") or "config/databases.yaml"
+    config_loader = ConfigFileLoader(config_path=config_path)
     config_loader.load()
-    logger.info(f"Loaded {len(config_loader.get_configured_databases())} database configuration(s)")
+    
+    # Log comprehensive configuration summary
+    databases = config_loader.get_configured_databases()
+    logger.info(f"Database configuration summary:")
+    logger.info(f"  - Total databases: {len(databases)}")
+    logger.info(f"  - Database keys: {list(databases.keys())}")
+    logger.info(f"  - Default database: {config_loader.default_database or '(none - will use fallback resolution)'}")
+    logger.info(f"  - Configuration source: {'YAML file' if config_loader.loaded_from_yaml else 'Environment variables'}")
+    if config_loader.loaded_from_yaml:
+        logger.info(f"  - Config file path: {config_loader.config_path}")
 
     # Initialize multi-database connection manager
     db_manager = MultiDatabaseConnectionManager()
@@ -513,9 +529,12 @@ async def call_tool(name: str, arguments: Dict[str, Any]) -> List[types.Content]
 
     # Inject session context for pattern handlers that need per-session state
     # This enables migration from global variables to SessionState
+    # Also includes db_manager and config_loader for multi-tenancy tools
     validated_args["_session_context"] = {
         "session_state": session_state,
-        "session_id": session_id
+        "session_id": session_id,
+        "db_manager": db_manager,
+        "config_loader": config_loader,
     }
 
     # Dispatch to handler via registry (O(1) lookup)
@@ -549,13 +568,34 @@ setattr(
 )
 
 # Compatibility shim: make Server.request_context safe and patchable everywhere.
-# Always provide a getter/setter that returns a simple object by default, avoiding
-# ContextVar LookupError outside of real MCP requests. Tests can patch this.
+# The MCP SDK uses ContextVar for request_context, which can raise LookupError 
+# outside of actual MCP request handlers. This shim provides a safe fallback.
+# IMPORTANT: We preserve the original property access to maintain real MCP functionality.
 ServerClass = type(server)
+
+# Store reference to original request_context descriptor if it exists
+_original_request_context_descriptor = getattr(ServerClass, "request_context", None)
 
 
 def _safe_get_request_context(self: Any) -> Any:
-    return getattr(self, "_safe_request_context", SimpleNamespace(lifespan_context={}))
+    """Get request context, trying original SDK property first, then fallback."""
+    # First, check if we have a custom _safe_request_context (set by tests or manually)
+    if hasattr(self, "_safe_request_context"):
+        return self._safe_request_context
+    
+    # Try to use the original MCP SDK's request_context via its ContextVar
+    if _original_request_context_descriptor is not None:
+        try:
+            # The original is likely a property backed by ContextVar
+            original_getter = getattr(_original_request_context_descriptor, "fget", None)
+            if original_getter:
+                return original_getter(self)
+        except (LookupError, AttributeError):
+            # ContextVar not set (outside of request context) or other issue
+            pass
+    
+    # Fallback: return safe default for tests and outside request context
+    return SimpleNamespace(lifespan_context={})
 
 
 def _safe_set_request_context(self: Any, value: Any) -> None:
@@ -601,13 +641,19 @@ async def run_stdio() -> None:
         )
 
 
-async def run(transport_config: "TransportConfig | None" = None) -> None:
+async def run(transport_config: "TransportConfig | None" = None, config_file: Optional[str] = None) -> None:
     """
     Run the MCP server with specified transport.
 
     Args:
         transport_config: Transport configuration. If None, uses stdio (default).
+        config_file: Path to database configuration YAML file. If None, uses
+            ARANGO_DATABASES_CONFIG_FILE env var or default "config/databases.yaml".
     """
+    # Store config file path in module-level variable for server_lifespan() to access
+    global _config_file_path
+    _config_file_path = config_file
+    
     # Import here to avoid circular dependency and to make HTTP dependencies optional
     from .transport_config import TransportConfig
 
@@ -631,7 +677,7 @@ async def run(transport_config: "TransportConfig | None" = None) -> None:
         raise ValueError(f"Unknown transport: {transport_config.transport}")
 
 
-def main(transport_config: "TransportConfig | None" = None) -> None:
+def main(transport_config: "TransportConfig | None" = None, config_file: Optional[str] = None) -> None:
     """Console script entry point for arango-server command.
 
     This is the main entry point that starts the async MCP server.
@@ -639,8 +685,10 @@ def main(transport_config: "TransportConfig | None" = None) -> None:
 
     Args:
         transport_config: Optional transport configuration. If None, uses stdio (default).
+        config_file: Path to database configuration YAML file. If None, uses
+            ARANGO_DATABASES_CONFIG_FILE env var or default "config/databases.yaml".
     """
-    asyncio.run(run(transport_config))
+    asyncio.run(run(transport_config, config_file=config_file))
 
 
 if __name__ == "__main__":
