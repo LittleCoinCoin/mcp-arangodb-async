@@ -24,7 +24,7 @@ def _run_mcp_server(args: argparse.Namespace) -> int:
     """Run the MCP server with specified transport configuration.
     
     Args:
-        args: Parsed command-line arguments with transport, host, port options
+        args: Parsed command-line arguments with transport, host, port, config_file options
         
     Returns:
         Exit code: 0 for success, 1 for error
@@ -34,6 +34,9 @@ def _run_mcp_server(args: argparse.Namespace) -> int:
 
         # Build transport config from args and env vars
         transport = getattr(args, "transport", None) or os.getenv("MCP_TRANSPORT", "stdio")
+        
+        # Get config file path (CLI arg > env var > default)
+        config_file = getattr(args, "config_file", None)
 
         if transport == "http":
             from .transport_config import TransportConfig
@@ -46,10 +49,10 @@ def _run_mcp_server(args: argparse.Namespace) -> int:
                 or os.getenv("MCP_HTTP_STATELESS", "false").lower() == "true",
                 http_cors_origins=os.getenv("MCP_HTTP_CORS_ORIGINS", "*").split(","),
             )
-            entry_main(transport_config)
+            entry_main(transport_config, config_file=config_file)
         else:
             # Default stdio transport - no config needed
-            entry_main()
+            entry_main(config_file=config_file)
 
         return 0
     except ImportError as e:
@@ -94,6 +97,13 @@ def main() -> int:
     )
     server_parser.add_argument(
         "--stateless", action="store_true", help="Run HTTP in stateless mode"
+    )
+    server_parser.add_argument(
+        "--config-file",
+        "--cfgf",
+        dest="config_file",
+        default=None,
+        help="Path to database configuration YAML file (default: from ARANGO_DATABASES_CONFIG_FILE env var, or config/databases.yaml)",
     )
 
     # Health subcommand
