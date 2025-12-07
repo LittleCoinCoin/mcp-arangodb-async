@@ -60,6 +60,64 @@ class TestConfigFileLoader:
         assert databases["production"].url == "http://prod:8529"
         assert databases["staging"].database == "staging_db"
 
+    @patch.dict(os.environ, {"ARANGO_DATABASES_CONFIG_FILE": ""}, clear=True)
+    def test_init_uses_env_var_for_config_path(self):
+        """Test that ConfigFileLoader uses ARANGO_DATABASES_CONFIG_FILE env var."""
+        custom_config_path = os.path.join(self.temp_dir, "custom.yaml")
+        
+        # Create a custom config file
+        config_data = {
+            "default_database": "custom_db",
+            "databases": {
+                "custom_db": {
+                    "url": "http://custom:8529",
+                    "database": "custom",
+                    "username": "custom_user",
+                    "password_env": "CUSTOM_PASSWORD"
+                }
+            }
+        }
+        with open(custom_config_path, 'w') as f:
+            yaml.dump(config_data, f)
+        
+        with patch.dict(os.environ, {"ARANGO_DATABASES_CONFIG_FILE": custom_config_path}):
+            # No config_path provided - should use env var
+            loader = ConfigFileLoader()
+            assert loader.config_path == os.path.abspath(custom_config_path)
+            loader.load()
+            
+            assert loader.default_database == "custom_db"
+            databases = loader.get_configured_databases()
+            assert "custom_db" in databases
+
+    def test_init_explicit_path_overrides_env_var(self):
+        """Test that explicit config_path overrides ARANGO_DATABASES_CONFIG_FILE."""
+        explicit_path = os.path.join(self.temp_dir, "explicit.yaml")
+        env_path = os.path.join(self.temp_dir, "env.yaml")
+        
+        # Create explicit config file
+        config_data = {
+            "default_database": "explicit",
+            "databases": {"explicit": {"url": "http://explicit:8529", "database": "explicit", "username": "user", "password_env": "PASS"}}
+        }
+        with open(explicit_path, 'w') as f:
+            yaml.dump(config_data, f)
+        
+        with patch.dict(os.environ, {"ARANGO_DATABASES_CONFIG_FILE": env_path}):
+            # Explicit path should override env var
+            loader = ConfigFileLoader(config_path=explicit_path)
+            assert loader.config_path == os.path.abspath(explicit_path)
+            loader.load()
+            
+            assert loader.default_database == "explicit"
+
+    @patch.dict(os.environ, {}, clear=True)
+    def test_init_uses_default_when_no_env_var(self):
+        """Test that ConfigFileLoader uses default path when no env var is set."""
+        loader = ConfigFileLoader()
+        # Should use default path
+        assert loader.config_path == os.path.abspath(ConfigFileLoader.DEFAULT_CONFIG_PATH)
+
     @patch.dict(os.environ, {
         "ARANGO_URL": "http://localhost:8529",
         "ARANGO_DB": "test_db",

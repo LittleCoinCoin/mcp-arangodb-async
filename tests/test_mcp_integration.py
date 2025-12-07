@@ -313,9 +313,16 @@ class TestServerLifespan:
     @pytest.mark.asyncio
     @patch('mcp_arangodb_async.entry.load_config')
     @patch('mcp_arangodb_async.entry.get_client_and_db')
-    async def test_server_lifespan_success(self, mock_get_client, mock_load_config):
+    @patch('mcp_arangodb_async.entry.ConfigFileLoader')
+    async def test_server_lifespan_success(self, mock_config_loader_class, mock_get_client, mock_load_config):
         """Test successful server lifespan initialization."""
         from mcp_arangodb_async.entry import server_lifespan
+        
+        # Setup ConfigFileLoader mock
+        mock_config_loader = Mock()
+        mock_config_loader.get_configured_databases.return_value = {"default": Mock()}
+        mock_config_loader.config_path = "config/databases.yaml"
+        mock_config_loader_class.return_value = mock_config_loader
         
         # Setup mocks
         mock_config = Mock()
@@ -328,6 +335,7 @@ class TestServerLifespan:
         async with server_lifespan(server) as context:
             assert context["db"] == mock_db
             assert context["client"] == mock_client
+            assert context["config_loader"] == mock_config_loader
         
         # Verify cleanup
         mock_client.close.assert_called_once()
@@ -335,9 +343,16 @@ class TestServerLifespan:
     @pytest.mark.asyncio
     @patch('mcp_arangodb_async.entry.load_config')
     @patch('mcp_arangodb_async.entry.get_client_and_db')
-    async def test_server_lifespan_connection_failure(self, mock_get_client, mock_load_config):
+    @patch('mcp_arangodb_async.entry.ConfigFileLoader')
+    async def test_server_lifespan_connection_failure(self, mock_config_loader_class, mock_get_client, mock_load_config):
         """Test server lifespan with connection failure."""
         from mcp_arangodb_async.entry import server_lifespan
+        
+        # Setup ConfigFileLoader mock
+        mock_config_loader = Mock()
+        mock_config_loader.get_configured_databases.return_value = {"default": Mock()}
+        mock_config_loader.config_path = "config/databases.yaml"
+        mock_config_loader_class.return_value = mock_config_loader
         
         # Setup mocks
         mock_config = Mock()
@@ -352,9 +367,16 @@ class TestServerLifespan:
     @pytest.mark.asyncio
     @patch('mcp_arangodb_async.entry.load_config')
     @patch('mcp_arangodb_async.entry.get_client_and_db')
-    async def test_server_lifespan_retry_logic(self, mock_get_client, mock_load_config):
+    @patch('mcp_arangodb_async.entry.ConfigFileLoader')
+    async def test_server_lifespan_retry_logic(self, mock_config_loader_class, mock_get_client, mock_load_config):
         """Test server lifespan retry logic."""
         from mcp_arangodb_async.entry import server_lifespan
+        
+        # Setup ConfigFileLoader mock
+        mock_config_loader = Mock()
+        mock_config_loader.get_configured_databases.return_value = {"default": Mock()}
+        mock_config_loader.config_path = "config/databases.yaml"
+        mock_config_loader_class.return_value = mock_config_loader
         
         # Setup mocks
         mock_config = Mock()
