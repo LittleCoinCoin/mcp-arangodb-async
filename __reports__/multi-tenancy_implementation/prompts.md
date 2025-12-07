@@ -1982,3 +1982,78 @@ db add:
     but the current implementation of the reporting uses past tense everywhere; this is disturbing.
 
 8. For better UX, I want the dark color variations to be darker. For now we cannot make the difference with the bright colors enough.
+
+### 26.2 Augmented
+
+None
+
+## 27 Passing configured or default database to the MCP server...oops
+
+### 27.1 Original
+
+The design document of the current dev sprint was very thorough on the database resolution algorithm, the new cli, the new tools, the new config file format, the per-session management and integration with workflow context. However, it failed to address a critical aspect: how to pass the information about the default database and the database config file path to the MCP server at startup. This is a major blocker. Let's fix it.
+
+Fortunately, it is not a very hard problem to solve. First off, a dedicated argument `--config-file` (or `--cfgf` for a shorter alias) should be passed to the `mcp-arangodb-async server` command. Additionnaly, a new environment variable `ARANGO_DATABASES_CONFIG_FILE` should be added and used as the default value of the `--config-file` argument.
+Then, as all the unit tests show, we already have the entire logic to load and manipulate the database configurations (see `load()` method of `ConfigFileLoader` class in `mcp_arangodb_async/config_loader.py` which tries to get the config file and otherwise falls back to environment variables). After that the `resolve_database()` function is already integrated during `call_tool()` in `mcp_arangodb_async/entry.py`, so I don't think we need to change anything there. Correct me if I am wrong.
+
+**Your task**:
+1. Confirm the integration points. Did I miss something?
+2. Implement the integration of the config file information into the server startup process.
+
+
+### 27.2 Augmented
+
+The design document for the current dev sprint thoroughly covered the database resolution algorithm, new CLI commands, new MCP tools, config file format, per-session management, and workflow context integration. However, it missed a critical implementation detail: **how to pass the database configuration file path to the MCP server at startup**.
+
+This is a blocker that needs to be resolved before the multi-tenancy implementation is complete.
+
+## Proposed Solution
+
+The solution involves integrating the config file path into the server startup flow:
+
+1. **CLI Argument**: Add a `--config-file` argument (with `--cfgf` short alias) to the `mcp-arangodb-async server` command
+2. **Environment Variable**: Add `ARANGO_DATABASES_CONFIG_FILE` environment variable as the default fallback when `--config-file` is not provided
+3. **Existing Infrastructure**: Leverage the existing `ConfigFileLoader.load()` method in `mcp_arangodb_async/config_loader.py` which already handles config file loading and environment variable fallback
+4. **Tool Integration**: The `resolve_database()` function is already integrated in `call_tool()` in `mcp_arangodb_async/entry.py`, so no changes should be needed there (but verify this)
+
+## Your Tasks
+
+**Task 1: Verify Integration Points**
+- Review the current codebase to confirm:
+  - Where the MCP server startup logic is located (likely in `mcp_arangodb_async/entry.py` or a similar entry point)
+  - How `ConfigFileLoader.load()` is currently being called (if at all) during server initialization
+  - Whether `resolve_database()` in `call_tool()` has access to the loaded configuration
+  - Identify any missing integration points or gaps in the proposed solution
+
+**Task 2: Implement Config File Integration**
+- Add the `--config-file` / `--cfgf` CLI argument to the server startup command
+- Add support for the `ARANGO_DATABASES_CONFIG_FILE` environment variable as the default value
+- Ensure the config file is loaded during server initialization and made available to the database resolution logic
+- Update any necessary initialization code to wire these components together
+- Verify that the integration works end-to-end: CLI arg → config loading → database resolution during tool calls
+
+**Important Constraints**:
+- Do NOT create new test files unless explicitly requested
+- Do NOT create documentation files
+- Focus only on the integration work described above
+- After making changes, identify and update ALL affected existing tests
+- Use codebase-retrieval to find all downstream impacts of your changes
+
+Please start by confirming the integration points (Task 1) before proceeding with implementation (Task 2).
+
+## 28 Debugging, new tools not working.
+
+### 28.1 Original
+
+When testing mcp tools `get_multi_database_status` or `arango_list_available_databases`, the tool outputs:
+```json
+{"databases": [], "total_count": 0, "error": "Database manager not available"}
+```
+
+This comes from a rightful check in, for example, #file:handlers.py:2715-2720 
+Basically, this shows that the `db_manager` is not available in the lifespan context supposedly provided in `entry.py` `call_tool()`.
+
+**Your task**:
+1. Investigate the issue
+  - Note, I am surprised this was not caught by the unit tests: maybe this means the tests are deffective or everything is indeed correctly implemented but wiring is missing/wrong in the real code
+2. Fix the issue
