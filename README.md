@@ -17,6 +17,10 @@ A production-ready Model Context Protocol (MCP) server exposing advanced ArangoD
 
 🔧 **Installation:** [https://github.com/PCfVW/mcp-arango-async/blob/master/docs/getting-started/installation.md](https://github.com/PCfVW/mcp-arango-async/blob/master/docs/getting-started/installation.md)
 
+🗄️ **Multi-Tenancy Guide:** [https://github.com/PCfVW/mcp-arango-async/blob/master/docs/user-guide/multi-tenancy-guide.md](https://github.com/PCfVW/mcp-arango-async/blob/master/docs/user-guide/multi-tenancy-guide.md)
+
+⚙️ **CLI Reference:** [https://github.com/PCfVW/mcp-arango-async/blob/master/docs/user-guide/cli-reference.md](https://github.com/PCfVW/mcp-arango-async/blob/master/docs/user-guide/cli-reference.md)
+
 📖 **Tools Reference:** [https://github.com/PCfVW/mcp-arango-async/blob/master/docs/user-guide/tools-reference.md](https://github.com/PCfVW/mcp-arango-async/blob/master/docs/user-guide/tools-reference.md)
 
 🎯 **MCP Design Patterns:** [https://github.com/PCfVW/mcp-arango-async/blob/master/docs/user-guide/mcp-design-patterns.md](https://github.com/PCfVW/mcp-arango-async/blob/master/docs/user-guide/mcp-design-patterns.md)
@@ -29,7 +33,8 @@ A production-ready Model Context Protocol (MCP) server exposing advanced ArangoD
 
 ## Features
 
-✅ **43 MCP Tools** - Complete ArangoDB operations (queries, collections, indexes, graphs)
+✅ **49 MCP Tools** - Complete ArangoDB operations (queries, collections, indexes, graphs)
+✅ **Multi-Tenancy** - Work with multiple databases, environment switching, cross-database operations
 ✅ **MCP Design Patterns** - Progressive discovery, context switching, tool unloading (98.7% token savings)
 ✅ **Graph Management** - Create, traverse, backup/restore named graphs
 ✅ **Content Conversion** - JSON, Markdown, YAML, and Table formats
@@ -48,9 +53,10 @@ A production-ready Model Context Protocol (MCP) server exposing advanced ArangoD
 ┌────────────────────┐      ┌─────────────────────┐       ┌──────────────────┐
 │   MCP Client       │      │  ArangoDB MCP       │       │   ArangoDB       │
 │ (Claude, Augment)  │─────▶│  Server (Python)    │─────▶│  (Docker)        │
-│                    │      │  • 43 Tools         │       │  • Multi-Model   │
-│                    │      │  • Graph Mgmt       │       │  • Graph Engine  │
-│                    │      │  • MCP Patterns     │       │  • AQL Engine    │
+│                    │      │  • 49 Tools         │       │  • Multi-Model   │
+│                    │      │  • Multi-Tenancy    │       │  • Graph Engine  │
+│                    │      │  • Graph Mgmt       │       │  • AQL Engine    │
+│                    │      │  • MCP Patterns     │       │                  │
 └────────────────────┘      └─────────────────────┘       └──────────────────┘
 ```
 
@@ -222,11 +228,86 @@ LOG_LEVEL=INFO                         # DEBUG, INFO, WARNING, ERROR
 
 📖 **Complete configuration reference:** [https://github.com/PCfVW/mcp-arango-async/blob/master/docs/configuration/environment-variables.md](https://github.com/PCfVW/mcp-arango-async/blob/master/docs/configuration/environment-variables.md)
 
+### Multi-Tenancy Configuration
+
+Work with multiple databases using YAML configuration:
+
+**1. Configure databases via CLI:**
+
+```bash
+# Same server, same user = same password env var
+maa db add production \
+  --url http://localhost:8529 \
+  --database myapp_prod \
+  --username admin \
+  --password-env ARANGO_PASSWORD
+
+maa db add staging \
+  --url http://localhost:8529 \
+  --database myapp_staging \
+  --username admin \
+  --password-env ARANGO_PASSWORD
+
+# Note: 'maa' is a short alias for 'mcp-arangodb-async'
+```
+
+**2. Set password for the user:**
+
+```bash
+# Passwords are bound to users, not databases
+export ARANGO_PASSWORD="admin-password"
+```
+
+**3. Restart the MCP server** to pick up the new configuration:
+
+```bash
+maa server
+# Or: python -m mcp_arangodb_async server
+```
+
+**Note:** The MCP server connects to existing databases. Use `scripts/setup-arango.ps1` or ArangoDB's web UI to create databases and users first.
+
+**2. Use multi-tenancy tools:**
+
+```json
+// Set focused database
+{
+  "tool": "arango_set_focused_database",
+  "arguments": {"database_key": "staging"}
+}
+
+// Query focused database
+{
+  "tool": "arango_query",
+  "arguments": {"query": "FOR doc IN users RETURN doc"}
+}
+
+// Override with database parameter
+{
+  "tool": "arango_query",
+  "arguments": {
+    "query": "FOR doc IN users RETURN doc",
+    "database": "production"
+  }
+}
+```
+
+📖 **Multi-tenancy guide:** [https://github.com/PCfVW/mcp-arango-async/blob/master/docs/user-guide/multi-tenancy-guide.md](https://github.com/PCfVW/mcp-arango-async/blob/master/docs/user-guide/multi-tenancy-guide.md)
+
+📖 **CLI reference:** [https://github.com/PCfVW/mcp-arango-async/blob/master/docs/user-guide/cli-reference.md](https://github.com/PCfVW/mcp-arango-async/blob/master/docs/user-guide/cli-reference.md)
+
 ---
 
 ## Available Tools
 
-The server exposes **43 MCP tools** organized into 10 categories:
+The server exposes **49 MCP tools** organized into 11 categories:
+
+### Multi-Tenancy Tools (6 tools)
+- `arango_set_focused_database` - Set focused database for session
+- `arango_get_focused_database` - Get currently focused database
+- `arango_list_available_databases` - List all configured databases
+- `arango_get_database_resolution` - Show database resolution algorithm
+- `arango_database_status` - Get comprehensive status of all databases
 
 ### Core Data Operations (7 tools)
 - `arango_query` - Execute AQL queries
@@ -283,9 +364,9 @@ The server exposes **43 MCP tools** organized into 10 categories:
 ### MCP Design Pattern Tools (9 tools)
 - `arango_search_tools` - Search for tools by keywords
 - `arango_list_tools_by_category` - List tools by category
-- `arango_switch_context` - Switch workflow context
-- `arango_get_active_context` - Get active context
-- `arango_list_contexts` - List all contexts
+- `arango_switch_workflow` - Switch workflow context
+- `arango_get_active_workflow` - Get active workflow
+- `arango_list_workflows` - List all workflows
 - `arango_advance_workflow_stage` - Advance workflow stage
 - `arango_get_tool_usage_stats` - Get tool usage statistics
 - `arango_unload_tools` - Unload specific tools

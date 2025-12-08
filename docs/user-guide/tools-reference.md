@@ -1,6 +1,6 @@
 # Tools Reference
 
-Complete documentation for all 43 MCP tools provided by the mcp-arangodb-async server.
+Complete documentation for all 49 MCP tools provided by the mcp-arangodb-async server.
 
 **Audience:** End Users and Developers
 **Prerequisites:** Server installed and configured
@@ -11,32 +11,44 @@ Complete documentation for all 43 MCP tools provided by the mcp-arangodb-async s
 ## Table of Contents
 
 1. [Overview](#overview)
-2. [Core Data Operations (7)](#core-data-operations-7)
-3. [Indexing & Query Analysis (4)](#indexing--query-analysis-4)
-4. [Validation & Bulk Operations (4)](#validation--bulk-operations-4)
-5. [Schema Management (2)](#schema-management-2)
-6. [Enhanced Query Tools (2)](#enhanced-query-tools-2)
-7. [Basic Graph Operations (7)](#basic-graph-operations-7)
-8. [Advanced Graph Management (5)](#advanced-graph-management-5)
-9. [Tool Aliases (2)](#tool-aliases-2)
-10. [Health & Status (1)](#health--status-1)
-11. [MCP Design Pattern Tools (9)](#mcp-design-pattern-tools-9)
-12. [Toolset Configuration](#toolset-configuration)
+2. [Multi-Tenancy Tools (6)](#multi-tenancy-tools-6)
+3. [Core Data Operations (7)](#core-data-operations-7)
+4. [Indexing & Query Analysis (4)](#indexing--query-analysis-4)
+5. [Validation & Bulk Operations (4)](#validation--bulk-operations-4)
+6. [Schema Management (2)](#schema-management-2)
+7. [Enhanced Query Tools (2)](#enhanced-query-tools-2)
+8. [Basic Graph Operations (7)](#basic-graph-operations-7)
+9. [Advanced Graph Management (5)](#advanced-graph-management-5)
+10. [Tool Aliases (2)](#tool-aliases-2)
+11. [Health & Status (1)](#health--status-1)
+12. [MCP Design Pattern Tools (9)](#mcp-design-pattern-tools-9)
+13. [Toolset Configuration](#toolset-configuration)
 
 ---
 
 ## Overview
 
-The mcp-arangodb-async server provides **43 comprehensive tools** organized into logical categories. Each tool:
+The mcp-arangodb-async server provides **49 comprehensive tools** organized into logical categories. Each tool:
 - Uses **strict Pydantic validation** for arguments
 - Provides **consistent error handling** with detailed messages
 - Returns **JSON-serializable results** for easy integration
 - Follows **standard handler signature**: `(db: StandardDatabase, args: Dict[str, Any]) -> Dict[str, Any]`
 
+### Multi-Tenancy Support
+
+**32 data operation tools** support an optional `database` parameter for per-tool database override. This enables:
+- Working with multiple databases in a single session
+- Cross-database comparisons and migrations
+- Environment switching (dev, staging, production)
+- Tenant isolation
+
+See the [Multi-Tenancy Guide](multi-tenancy-guide.md) for complete documentation.
+
 ### Tool Categories
 
 | Category | Tools | Use Cases |
 |----------|-------|-----------|
+| **Multi-Tenancy Tools** | 6 | Database management, connection testing, resolution |
 | **Core Data Operations** | 7 | Basic CRUD, queries, backups |
 | **Indexing & Query Analysis** | 4 | Performance optimization, query profiling |
 | **Validation & Bulk Operations** | 4 | Data integrity, batch processing |
@@ -50,7 +62,257 @@ The mcp-arangodb-async server provides **43 comprehensive tools** organized into
 
 ---
 
+## Multi-Tenancy Tools (6)
+
+Tools for managing multiple databases, switching contexts, and testing connections. See the [Multi-Tenancy Guide](multi-tenancy-guide.md) for complete usage patterns.
+
+### arango_set_focused_database
+
+Set the focused database for the current session. All subsequent tool calls will use this database unless overridden by the `database` parameter.
+
+**Parameters:**
+- `database_key` (string, required) - Database key from configuration
+
+**Returns:**
+- `success` (boolean) - Whether the operation succeeded
+- `previous_database` (string|null) - Previously focused database
+- `new_database` (string) - Newly focused database
+- `message` (string) - Success message
+
+**Example:**
+```json
+{
+  "database_key": "staging"
+}
+```
+
+**Result:**
+```json
+{
+  "success": true,
+  "previous_database": "production",
+  "new_database": "staging",
+  "message": "Focused database set to 'staging'"
+}
+```
+
+**Use Cases:**
+- Switch between development, staging, and production environments
+- Set database context at the start of a workflow
+- Avoid repeating database parameter in multiple tool calls
+
+---
+
+### arango_get_focused_database
+
+Get the currently focused database for the session.
+
+**Parameters:** None
+
+**Returns:**
+- `focused_database` (string|null) - Currently focused database key
+- `is_set` (boolean) - Whether a focused database is set
+
+**Example:**
+```json
+{}
+```
+
+**Result:**
+```json
+{
+  "focused_database": "staging",
+  "is_set": true
+}
+```
+
+**Use Cases:**
+- Verify which database will be used for operations
+- Check session state before critical operations
+- Debugging database resolution issues
+
+---
+
+### arango_list_available_databases
+
+List all configured databases from the YAML configuration.
+
+**Parameters:** None
+
+**Returns:**
+- `databases` (array) - List of database configurations
+- `count` (number) - Number of configured databases
+- `default_database` (string|null) - Default database from configuration
+
+**Example:**
+```json
+{}
+```
+
+**Result:**
+```json
+{
+  "databases": [
+    {
+      "key": "production",
+      "url": "http://localhost:8529",
+      "database": "myapp_prod",
+      "username": "admin",
+      "timeout": 60.0,
+      "description": "Production database"
+    },
+    {
+      "key": "staging",
+      "url": "http://staging:8529",
+      "database": "myapp_staging",
+      "username": "admin",
+      "timeout": 30.0,
+      "description": "Staging database"
+    }
+  ],
+  "count": 2,
+  "default_database": "production"
+}
+```
+
+**Use Cases:**
+- Discover available databases
+- Verify configuration before operations
+- Display database options to users
+
+---
+
+### arango_get_database_resolution
+
+Show the database resolution algorithm and current state. Explains which database will be used based on the 6-level resolution order.
+
+**Parameters:** None
+
+**Returns:**
+- `focused_database` (string|null) - Currently focused database
+- `config_default` (string|null) - Default from YAML configuration
+- `env_default` (string|null) - Default from MCP_DEFAULT_DATABASE environment variable
+- `first_configured` (string|null) - First database in configuration
+- `fallback` (string) - Fallback database (_system)
+- `resolution_order` (array) - Ordered list of resolution steps
+- `current_database` (string) - Database that will be used
+
+**Example:**
+```json
+{}
+```
+
+**Result:**
+```json
+{
+  "focused_database": "staging",
+  "config_default": "production",
+  "env_default": null,
+  "first_configured": "production",
+  "fallback": "_system",
+  "resolution_order": [
+    "1. Tool argument (database parameter)",
+    "2. Focused database (session state): staging",
+    "3. Config default (from YAML): production",
+    "4. Environment variable (MCP_DEFAULT_DATABASE): Not set",
+    "5. First configured database: production",
+    "6. Fallback to '_system'"
+  ],
+  "current_database": "staging"
+}
+```
+
+**Use Cases:**
+- Understand which database will be used
+- Debug unexpected database selection
+- Verify resolution logic before critical operations
+- Educational tool for understanding multi-tenancy
+
+---
+
+### arango_database_status
+
+Get comprehensive connection status for all configured databases, showing which databases are accessible, their versions, and which database is currently focused.
+
+**Parameters:** None
+
+**Returns:**
+- `summary` (object) - Quick overview of database status
+  - `total` (number) - Total number of configured databases
+  - `connected` (number) - Number of successfully connected databases
+  - `failed` (number) - Number of failed connections
+  - `focused_database` (string | null) - Currently focused database key
+- `databases` (array) - Detailed status for each database
+  - `key` (string) - Database configuration key
+  - `url` (string) - Database URL
+  - `database` (string) - Database name
+  - `username` (string) - Username for connection
+  - `is_focused` (boolean) - Whether this is the focused database
+  - `status` (string) - Connection status ("connected" or "error")
+  - `version` (string, optional) - ArangoDB version if connected
+  - `error` (string, optional) - Error message if connection failed
+- `session_id` (string) - Current session identifier
+
+**Example:**
+```json
+{}
+```
+
+**Result:**
+```json
+{
+  "summary": {
+    "total": 3,
+    "connected": 2,
+    "failed": 1,
+    "focused_database": "production"
+  },
+  "databases": [
+    {
+      "key": "production",
+      "url": "http://localhost:8529",
+      "database": "prod_db",
+      "username": "admin",
+      "is_focused": true,
+      "status": "connected",
+      "version": "3.11.0"
+    },
+    {
+      "key": "staging",
+      "url": "http://localhost:8530",
+      "database": "staging_db",
+      "username": "admin",
+      "is_focused": false,
+      "status": "connected",
+      "version": "3.10.5"
+    },
+    {
+      "key": "development",
+      "url": "http://localhost:8531",
+      "database": "dev_db",
+      "username": "admin",
+      "is_focused": false,
+      "status": "error",
+      "error": "Connection refused"
+    }
+  ],
+  "session_id": "stdio"
+}
+```
+
+**Use Cases:**
+- Get comprehensive overview of all database connections
+- Verify which databases are accessible
+- Check which database is currently focused
+- Troubleshoot connection issues across multiple databases
+- Health checks for multi-database deployments
+- Monitor database availability
+
+---
+
 ## Core Data Operations (7)
+
+**Note:** All tools in this category support the optional `database` parameter for per-tool database override. See [Multi-Tenancy Guide](multi-tenancy-guide.md) for details.
 
 ### arango_query
 
@@ -59,6 +321,7 @@ Execute AQL (ArangoDB Query Language) queries with optional bind variables.
 **Parameters:**
 - `query` (string, required) - AQL query string
 - `bind_vars` (object, optional) - Bind variables for parameterized queries
+- `database` (string, optional) - Database override (see [Multi-Tenancy Guide](multi-tenancy-guide.md))
 
 **Returns:**
 - Array of result documents
@@ -300,6 +563,8 @@ Create a new collection or return properties of existing collection.
 
 ## Indexing & Query Analysis (4)
 
+**Note:** All tools in this category support the optional `database` parameter for per-tool database override. See [Multi-Tenancy Guide](multi-tenancy-guide.md) for details.
+
 ### arango_list_indexes
 
 List all indexes for a collection.
@@ -390,6 +655,8 @@ Explain AQL query execution plan.
 ---
 
 ## Validation & Bulk Operations (4)
+
+**Note:** All tools in this category support the optional `database` parameter for per-tool database override. See [Multi-Tenancy Guide](multi-tenancy-guide.md) for details.
 
 ### arango_validate_references
 
@@ -482,6 +749,8 @@ Batch update multiple documents by key.
 
 ## Schema Management (2)
 
+**Note:** All tools in this category support the optional `database` parameter for per-tool database override. See [Multi-Tenancy Guide](multi-tenancy-guide.md) for details.
+
 ### arango_create_schema
 
 Create or update a named JSON Schema.
@@ -526,6 +795,8 @@ Validate a document against a stored or inline schema.
 
 ## Enhanced Query Tools (2)
 
+**Note:** All tools in this category support the optional `database` parameter for per-tool database override. See [Multi-Tenancy Guide](multi-tenancy-guide.md) for details.
+
 ### arango_query_builder
 
 Build and execute simple AQL queries from structured filters.
@@ -562,6 +833,8 @@ Profile query execution with detailed statistics.
 ---
 
 ## Basic Graph Operations (7)
+
+**Note:** All tools in this category support the optional `database` parameter for per-tool database override. See [Multi-Tenancy Guide](multi-tenancy-guide.md) for details.
 
 ### arango_create_graph
 
@@ -752,6 +1025,8 @@ Add an edge definition to an existing graph.
 
 ## Advanced Graph Management (5)
 
+**Note:** All tools in this category support the optional `database` parameter for per-tool database override. See [Multi-Tenancy Guide](multi-tenancy-guide.md) for details.
+
 ### arango_backup_graph
 
 Export complete graph structure including vertices, edges, and metadata.
@@ -926,6 +1201,8 @@ Alias for `arango_insert`. Provides semantic clarity when inserting vertices in 
 
 ## Health & Status (1)
 
+**Note:** This tool supports the optional `database` parameter for per-tool database override. See [Multi-Tenancy Guide](multi-tenancy-guide.md) for details.
+
 ### arango_database_status
 
 Check database connectivity and return server information.
@@ -1068,9 +1345,9 @@ List all MCP tools organized by category. Useful for understanding tool organiza
 
 ---
 
-### Pattern 2: Context Switching (3 tools)
+### Pattern 2: Workflow Switching (3 tools)
 
-#### arango_switch_context
+#### arango_switch_workflow
 
 Switch to a different workflow context with a predefined set of tools. Enables workflow-specific tool sets for different use cases.
 
@@ -1139,13 +1416,13 @@ Switch to a different workflow context with a predefined set of tools. Enables w
 
 **Best Practices:**
 - Match context to workflow stage
-- Minimize context switches (group related operations)
-- Verify context before operations with `arango_get_active_context`
+- Minimize workflow switches (group related operations)
+- Verify workflow before operations with `arango_get_active_workflow`
 - Use `full` context only when truly needed
 
 ---
 
-#### arango_get_active_context
+#### arango_get_active_workflow
 
 Get the currently active workflow context and its tool set.
 
@@ -1185,14 +1462,14 @@ Get the currently active workflow context and its tool set.
 ```
 
 **Use Cases:**
-- Verify current context before operations
+- Verify current workflow before operations
 - Debug workflow issues
-- Log context state for audit trails
-- Confirm successful context switches
+- Log workflow state for audit trails
+- Confirm successful workflow switches
 
 ---
 
-#### arango_list_contexts
+#### arango_list_workflows
 
 List all available workflow contexts with their descriptions and optional tool lists.
 

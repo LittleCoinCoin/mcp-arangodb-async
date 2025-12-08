@@ -274,7 +274,7 @@ The server provides 6 predefined workflow contexts:
 
 ### Available Tools
 
-#### arango_switch_context
+#### arango_switch_workflow
 
 Switch to a different workflow context with a predefined set of tools.
 
@@ -327,7 +327,7 @@ Switch to a different workflow context with a predefined set of tools.
 }
 ```
 
-#### arango_get_active_context
+#### arango_get_active_workflow
 
 Get the currently active workflow context and its tool set.
 
@@ -366,7 +366,7 @@ Get the currently active workflow context and its tool set.
 }
 ```
 
-#### arango_list_contexts
+#### arango_list_workflows
 
 List all available workflow contexts with their descriptions and optional tool lists.
 
@@ -414,11 +414,11 @@ List all available workflow contexts with their descriptions and optional tool l
 
 **Scenario:** Multi-stage data pipeline with context switching
 
-**Stage 1: Data Loading (baseline context)**
+**Stage 1: Data Loading (baseline workflow)**
 ```
-Agent: "Starting data import workflow. Switch to baseline context."
+Agent: "Starting data import workflow. Switch to baseline workflow."
 
-Call: arango_switch_context
+Call: arango_switch_workflow
 Args: {"context": "baseline"}
 
 Result: Switched to baseline (7 tools: query, insert, update, remove, list_collections, create_collection, backup)
@@ -428,11 +428,11 @@ Uses: arango_bulk_insert
 Result: Inserted 10,000 customer records
 ```
 
-**Stage 2: Data Analysis (data_analysis context)**
+**Stage 2: Data Analysis (data_analysis workflow)**
 ```
-Agent: "Data loaded. Switch to data_analysis context for query optimization."
+Agent: "Data loaded. Switch to data_analysis workflow for query optimization."
 
-Call: arango_switch_context
+Call: arango_switch_workflow
 Args: {"context": "data_analysis"}
 
 Result: Switched to data_analysis (7 tools: query, explain_query, query_builder, query_profile, create_index, list_indexes, delete_index)
@@ -442,11 +442,11 @@ Uses: arango_explain_query, arango_create_index
 Result: Created index on customers.email (95% query speedup)
 ```
 
-**Stage 3: Graph Modeling (graph_modeling context)**
+**Stage 3: Graph Modeling (graph_modeling workflow)**
 ```
 Agent: "Build customer relationship graph."
 
-Call: arango_switch_context
+Call: arango_switch_workflow
 Args: {"context": "graph_modeling"}
 
 Result: Switched to graph_modeling (10 tools: create_graph, add_edge, traverse, shortest_path, graph_statistics, etc.)
@@ -460,27 +460,27 @@ Result: Graph created with 10,000 vertices, 45,000 edges. Average degree: 4.5
 
 ### Best Practices
 
-**Match Context to Workflow Stage:**
+**Match Workflow to Workflow Stage:**
 - Use `baseline` for initial data loading and basic CRUD
 - Switch to `data_analysis` for query optimization and indexing
 - Use `graph_modeling` for relationship analysis
 - Switch to `bulk_operations` for batch processing
 - Use `schema_validation` for data integrity checks
 
-**Minimize Context Switches:**
-- Plan workflow stages to minimize context switching overhead
-- Group related operations within the same context
-- Use `full` context only when truly needed (complex multi-domain workflows)
+**Minimize Workflow Switches:**
+- Plan workflow stages to minimize workflow switching overhead
+- Group related operations within the same workflow
+- Use `full` workflow only when truly needed (complex multi-domain workflows)
 
-**Verify Context Before Operations:**
-- Call `arango_get_active_context` to confirm current tool set
+**Verify Workflow Before Operations:**
+- Call `arango_get_active_workflow` to confirm current tool set
 - Ensure required tools are available before executing operations
-- Switch contexts proactively rather than reactively
+- Switch workflows proactively rather than reactively
 
-**Document Context Choices:**
-- Explain why you chose a specific context
+**Document Workflow Choices:**
+- Explain why you chose a specific workflow
 - Help users understand the workflow structure
-- Make context switches explicit in logs and documentation
+- Make workflow switches explicit in logs and documentation
 
 ---
 
@@ -794,9 +794,9 @@ Agent: "Search for graph and dependency tools."
 Call: arango_search_tools(keywords=["graph", "dependency"])
 Result: Found 12 tools
 
-# Phase 2: Context Setup (Context Switching)
-Agent: "Switch to graph_modeling context for focused tool set."
-Call: arango_switch_context(context="graph_modeling")
+# Phase 2: Workflow Setup (Workflow Switching)
+Agent: "Switch to graph_modeling workflow for focused tool set."
+Call: arango_switch_workflow(context="graph_modeling")
 Result: Loaded 10 graph tools
 
 # Phase 3: Setup Stage (Tool Unloading)

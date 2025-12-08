@@ -19,7 +19,7 @@ import asyncio
 import json
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from typing import Any, Callable, Dict, List
+from typing import Any, Callable, Dict, List, Optional
 from types import SimpleNamespace
 
 import mcp.server.stdio
@@ -35,6 +35,15 @@ from pydantic import ValidationError
 from .config import load_config
 from .db import get_client_and_db
 from arango.database import StandardDatabase
+from .session_state import SessionState
+from .multi_db_manager import MultiDatabaseConnectionManager
+from .config_loader import ConfigFileLoader
+from .db_resolver import resolve_database
+from .session_utils import extract_session_id
+
+# Module-level variable to store config file path (set by main() before server starts)
+_config_file_path: Optional[str] = None
+
 from .handlers import (
     handle_arango_query,
     handle_backup,
@@ -156,7 +165,15 @@ from . import handlers  # noqa: F401 - imported for side effects (decorator exec
 
 @asynccontextmanager
 async def server_lifespan(server: Server) -> AsyncIterator[Dict[str, Any]]:
-    """Initialize ArangoDB client+db once and share via request context."""
+    """Initialize ArangoDB client+db and multi-tenancy components.
+
+    Initializes:
+    - ConfigFileLoader: Load database configurations from YAML/env vars
+    - MultiDatabaseConnectionManager: Manage connections to multiple databases
+    - SessionState: Per-session state for focused database and workflows
+
+    Stores all components in lifespan_context for access in call_tool().
+    """
     # Configure logging to stderr only (never stdout for stdio MCP servers)
     log_level = os.getenv("LOG_LEVEL", "INFO").upper()
     logging.basicConfig(
@@ -176,6 +193,38 @@ async def server_lifespan(server: Server) -> AsyncIterator[Dict[str, Any]]:
         )
     logger.info(f"Tool registry validated: {len(TOOL_REGISTRY)} tools registered")
 
+    # Initialize multi-tenancy components
+    logger.info("Initializing multi-tenancy components...")
+
+    # Load database configurations using module-level config file path
+    # Priority: module-level var > ARANGO_DATABASES_CONFIG_FILE env var > default
+    global _config_file_path
+    config_path = _config_file_path or os.getenv("ARANGO_DATABASES_CONFIG_FILE") or "config/databases.yaml"
+    config_loader = ConfigFileLoader(config_path=config_path)
+    config_loader.load()
+    
+    # Log comprehensive configuration summary
+    databases = config_loader.get_configured_databases()
+    logger.info(f"Database configuration summary:")
+    logger.info(f"  - Total databases: {len(databases)}")
+    logger.info(f"  - Database keys: {list(databases.keys())}")
+    logger.info(f"  - Default database: {config_loader.default_database or '(none - will use fallback resolution)'}")
+    logger.info(f"  - Configuration source: {'YAML file' if config_loader.loaded_from_yaml else 'Environment variables'}")
+    if config_loader.loaded_from_yaml:
+        logger.info(f"  - Config file path: {config_loader.config_path}")
+
+    # Initialize multi-database connection manager
+    db_manager = MultiDatabaseConnectionManager()
+    for db_key, db_config in config_loader.get_configured_databases().items():
+        db_manager.register_database(db_key, db_config)
+    await db_manager.initialize()
+    logger.info("Multi-database connection manager initialized")
+
+    # Initialize session state
+    session_state = SessionState()
+    logger.info("Session state initialized")
+
+    # For backward compatibility: also initialize single-database connection
     cfg = load_config()
     client = None
     db = None
@@ -211,8 +260,18 @@ async def server_lifespan(server: Server) -> AsyncIterator[Dict[str, Any]]:
                 break
 
     try:
-        yield {"db": db, "client": client}
+        # Store all components in lifespan context
+        yield {
+            "db": db,
+            "client": client,
+            "session_state": session_state,
+            "db_manager": db_manager,
+            "config_loader": config_loader,
+        }
     finally:
+        # Cleanup
+        session_state.cleanup_all()
+        await db_manager.close_all()
         if client is not None:
             try:
                 client.close()
@@ -264,7 +323,7 @@ def _json_content(data: Any) -> List[types.Content]:
     return [types.TextContent(type="text", text=json.dumps(data, ensure_ascii=False))]
 
 
-def _invoke_handler(
+async def _invoke_handler(
     handler: Callable, db: StandardDatabase, args: Dict[str, Any]
 ) -> Any:
     """Invoke handler function with appropriate signature based on parameter inspection.
@@ -287,6 +346,10 @@ def _invoke_handler(
     - Uses single args dict for handlers without **kwargs (production handlers)
     - No try/catch overhead, deterministic signature detection
 
+    Supports both sync and async handlers:
+    - Async handlers (coroutine functions) are awaited
+    - Sync handlers are called directly
+
     Args:
         handler: Handler function to invoke (either real implementation or test mock)
         db: ArangoDB database instance
@@ -301,6 +364,7 @@ def _invoke_handler(
         handlers that require arguments vs. those that don't (e.g., list_collections).
     """
     import inspect
+    import asyncio
 
     # Inspect handler signature to determine calling convention
     sig = inspect.signature(handler)
@@ -311,13 +375,20 @@ def _invoke_handler(
         for p in sig.parameters.values()
     )
 
+    # Check if handler is async (coroutine function)
+    is_async = asyncio.iscoroutinefunction(handler)
+
     if has_var_keyword:
         # Test-compatible signature: handler(db, **args)
         # This allows mocked handlers in tests to inspect individual parameters
+        if is_async:
+            return await handler(db, **args)
         return handler(db, **args)
     else:
         # Production signature: handler(db, args)
         # This matches the documented handler pattern for real implementations
+        if is_async:
+            return await handler(db, args)
         return handler(db, args)
 
 
@@ -325,9 +396,13 @@ def _invoke_handler(
 async def call_tool(name: str, arguments: Dict[str, Any]) -> List[types.Content]:
     """Execute a tool by dispatching to its registered handler.
 
-    Uses TOOL_REGISTRY for O(1) lookup and dispatch, replacing the previous
-    O(n) if-elif chain. Maintains all existing features: validation, lazy
-    connect, error handling.
+    Implements multi-tenancy support with:
+    - Implicit session creation on first tool call
+    - Database resolution using 6-level priority fallback
+    - Per-tool database override support
+
+    Uses TOOL_REGISTRY for O(1) lookup and dispatch. Maintains all existing
+    features: validation, lazy connect, error handling.
 
     Args:
         name: Tool name to execute
@@ -339,7 +414,13 @@ async def call_tool(name: str, arguments: Dict[str, Any]) -> List[types.Content]
     logger = logging.getLogger("mcp_arangodb_async.entry")
     # Access lifespan context; may not have connected (graceful degradation)
     ctx = server.request_context
-    db = ctx.lifespan_context.get("db") if ctx and ctx.lifespan_context else None
+    lifespan_ctx = ctx.lifespan_context if ctx and ctx.lifespan_context else {}
+
+    # Extract multi-tenancy components
+    session_state = lifespan_ctx.get("session_state")
+    db_manager = lifespan_ctx.get("db_manager")
+    config_loader = lifespan_ctx.get("config_loader")
+    db = lifespan_ctx.get("db")
 
     # Look up tool in registry
     tool_reg = TOOL_REGISTRY.get(name)
@@ -359,7 +440,47 @@ async def call_tool(name: str, arguments: Dict[str, Any]) -> List[types.Content]
             }
         )
 
-    # If DB is unavailable, attempt a lazy one-shot connect (helps when startup race occurred)
+    # Extract session ID (stdio or HTTP transport)
+    session_id = extract_session_id(ctx) if ctx else "stdio"
+
+    # Implicit session creation on first tool call
+    if session_state and not session_state.has_session(session_id):
+        session_state.initialize_session(session_id)
+        logger.debug(f"Initialized session: {session_id}")
+
+    # Resolve database using 6-level priority fallback
+    target_db_key = None
+    if session_state and db_manager and config_loader:
+        target_db_key = resolve_database(
+            validated_args, session_state, session_id, config_loader
+        )
+        logger.debug(f"Resolved database for session {session_id}: {target_db_key}")
+
+        # Get connection from multi-database manager
+        try:
+            client, db = await db_manager.get_connection(target_db_key)
+            logger.debug(f"Got connection to database: {target_db_key}")
+        except KeyError as e:
+            logger.error(f"Database not configured: {target_db_key}")
+            return _json_content(
+                {
+                    "error": "Database not configured",
+                    "database": target_db_key,
+                    "tool": name,
+                }
+            )
+        except Exception as e:
+            logger.error(f"Failed to get database connection: {e}")
+            return _json_content(
+                {
+                    "error": "Failed to get database connection",
+                    "database": target_db_key,
+                    "tool": name,
+                    "details": str(e),
+                }
+            )
+
+    # If DB is unavailable, attempt a lazy one-shot connect (backward compatibility)
     if db is None:
         try:
             cfg = load_config()
@@ -406,9 +527,24 @@ async def call_tool(name: str, arguments: Dict[str, Any]) -> List[types.Content]
                 }
             )
 
+    # Inject session context for pattern handlers that need per-session state
+    # This enables migration from global variables to SessionState
+    # Also includes db_manager and config_loader for multi-tenancy tools
+    validated_args["_session_context"] = {
+        "session_state": session_state,
+        "session_id": session_id,
+        "db_manager": db_manager,
+        "config_loader": config_loader,
+    }
+
     # Dispatch to handler via registry (O(1) lookup)
     try:
-        result = _invoke_handler(tool_reg.handler, db, validated_args)
+        result = await _invoke_handler(tool_reg.handler, db, validated_args)
+
+        # Track tool usage in session state
+        if session_state:
+            session_state.track_tool_usage(session_id, name)
+
         return _json_content(result)
     except Exception as e:
         logger.exception("Error executing tool '%s'", name)
@@ -432,13 +568,34 @@ setattr(
 )
 
 # Compatibility shim: make Server.request_context safe and patchable everywhere.
-# Always provide a getter/setter that returns a simple object by default, avoiding
-# ContextVar LookupError outside of real MCP requests. Tests can patch this.
+# The MCP SDK uses ContextVar for request_context, which can raise LookupError 
+# outside of actual MCP request handlers. This shim provides a safe fallback.
+# IMPORTANT: We preserve the original property access to maintain real MCP functionality.
 ServerClass = type(server)
+
+# Store reference to original request_context descriptor if it exists
+_original_request_context_descriptor = getattr(ServerClass, "request_context", None)
 
 
 def _safe_get_request_context(self: Any) -> Any:
-    return getattr(self, "_safe_request_context", SimpleNamespace(lifespan_context={}))
+    """Get request context, trying original SDK property first, then fallback."""
+    # First, check if we have a custom _safe_request_context (set by tests or manually)
+    if hasattr(self, "_safe_request_context"):
+        return self._safe_request_context
+    
+    # Try to use the original MCP SDK's request_context via its ContextVar
+    if _original_request_context_descriptor is not None:
+        try:
+            # The original is likely a property backed by ContextVar
+            original_getter = getattr(_original_request_context_descriptor, "fget", None)
+            if original_getter:
+                return original_getter(self)
+        except (LookupError, AttributeError):
+            # ContextVar not set (outside of request context) or other issue
+            pass
+    
+    # Fallback: return safe default for tests and outside request context
+    return SimpleNamespace(lifespan_context={})
 
 
 def _safe_set_request_context(self: Any, value: Any) -> None:
@@ -484,13 +641,19 @@ async def run_stdio() -> None:
         )
 
 
-async def run(transport_config: "TransportConfig | None" = None) -> None:
+async def run(transport_config: "TransportConfig | None" = None, config_file: Optional[str] = None) -> None:
     """
     Run the MCP server with specified transport.
 
     Args:
         transport_config: Transport configuration. If None, uses stdio (default).
+        config_file: Path to database configuration YAML file. If None, uses
+            ARANGO_DATABASES_CONFIG_FILE env var or default "config/databases.yaml".
     """
+    # Store config file path in module-level variable for server_lifespan() to access
+    global _config_file_path
+    _config_file_path = config_file
+    
     # Import here to avoid circular dependency and to make HTTP dependencies optional
     from .transport_config import TransportConfig
 
@@ -514,7 +677,7 @@ async def run(transport_config: "TransportConfig | None" = None) -> None:
         raise ValueError(f"Unknown transport: {transport_config.transport}")
 
 
-def main(transport_config: "TransportConfig | None" = None) -> None:
+def main(transport_config: "TransportConfig | None" = None, config_file: Optional[str] = None) -> None:
     """Console script entry point for arango-server command.
 
     This is the main entry point that starts the async MCP server.
@@ -522,8 +685,10 @@ def main(transport_config: "TransportConfig | None" = None) -> None:
 
     Args:
         transport_config: Optional transport configuration. If None, uses stdio (default).
+        config_file: Path to database configuration YAML file. If None, uses
+            ARANGO_DATABASES_CONFIG_FILE env var or default "config/databases.yaml".
     """
-    asyncio.run(run(transport_config))
+    asyncio.run(run(transport_config, config_file=config_file))
 
 
 if __name__ == "__main__":

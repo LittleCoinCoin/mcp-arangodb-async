@@ -20,8 +20,8 @@ class TestCLIArgumentParsing:
 
                 result = main()
 
-                # Should call entry_main with no transport config (stdio default)
-                mock_entry.assert_called_once_with()
+                # Should call entry_main with config_file=None (stdio default)
+                mock_entry.assert_called_once_with(config_file=None)
                 assert result == 0
 
     def test_explicit_server_command(self):
@@ -33,37 +33,37 @@ class TestCLIArgumentParsing:
                 mock_entry.return_value = None
                 result = main()
 
-                mock_entry.assert_called_once_with()
+                mock_entry.assert_called_once_with(config_file=None)
                 assert result == 0
 
     def test_server_flag(self):
-        """Test --server flag."""
-        with patch("sys.argv", ["mcp_arangodb_async", "--server"]):
+        """Test server subcommand."""
+        with patch("sys.argv", ["mcp_arangodb_async", "server"]):
             with patch("mcp_arangodb_async.entry.main") as mock_entry:
                 from mcp_arangodb_async.__main__ import main
 
                 mock_entry.return_value = None
                 result = main()
 
-                mock_entry.assert_called_once_with()
+                mock_entry.assert_called_once_with(config_file=None)
                 assert result == 0
 
     def test_transport_stdio_explicit(self):
-        """Test --transport stdio flag."""
-        with patch("sys.argv", ["mcp_arangodb_async", "--transport", "stdio"]):
+        """Test server --transport stdio flag."""
+        with patch("sys.argv", ["mcp_arangodb_async", "server", "--transport", "stdio"]):
             with patch("mcp_arangodb_async.entry.main") as mock_entry:
                 from mcp_arangodb_async.__main__ import main
 
                 mock_entry.return_value = None
                 result = main()
 
-                # Should call with no config (stdio is default)
-                mock_entry.assert_called_once_with()
+                # Should call with config_file=None (stdio is default)
+                mock_entry.assert_called_once_with(config_file=None)
                 assert result == 0
 
     def test_transport_http_basic(self):
-        """Test --transport http flag."""
-        with patch("sys.argv", ["mcp_arangodb_async", "--transport", "http"]):
+        """Test server --transport http flag."""
+        with patch("sys.argv", ["mcp_arangodb_async", "server", "--transport", "http"]):
             with patch("mcp_arangodb_async.entry.main") as mock_entry:
                 from mcp_arangodb_async.__main__ import main
                 from mcp_arangodb_async.transport_config import TransportConfig
@@ -71,22 +71,24 @@ class TestCLIArgumentParsing:
                 mock_entry.return_value = None
                 result = main()
 
-                # Should call with HTTP transport config
+                # Should call with HTTP transport config and config_file=None
                 assert mock_entry.call_count == 1
                 call_args = mock_entry.call_args[0]
+                call_kwargs = mock_entry.call_args[1]
                 assert len(call_args) == 1
                 config = call_args[0]
                 assert isinstance(config, TransportConfig)
                 assert config.transport == "http"
                 assert config.http_host == "0.0.0.0"  # Default
                 assert config.http_port == 8000  # Default
+                assert call_kwargs.get("config_file") is None
                 assert result == 0
 
     def test_transport_http_custom_host(self):
-        """Test --transport http with --host flag."""
+        """Test server --transport http with --host flag."""
         with patch(
             "sys.argv",
-            ["mcp_arangodb_async", "--transport", "http", "--host", "127.0.0.1"],
+            ["mcp_arangodb_async", "server", "--transport", "http", "--host", "127.0.0.1"],
         ):
             with patch("mcp_arangodb_async.entry.main") as mock_entry:
                 from mcp_arangodb_async.__main__ import main
@@ -103,9 +105,9 @@ class TestCLIArgumentParsing:
                 assert result == 0
 
     def test_transport_http_custom_port(self):
-        """Test --transport http with --port flag."""
+        """Test server --transport http with --port flag."""
         with patch(
-            "sys.argv", ["mcp_arangodb_async", "--transport", "http", "--port", "9000"]
+            "sys.argv", ["mcp_arangodb_async", "server", "--transport", "http", "--port", "9000"]
         ):
             with patch("mcp_arangodb_async.entry.main") as mock_entry:
                 from mcp_arangodb_async.__main__ import main
@@ -122,9 +124,9 @@ class TestCLIArgumentParsing:
                 assert result == 0
 
     def test_transport_http_stateless(self):
-        """Test --transport http with --stateless flag."""
+        """Test server --transport http with --stateless flag."""
         with patch(
-            "sys.argv", ["mcp_arangodb_async", "--transport", "http", "--stateless"]
+            "sys.argv", ["mcp_arangodb_async", "server", "--transport", "http", "--stateless"]
         ):
             with patch("mcp_arangodb_async.entry.main") as mock_entry:
                 from mcp_arangodb_async.__main__ import main
@@ -141,11 +143,12 @@ class TestCLIArgumentParsing:
                 assert result == 0
 
     def test_transport_http_all_options(self):
-        """Test --transport http with all options."""
+        """Test server --transport http with all options."""
         with patch(
             "sys.argv",
             [
                 "mcp_arangodb_async",
+                "server",
                 "--transport",
                 "http",
                 "--host",
@@ -171,6 +174,69 @@ class TestCLIArgumentParsing:
                 assert config.http_stateless is True
                 assert result == 0
 
+    def test_config_file_argument_stdio(self):
+        """Test server --config-file argument with stdio transport."""
+        with patch(
+            "sys.argv",
+            ["mcp_arangodb_async", "server", "--config-file", "/path/to/custom.yaml"],
+        ):
+            with patch("mcp_arangodb_async.entry.main") as mock_entry:
+                from mcp_arangodb_async.__main__ import main
+
+                mock_entry.return_value = None
+                result = main()
+
+                # Should call with config_file kwarg
+                mock_entry.assert_called_once_with(config_file="/path/to/custom.yaml")
+                assert result == 0
+
+    def test_config_file_short_alias_cfgf(self):
+        """Test server --cfgf short alias for --config-file."""
+        with patch(
+            "sys.argv",
+            ["mcp_arangodb_async", "server", "--cfgf", "/path/to/short.yaml"],
+        ):
+            with patch("mcp_arangodb_async.entry.main") as mock_entry:
+                from mcp_arangodb_async.__main__ import main
+
+                mock_entry.return_value = None
+                result = main()
+
+                # Should call with config_file kwarg
+                mock_entry.assert_called_once_with(config_file="/path/to/short.yaml")
+                assert result == 0
+
+    def test_config_file_with_http_transport(self):
+        """Test server --config-file with --transport http."""
+        with patch(
+            "sys.argv",
+            [
+                "mcp_arangodb_async",
+                "server",
+                "--transport",
+                "http",
+                "--config-file",
+                "/path/to/http-config.yaml",
+            ],
+        ):
+            with patch("mcp_arangodb_async.entry.main") as mock_entry:
+                from mcp_arangodb_async.__main__ import main
+                from mcp_arangodb_async.transport_config import TransportConfig
+
+                mock_entry.return_value = None
+                result = main()
+
+                # Should call with HTTP transport config and config_file kwarg
+                assert mock_entry.call_count == 1
+                call_args = mock_entry.call_args[0]
+                call_kwargs = mock_entry.call_args[1]
+                assert len(call_args) == 1
+                config = call_args[0]
+                assert isinstance(config, TransportConfig)
+                assert config.transport == "http"
+                assert call_kwargs.get("config_file") == "/path/to/http-config.yaml"
+                assert result == 0
+
 
 class TestCLIEnvironmentVariables:
     """Test environment variable support for transport configuration."""
@@ -185,8 +251,8 @@ class TestCLIEnvironmentVariables:
                     mock_entry.return_value = None
                     result = main()
 
-                    # Should use stdio (default behavior)
-                    mock_entry.assert_called_once_with()
+                    # Should use stdio (default behavior) with config_file=None
+                    mock_entry.assert_called_once_with(config_file=None)
                     assert result == 0
 
     def test_env_var_transport_http(self):
@@ -328,7 +394,7 @@ class TestCLIEnvironmentVariables:
     def test_cli_args_override_env_vars(self):
         """Test that CLI arguments override environment variables."""
         with patch(
-            "sys.argv", ["mcp_arangodb_async", "--transport", "http", "--port", "9000"]
+            "sys.argv", ["mcp_arangodb_async", "server", "--transport", "http", "--port", "9000"]
         ):
             with patch.dict(
                 "os.environ",
@@ -348,4 +414,24 @@ class TestCLIEnvironmentVariables:
                     config = call_args[0]
                     assert config.transport == "http"  # CLI wins
                     assert config.http_port == 9000  # CLI wins
+                    assert result == 0
+
+    def test_cli_config_file_overrides_env_var(self):
+        """Test that CLI --config-file overrides ARANGO_DATABASES_CONFIG_FILE env var."""
+        with patch(
+            "sys.argv",
+            ["mcp_arangodb_async", "server", "--config-file", "/cli/path.yaml"],
+        ):
+            with patch.dict(
+                "os.environ",
+                {"ARANGO_DATABASES_CONFIG_FILE": "/env/path.yaml"},
+            ):
+                with patch("mcp_arangodb_async.entry.main") as mock_entry:
+                    from mcp_arangodb_async.__main__ import main
+
+                    mock_entry.return_value = None
+                    result = main()
+
+                    # CLI --config-file should override env var
+                    mock_entry.assert_called_once_with(config_file="/cli/path.yaml")
                     assert result == 0

@@ -15,26 +15,632 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Table of Contents
 
-1. [Version 0.4.0 (Current)](#version-040---2025-11-11)
-2. [Version 0.3.2](#version-032---2025-10-20)
-3. [Version 0.3.1](#version-031---2025-10-20)
-4. [Version 0.3.0](#version-030---2025-10-20)
-5. [Version 0.2.11](#version-0211---2025-10-20)
-6. [Version 0.2.10](#version-0210---2025-10-20)
-7. [Version 0.2.9](#version-029---2025-10-20)
-8. [Version 0.2.8](#version-028---2025-10-20)
-9. [Version 0.2.7](#version-027---2025-10-19)
-10. [Version 0.2.6](#version-026---2025-10-15)
-11. [Version 0.2.5](#version-025---2025-10-10)
-12. [Version 0.2.0-0.2.4](#version-020-024---2025-09-01-to-2025-10-01)
-13. [Version 0.1.x](#version-01x---2025-08-01)
-14. [Migration Guides](#migration-guides)
+1. [Version 0.4.9 (Current)](#version-049---2025-12-09)
+2. [Version 0.4.8](#version-048---2025-12-04)
+2. [Version 0.4.7](#version-047---2025-11-28)
+3. [Version 0.4.6](#version-046---2025-11-27)
+3. [Version 0.4.5](#version-045---2025-11-27)
+3. [Version 0.4.4](#version-044---2025-11-27)
+4. [Version 0.4.3](#version-043---2025-11-24)
+5. [Version 0.4.2](#version-042---2025-11-24)
+6. [Version 0.4.1](#version-041---2025-11-24)
+7. [Version 0.4.0](#version-040---2025-11-11)
+8. [Version 0.3.2](#version-032---2025-10-20)
+9. [Version 0.3.1](#version-031---2025-10-20)
+10. [Version 0.3.0](#version-030---2025-10-20)
+11. [Version 0.2.11](#version-0211---2025-10-20)
+12. [Version 0.2.10](#version-0210---2025-10-20)
+13. [Version 0.2.9](#version-029---2025-10-20)
+14. [Version 0.2.8](#version-028---2025-10-20)
+15. [Version 0.2.7](#version-027---2025-10-19)
+16. [Version 0.2.6](#version-026---2025-10-15)
+17. [Version 0.2.5](#version-025---2025-10-10)
+18. [Version 0.2.0-0.2.4](#version-020-024---2025-09-01-to-2025-10-01)
+19. [Version 0.1.x](#version-01x---2025-08-01)
+20. [Migration Guides](#migration-guides)
+
+---
+
+## [0.4.9] - 2025-12-09
+
+**Current Release**
+
+### Fixed
+
+✅ **Admin CLI Bug Fixes & UX Improvements (Milestone 4.3 Completion)**
+- **Entry Point Correction:**
+  - Fixed `pyproject.toml` entry point from `entry:main` to `__main__:main`
+  - Ensures all CLI commands route through proper argument parser
+  - Added `maa` short alias for `mcp-arangodb-async` command
+- **Health Command Improvements:**
+  - Suppressed urllib3 connection warnings for cleaner output
+  - Added user-friendly progress feedback during connection attempts
+  - Improved error messages with actionable hints (e.g., "Is the ArangoDB server running?")
+  - Returns proper exit codes (0=healthy, 1=unhealthy)
+  - No longer fails itself when database is unavailable
+- **Database Config Commands:**
+  - Fixed `db config ls` to show clear message when config file doesn't exist
+  - Indicates graceful degradation to environment variables when no YAML config
+  - Displays full absolute path to config file for clarity
+  - Fixed `db config add` to not auto-add environment variable databases
+- **Database Admin Commands:**
+  - Added `--url` parameter to all database/user commands for multi-server support
+  - Fixed `--with-user` to grant access to existing users (creates only if needed)
+  - Improved `--with-user` UX by showing `[EXISTS]` tag for existing users
+  - Fixed dry-run mode to not require database connection
+  - All commands now work without active database connection when appropriate
+- **User Self-Service Commands:**
+  - Fixed `user databases` authentication using proper database resolution
+  - Fixed `user password` authentication using proper database resolution
+  - Added `ARANGO_NEW_PASSWORD` to auto-loaded environment variables
+  - Improved error messages showing attempted connection paths
+- **Result Reporting:**
+  - Fixed tense distinction: present tense for prompts, past tense for results
+  - Improved color contrast: dimmer colors for prompts, brighter for results
+  - Consistent consequence reporting across all commands
+- **Multi-Tenancy Tool Consolidation:**
+  - Merged `arango_test_database_connection` and `arango_get_multi_database_status` into single `arango_database_status` tool
+  - New tool provides comprehensive status with summary counts and focused database indicator
+  - Reduced tool count from 49 to 48 tools
+  - Improved output format with clear summary section
+
+### Changed
+
+⚠️ **Breaking Change: Multi-Tenancy Tool Consolidation**
+- Removed tools: `arango_test_database_connection`, `arango_get_multi_database_status`
+- Replacement: `arango_database_status` (provides all functionality in single tool)
+- **Migration:**
+  - Old: `arango_test_database_connection` with `database_key` parameter
+  - Old: `arango_get_multi_database_status` with no parameters
+  - New: `arango_database_status` with no parameters (returns all databases with status)
+
+### Added
+
+✅ **Config File Integration**
+- Added `--config-file` / `--cfgf` argument to `server` command
+- Added `ARANGO_DATABASES_CONFIG_FILE` environment variable support
+- Config file path now properly passed to server startup
+- Enables multi-database configuration without code changes
+
+✅ **CLI Environment Variable Management**
+- Added `CLIEnvVar` enum for centralized environment variable management
+- All supported CLI environment variables now auto-loaded from dotenv files
+- Developers can easily add new environment variables by updating enum
+- Improved credential loading with consistent naming
+
+✅ **Enhanced Error Handling**
+- Connection errors now show user-friendly messages with hints
+- Authentication errors clearly indicate credential issues
+- Timeout errors provide actionable guidance
+- All error paths tested and validated
+
+### Technical Details
+
+- **Files Modified:**
+  - `mcp_arangodb_async/__main__.py` - Fixed entry point routing, added config file support
+  - `mcp_arangodb_async/cli_health.py` - New module for health and version commands
+  - `mcp_arangodb_async/cli_utils.py` - Added `CLIEnvVar` enum, `get_system_db()` helper
+  - `mcp_arangodb_async/cli_db.py` - Fixed config list graceful degradation
+  - `mcp_arangodb_async/cli_db_arango.py` - Added `--url` support, fixed `--with-user` logic
+  - `mcp_arangodb_async/cli_user.py` - Fixed authentication, added `_connect_as_user()` helper
+  - `mcp_arangodb_async/config_loader.py` - Added `load_yaml_only()`, `loaded_from_yaml` property
+  - `mcp_arangodb_async/entry.py` - Integrated config file path, fixed session context
+  - `mcp_arangodb_async/handlers.py` - Consolidated multi-tenancy tools, improved error handling
+  - `mcp_arangodb_async/models.py` - Removed obsolete tool models
+  - `mcp_arangodb_async/tools.py` - Updated tool constants
+  - `pyproject.toml` - Fixed entry points, added `maa` alias, added `pytest-asyncio` dependency
+  - `README.md` - Updated CLI examples to use `maa` alias
+  - `docs/` - Updated all documentation with new tool names and CLI examples
+  - `.gitignore` - Added `.kiro/` and `.vscode/` IDE folders
+
+- **Test Updates:**
+  - Updated `tests/test_admin_cli.py` - 35 tests covering all CLI functionality
+  - Updated `tests/test_cli_args_unit.py` - Added config file argument tests
+  - Updated `tests/test_cli_db_unit.py` - Added graceful degradation tests
+  - Updated `tests/test_config_loader_unit.py` - Added `load_yaml_only()` tests
+  - Updated `tests/test_multi_tenancy_tools_unit.py` - Updated for consolidated tool
+  - Updated `tests/test_mcp_integration.py` - Fixed session context mocks
+  - Renamed `tests/test_mcp_design_patterns_manual.py` to `tests/manual_test_mcp_design_patterns.py`
+  - All tests passing (35/35 admin CLI tests, 100% critical path coverage)
+
+- **Exit Codes:**
+  - `0` - Success
+  - `1` - Error (validation, connection, permission)
+  - `2` - Operation cancelled by user
+
+### Documentation
+
+- Updated CLI reference with `maa` alias throughout
+- Updated multi-tenancy guide with consolidated tool
+- Updated tools reference with new `arango_database_status` tool
+- Updated installation guide with corrected CLI commands
+- Added `env.example` entry for `ARANGO_NEW_PASSWORD`
+
+### Related Issues
+
+Closes [#40](https://github.com/LittleCoinCoin/mcp-arangodb-async/issues/40), [#41](https://github.com/LittleCoinCoin/mcp-arangodb-async/issues/41), [#42](https://github.com/LittleCoinCoin/mcp-arangodb-async/issues/42), [#43](https://github.com/LittleCoinCoin/mcp-arangodb-async/issues/43), [#44](https://github.com/LittleCoinCoin/mcp-arangodb-async/issues/44), [#45](https://github.com/LittleCoinCoin/mcp-arangodb-async/issues/45)
+
+---
+
+## [0.4.8] - 2025-12-04
+
+### Added
+
+✅ **Admin CLI for User and Database Management (Milestone 4.3 - Task 4.3.3)**
+- **CLI Commands Implementation:**
+  - Implemented 16 CLI commands for ArangoDB administration:
+    - **Database Operations:** `db add`, `db remove`, `db list` (with `--with-user` atomic operation)
+    - **User Operations:** `user add`, `user remove`, `user list`, `user grant`, `user revoke`
+    - **Self-Service Operations:** `user databases`, `user password`
+    - **Version Command:** `version` to display package version
+  - **Safety Features:**
+    - Interactive confirmation prompts for all destructive operations
+    - `--dry-run` flag to preview changes without execution
+    - `--yes` flag to skip confirmation in automation/CI
+    - Environment variable `MCP_ARANGODB_ASYNC_CLI_YES=1` for CI/CD
+  - **Result Reporting:**
+    - Color-coded output (green=additive, red=destructive, yellow=updates, gray=dry-run)
+    - Tense distinction (present for prompts, past for results)
+    - Side-effect reporting (e.g., permission revocations when deleting users/databases)
+  - **Credential Handling:**
+    - `--env-file` support for loading credentials from dotenv files
+    - Environment variable overrides (`--arango-root-password-env`, `--arango-password-env`)
+    - Consistent with MCP server environment variable names
+  - **Command Aliases:** Unix-style aliases (`rm`, `ls`) for common operations
+
+### Changed
+
+⚠️ **Breaking Change: Database Config Commands Moved**
+- Existing `db add/remove/list/test/status` commands moved to `db config` subcommand
+- **Migration:**
+  - Old: `mcp-arangodb-async db add production ...`
+  - New: `mcp-arangodb-async db config add production ...`
+- **Rationale:** Separate YAML config management from ArangoDB database operations
+
+### Testing
+
+✅ **Comprehensive Test Suite (30 Tests)**
+- **Test Organization:**
+  - `tests/test_admin_cli.py` - 890 lines covering all admin CLI functionality
+  - 7 test classes organized by feature area
+  - 100% test pass rate (30/30 passing)
+- **Test Coverage by Category:**
+  - `TestVersionCommand` (1 test): Version display functionality
+  - `TestDBConfig` (7 tests): YAML configuration management
+  - `TestDBAdmin` (5 tests): ArangoDB database operations
+  - `TestUserAdmin` (10 tests): User management and permissions
+  - `TestSafetyFeatures` (3 tests): Dry-run, confirmation, `--yes` flag
+  - `TestAuthentication` (2 tests): Credential loading and env vars
+  - `TestOutputFormatting` (2 tests): Result reporting format
+- **Code Coverage:**
+  - `cli_utils.py`: 88% (critical paths fully tested)
+  - `cli_db_arango.py`: 55% (success paths and safety features tested)
+  - `cli_user.py`: 53% (success paths and safety features tested)
+  - Untested paths are primarily error handling branches with clear error messages
+
+### Technical Details
+
+- **New Modules:**
+  - `mcp_arangodb_async/cli_utils.py` - Shared utilities (credentials, confirmation, result reporting)
+  - `mcp_arangodb_async/cli_db_arango.py` - ArangoDB database operations
+  - `mcp_arangodb_async/cli_user.py` - ArangoDB user management
+- **Updated Modules:**
+  - `mcp_arangodb_async/__main__.py` - Integrated new command structure
+- **Test Modules:**
+  - `tests/test_admin_cli.py` - Comprehensive admin CLI test suite
+- **Exit Codes:**
+  - `0` - Success
+  - `1` - Error (validation, connection, permission)
+  - `2` - Operation cancelled by user
+
+### Documentation
+
+- Updated CLI reference with new commands
+- Added examples for all 16 commands
+- Documented safety features and credential handling
+
+---
+
+## [0.4.7] - 2025-11-28
+
+### Added
+
+✅ **Multi-Tenancy Tools (Milestone 4.2 - Task 4.2.1)**
+- **MCP Tools Implementation:**
+  - Implemented 6 multi-tenancy MCP tools for database management:
+    * `arango_set_focused_database` - Set focused database for session
+    * `arango_get_focused_database` - Get currently focused database
+    * `arango_list_available_databases` - List all configured databases
+    * `arango_get_database_resolution` - Show database resolution algorithm
+    * `arango_test_database_connection` - Test connection to specific database
+    * `arango_get_multi_database_status` - Get status of all databases
+  - Added tool constants to `tools.py`
+  - Added tool models to `models.py`
+  - Added tool handlers to `handlers.py`
+  - Comprehensive unit tests with 19 test cases covering all scenarios
+  - All tests passing with excellent coverage
+  - Issue: Closes [#17](https://github.com/LittleCoinCoin/mcp-arangodb-async/issues/17)
+
+✅ **CLI Tool Implementation (Milestone 4.2 - Task 4.2.2)**
+- **Database Management CLI:**
+  - Implemented `mcp-arangodb-async db` command with 5 subcommands:
+    * `db add` - Add a new database configuration to YAML
+    * `db remove` - Remove a database configuration from YAML
+    * `db list` - List all configured databases
+    * `db test` - Test connection to a specific database
+    * `db status` - Show database resolution status
+  - Admin-only tool (requires file system access to modify YAML)
+  - Secure password management (passwords stored in environment variables)
+  - Comprehensive unit tests with 17 test cases covering all scenarios
+  - 96% code coverage (exceeds 90% target)
+  - Issue: Closes [#18](https://github.com/LittleCoinCoin/mcp-arangodb-async/issues/18)
+
+✅ **Documentation (Milestone 4.2 - Task 4.2.3)**
+- **Multi-Tenancy Documentation:**
+  - Created `docs/user-guide/cli-reference.md` - Complete CLI tool documentation (604 lines)
+    * Installation and configuration
+    * All 5 CLI commands with examples
+    * Security best practices
+    * Troubleshooting guide
+  - Created `docs/user-guide/multi-tenancy-guide.md` - Complete multi-tenancy guide (450 lines)
+    * Quick start tutorial
+    * Database resolution algorithm explanation
+    * All 6 multi-tenancy tools documented
+    * Database parameter usage patterns
+    * Best practices and troubleshooting
+  - Updated `docs/user-guide/tools-reference.md`:
+    * Added Multi-Tenancy Tools section (6 tools, 267 lines)
+    * Added database parameter notes to 8 tool categories (32 tools)
+    * Updated tool count from 43 to 49 tools
+  - Updated `README.md`:
+    * Added multi-tenancy to features list
+    * Added multi-tenancy configuration section with examples
+    * Added Multi-Tenancy Tools category (6 tools)
+    * Added quick links to new documentation
+    * Updated tool count from 43 to 49 tools
+  - All documentation follows DRY principle (no duplication)
+  - Examples progress from simple to advanced
+  - Professional tone and consistent formatting
+  - Issue: Closes [#19](https://github.com/LittleCoinCoin/mcp-arangodb-async/issues/19)
+
+### Changed
+
+- Updated `DeleteIndexArgs` test to expect `database` parameter (added in Milestone 4.1)
+- Refactored `__main__.py` to use argparse subparsers for better command organization
+- Updated existing CLI tests to work with new subcommand structure
+
+### Technical Details
+
+- **Files Modified (Task 4.2.2):**
+  - `mcp_arangodb_async/cli_db.py` - New module with 5 CLI handlers
+  - `mcp_arangodb_async/__main__.py` - Refactored to use subparsers, added `db` command
+  - `tests/test_cli_db_unit.py` - Added comprehensive CLI tests (17 tests)
+  - `tests/test_cli_args_unit.py` - Updated tests for new subcommand structure
+
+- **Test Coverage (Task 4.2.2):**
+  - 17 unit tests for CLI database management tool
+  - Tests cover success cases, error cases, and edge cases
+  - Tests verify YAML file operations (add, remove, list)
+  - Tests verify connection testing functionality
+  - Tests verify status reporting
+  - 96% code coverage for cli_db.py module
+
+- **Files Created (Task 4.2.3):**
+  - `docs/user-guide/cli-reference.md` - 604 lines, complete CLI documentation
+  - `docs/user-guide/multi-tenancy-guide.md` - 450 lines, complete multi-tenancy guide
+
+- **Files Modified (Task 4.2.3):**
+  - `docs/user-guide/tools-reference.md` - Added multi-tenancy section and database parameter notes
+  - `README.md` - Added multi-tenancy features, configuration, and quick links
+  - `docs/developer-guide/changelog.md` - Updated with Task 4.2.3 details
+
+- **Documentation Quality (Task 4.2.3):**
+  - All examples tested and grounded (no speculation)
+  - Educational progression from simple to advanced
+  - DRY principle followed (no duplication across files)
+  - Professional tone and consistent formatting
+  - Seamless integration with existing documentation
+  - Cross-references between related documentation
+
+---
+
+## [0.4.6] - 2025-11-27
+
+### Added
+
+✅ **Database Override - Tool Models (Milestone 4.1)**
+- **Tool Models Update (Task 4.1.1):**
+  - Added optional `database` parameter to 32 data operation tool models
+  - Enables per-tool database override for cross-database workflows
+  - Categories updated: Core Data (8), Indexing (4), Validation & Bulk (4), Graph (12), Schema & Query (4)
+  - Parameter pattern: `database: Optional[str] = Field(default=None, description="Database override")`
+  - All existing model tests pass (40/40)
+  - Issue: Closes [#15](https://github.com/LittleCoinCoin/mcp-arangodb-async/issues/15)
+
+- **Handler Updates & Testing (Task 4.1.2):**
+  - Added comprehensive test suite for per-tool database override functionality
+  - Test critical requirement: per-tool override does NOT mutate focused_database state
+  - Test database resolution priority (Level 1 override takes precedence)
+  - Test empty string and None handling (skip to next level)
+  - Test multiple tool calls with different overrides
+  - 7 new unit tests, all passing (7/7 asyncio tests)
+  - Issue: Closes [#16](https://github.com/LittleCoinCoin/mcp-arangodb-async/issues/16)
+
+### Technical Details
+
+**Database Resolution:**
+- Per-tool database override implemented via Level 1 of 6-level priority fallback
+- Database resolution already centralized in `entry.py` (from Milestone 1.2)
+- Handlers receive resolved database connection automatically
+- No handler code changes required (architecture already supports override)
+
+**Test Coverage:**
+- 7 new tests in `tests/test_per_tool_database_override_unit.py`
+- All existing tests continue to pass (40 model tests, 11 db_resolver tests)
+- Total: 58/63 tests passing (5 trio failures due to missing trio library)
+
+---
+
+## [0.4.5] - 2025-11-27
+
+### Changed
+
+✅ **State Migration - Cleanup (Milestone 3.2)**
+- **Removed global variables from handlers.py (Task 3.2.1):**
+  - Deleted `_ACTIVE_CONTEXT` global variable
+  - Deleted `_CURRENT_STAGE` global variable
+  - Deleted `_TOOL_USAGE_STATS` global variable
+  - Deleted deprecated `_track_tool_usage()` function
+  - Replaced global fallbacks with default values ("baseline", "setup", {})
+  - Grep for global variables returns 0 results
+
+### Added
+
+✅ **Concurrent Session Isolation Verification (Task 3.2.2)**
+- `test_concurrent_sessions_independent_state()`: Verifies 2 concurrent sessions have completely independent state across all 4 state components
+- `test_workflow_switch_preserves_focused_database()`: Verifies focused database remains stable during workflow/stage switches
+- 100% code coverage for session_state.py
+- All 344 tests pass
+
+### Technical Details
+
+- SessionState now the single source of truth for per-session state
+- No global variable fallback means handlers require session context for state persistence
+- Tests updated to provide session context where state persistence is needed
+- Phase 3 complete: Multi-tenancy foundation fully established
+
+### Files Changed
+
+**Modified:**
+- `mcp_arangodb_async/handlers.py` - Remove global variables and fallbacks
+- `tests/test_handlers_unit.py` - 3 tests updated to use session state
+- `tests/test_mcp_integration.py` - 4 tests updated to include session_state in mock context
+- `tests/test_session_state_unit.py` - 2 new verification tests
+
+### Related Issues
+
+Closes [#13](https://github.com/LittleCoinCoin/mcp-arangodb-async/issues/13), [#14](https://github.com/LittleCoinCoin/mcp-arangodb-async/issues/14)
+
+---
+
+## [0.4.4] - 2025-11-27
+
+### Changed
+
+✅ **State Migration - Tools (Milestone 3.1)**
+- **Migrated 6 design pattern tools + 1 helper from global variables to per-session state:**
+  - `handle_switch_workflow`: now async, uses `session_state.set_active_workflow()`
+  - `handle_get_active_workflow`: uses `session_state.get_active_workflow()`
+  - `handle_list_workflows`: uses `session_state.get_active_workflow()`
+  - `handle_advance_workflow_stage`: now async, uses `session_state.set_tool_lifecycle_stage()`
+  - `handle_unload_tools`: extracts session context for consistency
+  - `handle_get_tool_usage_stats`: uses `session_state.get_tool_usage_stats()` and `session_state.get_tool_lifecycle_stage()`
+  - `_track_tool_usage`: deprecated (tool usage now tracked via SessionState.track_tool_usage() in entry.py)
+
+- **Infrastructure changes for per-session state support:**
+  - `entry.py`: make `_invoke_handler` async-aware to support async handlers
+  - `entry.py`: inject `_session_context` into validated_args for pattern handlers
+  - `handlers.py`: add `_get_session_context()` helper for session context extraction
+  - Global variables `_ACTIVE_CONTEXT`, `_CURRENT_STAGE`, `_TOOL_USAGE_STATS` marked for removal in Milestone 3.2
+
+- **Rationale:** Enables multiple agents to work with different workflows/stages/stats simultaneously without interference, a prerequisite for multi-tenancy
+
+### Added
+
+✅ **Per-Session Isolation Tests**
+- 6 new tests for workflow tool session isolation
+- 2 new tests for lifecycle tool session isolation
+- 2 new tests for usage stats session isolation
+- Test coverage: 53 handler tests pass (up from 45)
+
+### Technical Details
+
+- Async handlers use `asyncio.Lock()` protected SessionState methods for thread-safe state mutations
+- Sync handlers use non-locking SessionState getter methods for read-only operations
+- Global variables retained as fallback during migration (removed in Milestone 3.2)
+- Backward compatible: handlers work without session context using global fallback
+
+### Files Changed
+
+**Modified:**
+- `mcp_arangodb_async/entry.py` - async-aware handler invocation, session context injection
+- `mcp_arangodb_async/handlers.py` - 6 handlers migrated to SessionState
+- `tests/test_handlers_unit.py` - 10 new per-session isolation tests
+
+### Related Issues
+
+Closes [#10](https://github.com/LittleCoinCoin/mcp-arangodb-async/issues/10), [#11](https://github.com/LittleCoinCoin/mcp-arangodb-async/issues/11), [#12](https://github.com/LittleCoinCoin/mcp-arangodb-async/issues/12)
+
+---
+
+## [0.4.3] - 2025-11-24
+
+### Changed
+
+✅ **Tool Renaming (Milestone 2.1)**
+- **Renamed workflow tools to eliminate terminology ambiguity:**
+  - `arango_switch_context` → `arango_switch_workflow`
+  - `arango_get_active_context` → `arango_get_active_workflow`
+  - `arango_list_contexts` → `arango_list_workflows`
+- **Rationale:** Resolves ambiguity between "workflow context" (design patterns) and "database context" (multi-tenancy) as specified in Architecture Design v3
+- **Updated components:**
+  - Tool name constants in `mcp_arangodb_async/tools.py`
+  - Pydantic models in `mcp_arangodb_async/models.py` (SwitchWorkflowArgs, GetActiveWorkflowArgs, ListWorkflowsArgs)
+  - Handler registrations and functions in `mcp_arangodb_async/handlers.py`
+  - All test references in `tests/test_handlers_unit.py` and `tests/test_mcp_integration.py`
+  - Documentation in `README.md`, `docs/user-guide/tools-reference.md`, and `docs/user-guide/mcp-design-patterns.md`
+- **Test Coverage:** All 81 handler and integration tests pass with no regressions
+- **Breaking Change:** Old tool names (`arango_switch_context`, `arango_get_active_context`, `arango_list_contexts`) are no longer available
+
+---
+
+## [0.4.2] - 2025-11-23
+
+### Added
+
+✅ **Foundation Integration Layer (Milestone 1.2)**
+- **Database Resolver (Task 1.2.1):**
+  - `mcp_arangodb_async/db_resolver.py` with `resolve_database()` function
+  - Implements 6-level priority fallback algorithm:
+    1. Per-tool override (`tool_args["database"]`)
+    2. Focused database (`session_state.get_focused_database()`)
+    3. Config default (`config_loader.default_database`)
+    4. Environment variable (`MCP_DEFAULT_DATABASE`)
+    5. First configured database
+    6. Hardcoded fallback (`"_system"`)
+  - 11 unit tests, 100% code coverage
+  - Issue: Closes [#4](https://github.com/LittleCoinCoin/mcp-arangodb-async/issues/4)
+
+- **Session ID Extraction (Task 1.2.2):**
+  - `mcp_arangodb_async/session_utils.py` with `extract_session_id()` function
+  - Handles stdio transport (returns `"stdio"` singleton session)
+  - Handles HTTP transport (returns unique session ID from request)
+  - 14 unit tests, 100% code coverage
+  - Issue: Closes [#5](https://github.com/LittleCoinCoin/mcp-arangodb-async/issues/5)
+
+- **Entry Point Integration (Task 1.2.3):**
+  - Updated `entry.py` to integrate all foundation components:
+    - ConfigFileLoader: Load database configurations from YAML/env vars
+    - MultiDatabaseConnectionManager: Manage connections to multiple databases
+    - SessionState: Per-session state for focused database and workflows
+  - Implements implicit session creation on first tool call
+  - Implements database resolution algorithm in `call_tool()`
+  - Adds session ID extraction and tool usage tracking
+  - 10 integration tests
+  - All 36 existing MCP integration tests pass
+  - Issue: Closes [#6](https://github.com/LittleCoinCoin/mcp-arangodb-async/issues/6)
+
+✅ **Test Coverage**
+- Total Tests: 67 passing (all new components from both milestones)
+  - Database Resolver: 11 tests (100% coverage)
+  - Session Utils: 14 tests (100% coverage)
+  - Entry Point Integration: 10 tests
+  - Foundation Components: 32 tests (from Milestone 1.1)
+- Backward Compatibility: ✅ All existing tests pass
+
+### Changed
+
+- **Architecture:** Integrated multi-database connection pooling with session-based context management
+- **Entry Point:** Enhanced to support multi-database workflows with implicit session creation
+- **Database Resolution:** Added deterministic 6-level priority algorithm for database selection
+
+### Technical Details
+
+- Foundation components (SessionState, MultiDatabaseConnectionManager, ConfigFileLoader) now fully integrated into MCP server
+- Session state mutations protected by `asyncio.Lock()` for thread-safe concurrent access
+- Database resolution algorithm enables both focused database context and per-tool overrides without ambiguity
+- Backward compatibility maintained: existing deployments work unchanged
+
+### Files Changed
+
+**Created:**
+- `mcp_arangodb_async/db_resolver.py`
+- `mcp_arangodb_async/session_utils.py`
+- `tests/test_db_resolver_unit.py`
+- `tests/test_session_utils_unit.py`
+- `tests/test_entry_point_integration_unit.py`
+
+**Modified:**
+- `mcp_arangodb_async/entry.py`
+
+### Related Issues
+
+Closes [#4](https://github.com/LittleCoinCoin/mcp-arangodb-async/issues/4), [#5](https://github.com/LittleCoinCoin/mcp-arangodb-async/issues/5), [#6](https://github.com/LittleCoinCoin/mcp-arangodb-async/issues/6)
+
+---
+
+## [0.4.1] - 2025-11-23
+
+### Added
+
+✅ **Foundation Core Components (Milestone 1.1)**
+- **SessionState Component (Task 1.1.1):**
+  - `mcp_arangodb_async/session_state.py` with SessionState class
+  - Per-session state management for focused database, active workflow, tool lifecycle stage, and tool usage tracking
+  - Replaces global state variables (`_ACTIVE_CONTEXT`, `_CURRENT_STAGE`, `_TOOL_USAGE_STATS`) with per-session isolation
+  - Async-safe state mutations using `asyncio.Lock()`
+  - Session isolation for concurrent agent operations
+  - Methods: `initialize_session()`, `set_focused_database()`, `get_focused_database()`, `set_active_workflow()`, `get_active_workflow()`, `set_tool_lifecycle_stage()`, `get_tool_lifecycle_stage()`, `track_tool_usage()`, `get_tool_usage_stats()`, `cleanup_session()`, `cleanup_all()`
+  - 11 unit tests, 100% code coverage
+  - Issue: Closes [#1](https://github.com/LittleCoinCoin/mcp-arangodb-async/issues/1)
+
+- **MultiDatabaseConnectionManager Component (Task 1.1.2):**
+  - `mcp_arangodb_async/multi_db_manager.py` with connection pooling
+  - Purpose: Connection pooling for multiple ArangoDB servers and databases
+  - Lazy connection creation with connection reuse
+  - Async-safe connection pool using `asyncio.Lock()`
+  - Database configuration registration and management
+  - Connection testing and health checks
+  - Graceful cleanup on shutdown
+  - Methods: `initialize()`, `get_connection()`, `get_configured_databases()`, `test_connection()`, `register_database()`, `close_all()`
+  - 10 unit tests, 94% code coverage
+  - Issue: Closes [#2](https://github.com/LittleCoinCoin/mcp-arangodb-async/issues/2)
+
+- **ConfigFileLoader Component (Task 1.1.3):**
+  - `mcp_arangodb_async/config_loader.py` for YAML-based configuration
+  - Purpose: YAML configuration loading with backward compatibility
+  - YAML file configuration loading
+  - Backward compatibility with v0.4.0 environment variables
+  - Database configuration CRUD operations (add, remove, get, save)
+  - Support for optional description field
+  - Graceful handling of empty/invalid YAML files
+  - Security: Passwords stored in environment variables, referenced by name in YAML
+  - Methods: `load()`, `get_configured_databases()`, `add_database()`, `remove_database()`, `_load_from_env_vars()`, `_save_to_yaml()`
+  - 11 unit tests, 96% code coverage
+  - Issue: Closes [#3](https://github.com/LittleCoinCoin/mcp-arangodb-async/issues/3)
+
+✅ **Comprehensive Test Coverage**
+- Total Tests: 32 tests passing
+  - SessionState: 11 tests (100% coverage)
+  - MultiDatabaseConnectionManager: 10 tests (94% coverage)
+  - ConfigFileLoader: 11 tests (96% code coverage)
+- All tests pass with no regressions
+
+### Technical Details
+
+- SessionState provides the isolation boundary for multi-database workflows
+- MultiDatabaseConnectionManager enables multiple simultaneous ArangoDB connections without overhead
+- ConfigFileLoader decouples database configuration from code, enabling runtime configuration changes
+- All components use `asyncio.Lock()` for async-safe state and connection pool mutations
+- Foundation components ready for integration into entry point
+
+### Files Changed
+
+**Created:**
+- `mcp_arangodb_async/session_state.py`
+- `mcp_arangodb_async/multi_db_manager.py`
+- `mcp_arangodb_async/config_loader.py`
+- `tests/test_session_state_unit.py`
+- `tests/test_multi_db_manager_unit.py`
+- `tests/test_config_loader_unit.py`
+
+### Related Issues
+
+Closes [#1](https://github.com/LittleCoinCoin/mcp-arangodb-async/issues/1), [#2](https://github.com/LittleCoinCoin/mcp-arangodb-async/issues/2), [#3](https://github.com/LittleCoinCoin/mcp-arangodb-async/issues/3)
 
 ---
 
 ## [0.4.0] - 2025-11-11
-
-**Current Release**
 
 ### Added
 
