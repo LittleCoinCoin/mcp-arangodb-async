@@ -15,7 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Table of Contents
 
-1. [Version 0.4.8 (Current)](#version-048---2025-12-04)
+1. [Version 0.4.9 (Current)](#version-049---2025-12-09)
+2. [Version 0.4.8](#version-048---2025-12-04)
 2. [Version 0.4.7](#version-047---2025-11-28)
 3. [Version 0.4.6](#version-046---2025-11-27)
 3. [Version 0.4.5](#version-045---2025-11-27)
@@ -40,9 +41,128 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [0.4.8] - 2025-12-04
+## [0.4.9] - 2025-12-09
 
 **Current Release**
+
+### Fixed
+
+✅ **Admin CLI Bug Fixes & UX Improvements (Milestone 4.3 Completion)**
+- **Entry Point Correction:**
+  - Fixed `pyproject.toml` entry point from `entry:main` to `__main__:main`
+  - Ensures all CLI commands route through proper argument parser
+  - Added `maa` short alias for `mcp-arangodb-async` command
+- **Health Command Improvements:**
+  - Suppressed urllib3 connection warnings for cleaner output
+  - Added user-friendly progress feedback during connection attempts
+  - Improved error messages with actionable hints (e.g., "Is the ArangoDB server running?")
+  - Returns proper exit codes (0=healthy, 1=unhealthy)
+  - No longer fails itself when database is unavailable
+- **Database Config Commands:**
+  - Fixed `db config ls` to show clear message when config file doesn't exist
+  - Indicates graceful degradation to environment variables when no YAML config
+  - Displays full absolute path to config file for clarity
+  - Fixed `db config add` to not auto-add environment variable databases
+- **Database Admin Commands:**
+  - Added `--url` parameter to all database/user commands for multi-server support
+  - Fixed `--with-user` to grant access to existing users (creates only if needed)
+  - Improved `--with-user` UX by showing `[EXISTS]` tag for existing users
+  - Fixed dry-run mode to not require database connection
+  - All commands now work without active database connection when appropriate
+- **User Self-Service Commands:**
+  - Fixed `user databases` authentication using proper database resolution
+  - Fixed `user password` authentication using proper database resolution
+  - Added `ARANGO_NEW_PASSWORD` to auto-loaded environment variables
+  - Improved error messages showing attempted connection paths
+- **Result Reporting:**
+  - Fixed tense distinction: present tense for prompts, past tense for results
+  - Improved color contrast: dimmer colors for prompts, brighter for results
+  - Consistent consequence reporting across all commands
+- **Multi-Tenancy Tool Consolidation:**
+  - Merged `arango_test_database_connection` and `arango_get_multi_database_status` into single `arango_database_status` tool
+  - New tool provides comprehensive status with summary counts and focused database indicator
+  - Reduced tool count from 49 to 48 tools
+  - Improved output format with clear summary section
+
+### Changed
+
+⚠️ **Breaking Change: Multi-Tenancy Tool Consolidation**
+- Removed tools: `arango_test_database_connection`, `arango_get_multi_database_status`
+- Replacement: `arango_database_status` (provides all functionality in single tool)
+- **Migration:**
+  - Old: `arango_test_database_connection` with `database_key` parameter
+  - Old: `arango_get_multi_database_status` with no parameters
+  - New: `arango_database_status` with no parameters (returns all databases with status)
+
+### Added
+
+✅ **Config File Integration**
+- Added `--config-file` / `--cfgf` argument to `server` command
+- Added `ARANGO_DATABASES_CONFIG_FILE` environment variable support
+- Config file path now properly passed to server startup
+- Enables multi-database configuration without code changes
+
+✅ **CLI Environment Variable Management**
+- Added `CLIEnvVar` enum for centralized environment variable management
+- All supported CLI environment variables now auto-loaded from dotenv files
+- Developers can easily add new environment variables by updating enum
+- Improved credential loading with consistent naming
+
+✅ **Enhanced Error Handling**
+- Connection errors now show user-friendly messages with hints
+- Authentication errors clearly indicate credential issues
+- Timeout errors provide actionable guidance
+- All error paths tested and validated
+
+### Technical Details
+
+- **Files Modified:**
+  - `mcp_arangodb_async/__main__.py` - Fixed entry point routing, added config file support
+  - `mcp_arangodb_async/cli_health.py` - New module for health and version commands
+  - `mcp_arangodb_async/cli_utils.py` - Added `CLIEnvVar` enum, `get_system_db()` helper
+  - `mcp_arangodb_async/cli_db.py` - Fixed config list graceful degradation
+  - `mcp_arangodb_async/cli_db_arango.py` - Added `--url` support, fixed `--with-user` logic
+  - `mcp_arangodb_async/cli_user.py` - Fixed authentication, added `_connect_as_user()` helper
+  - `mcp_arangodb_async/config_loader.py` - Added `load_yaml_only()`, `loaded_from_yaml` property
+  - `mcp_arangodb_async/entry.py` - Integrated config file path, fixed session context
+  - `mcp_arangodb_async/handlers.py` - Consolidated multi-tenancy tools, improved error handling
+  - `mcp_arangodb_async/models.py` - Removed obsolete tool models
+  - `mcp_arangodb_async/tools.py` - Updated tool constants
+  - `pyproject.toml` - Fixed entry points, added `maa` alias, added `pytest-asyncio` dependency
+  - `README.md` - Updated CLI examples to use `maa` alias
+  - `docs/` - Updated all documentation with new tool names and CLI examples
+  - `.gitignore` - Added `.kiro/` and `.vscode/` IDE folders
+
+- **Test Updates:**
+  - Updated `tests/test_admin_cli.py` - 35 tests covering all CLI functionality
+  - Updated `tests/test_cli_args_unit.py` - Added config file argument tests
+  - Updated `tests/test_cli_db_unit.py` - Added graceful degradation tests
+  - Updated `tests/test_config_loader_unit.py` - Added `load_yaml_only()` tests
+  - Updated `tests/test_multi_tenancy_tools_unit.py` - Updated for consolidated tool
+  - Updated `tests/test_mcp_integration.py` - Fixed session context mocks
+  - Renamed `tests/test_mcp_design_patterns_manual.py` to `tests/manual_test_mcp_design_patterns.py`
+  - All tests passing (35/35 admin CLI tests, 100% critical path coverage)
+
+- **Exit Codes:**
+  - `0` - Success
+  - `1` - Error (validation, connection, permission)
+  - `2` - Operation cancelled by user
+
+### Documentation
+
+- Updated CLI reference with `maa` alias throughout
+- Updated multi-tenancy guide with consolidated tool
+- Updated tools reference with new `arango_database_status` tool
+- Updated installation guide with corrected CLI commands
+- Added `env.example` entry for `ARANGO_NEW_PASSWORD`
+
+### Related Issues
+
+Closes [#40](https://github.com/LittleCoinCoin/mcp-arangodb-async/issues/40), [#41](https://github.com/LittleCoinCoin/mcp-arangodb-async/issues/41), [#42](https://github.com/LittleCoinCoin/mcp-arangodb-async/issues/42), [#43](https://github.com/LittleCoinCoin/mcp-arangodb-async/issues/43), [#44](https://github.com/LittleCoinCoin/mcp-arangodb-async/issues/44), [#45](https://github.com/LittleCoinCoin/mcp-arangodb-async/issues/45)
+
+---
+
+## [0.4.8] - 2025-12-04
 
 ### Added
 
