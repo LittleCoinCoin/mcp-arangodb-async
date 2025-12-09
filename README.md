@@ -62,28 +62,131 @@ A production-ready Model Context Protocol (MCP) server exposing advanced ArangoD
 
 ---
 
-## Installation
+## Getting Started with ArangoDB
 
 ### Prerequisites
 
-- **Python 3.11+**
-- **Docker Desktop** (for ArangoDB)
+- **Docker and Docker Compose** installed
+- **Python 3.11+** (for mcp-arangodb-async)
 
-### Quick Install
+### Step 1: Set Up ArangoDB with Docker
+
+Create a `docker-compose.yml` file:
+
+```yaml
+services:
+  arangodb:
+    image: arangodb:3.11
+    environment:
+      ARANGO_ROOT_PASSWORD: ${ARANGO_ROOT_PASSWORD:-changeme}
+    ports:
+      - "8529:8529"
+    volumes:
+      - arangodb_data:/var/lib/arangodb3
+      - arangodb_apps:/var/lib/arangodb3-apps
+    healthcheck:
+      test: arangosh --server.username root --server.password "$ARANGO_ROOT_PASSWORD" --javascript.execute-string "require('@arangodb').db._version()" > /dev/null 2>&1 || exit 1
+      interval: 5s
+      timeout: 2s
+      retries: 30
+    restart: unless-stopped
+
+volumes:
+  arangodb_data:
+    driver: local
+  arangodb_apps:
+    driver: local
+```
+
+Create a `.env` file:
 
 ```bash
-# Install from PyPI
+# ArangoDB root password
+ARANGO_ROOT_PASSWORD=changeme
+
+# MCP Server connection settings
+ARANGO_URL=http://localhost:8529
+ARANGO_DB=mcp_arangodb_test
+ARANGO_USERNAME=mcp_arangodb_user
+ARANGO_PASSWORD=mcp_arangodb_password
+```
+
+Start ArangoDB:
+
+```bash
+docker compose up -d
+```
+
+### Step 2: Install mcp-arangodb-async
+
+**Option 1: Install in default Python environment**
+
+```bash
+pip install mcp-arangodb-async
+```
+
+<details>
+<summary><b>Option 2: Install with Conda/Mamba/Micromamba</b></summary>
+
+```bash
+# Create environment and install
+conda create -n mcp-arango python=3.11
+conda activate mcp-arango
 pip install mcp-arangodb-async
 
-# Start ArangoDB
-docker run -d \
-  --name arangodb \
-  -p 8529:8529 \
-  -e ARANGO_ROOT_PASSWORD=changeme \
-  arangodb:3.11
+# Or with mamba/micromamba:
+# mamba create -n mcp-arango python=3.11
+# mamba activate mcp-arango
+# pip install mcp-arangodb-async
+```
 
-# Verify installation
-python -m mcp_arangodb_async --health
+**MCP Client Configuration:** Use the run command to execute from the environment:
+
+```json
+{
+  "mcpServers": {
+    "arangodb": {
+      "command": "conda",
+      "args": ["run", "-n", "mcp-arango", "maa", "server"]
+    }
+  }
+}
+```
+
+Or with mamba/micromamba, replace `"conda"` with `"mamba"` or `"micromamba"`.
+
+</details>
+
+<details>
+<summary><b>Option 3: Install with uv</b></summary>
+
+```bash
+# Create environment and install
+uv venv .venv --python 3.11
+uv pip install mcp-arangodb-async
+```
+
+**MCP Client Configuration:** Use `uv run` to execute from the environment:
+
+```json
+{
+  "mcpServers": {
+    "arangodb": {
+      "command": "uv",
+      "args": ["run", "--directory", "/path/to/project", "maa", "server"]
+    }
+  }
+}
+```
+
+Replace `/path/to/project` with the directory containing your `.venv` folder.
+
+</details>
+
+### Step 3: Verify Installation
+
+```bash
+maa health
 ```
 
 **Expected output:**
@@ -91,7 +194,11 @@ python -m mcp_arangodb_async --health
 {"status": "healthy", "database_connected": true, "database_info": {"version": "3.11.x", "name": "mcp_arangodb_test"}}
 ```
 
-📖 **Detailed installation guide:** [https://github.com/PCfVW/mcp-arango-async/blob/master/docs/getting-started/installation.md](https://github.com/PCfVW/mcp-arango-async/blob/master/docs/getting-started/installation.md)
+### Next Steps
+
+- [Multi-Tenancy Setup Guide](https://github.com/PCfVW/mcp-arango-async/blob/master/docs/user-guide/multi-tenancy-guide.md)
+- [CLI Reference](https://github.com/PCfVW/mcp-arango-async/blob/master/docs/user-guide/cli-reference.md)
+- [Complete Installation Guide](https://github.com/PCfVW/mcp-arango-async/blob/master/docs/getting-started/installation.md)
 
 ---
 
@@ -107,8 +214,8 @@ Edit `%APPDATA%\Claude\claude_desktop_config.json` (Windows) or `~/.config/Claud
 {
   "mcpServers": {
     "arangodb": {
-      "command": "python",
-      "args": ["-m", "mcp_arangodb_async", "server"],
+      "command": "maa",
+      "args": ["server"],
       "env": {
         "ARANGO_URL": "http://localhost:8529",
         "ARANGO_DB": "mcp_arangodb_test",
@@ -170,12 +277,12 @@ Edit `%APPDATA%\Claude\claude_desktop_config.json` (Windows) or `~/.config/Claud
 **1. Start HTTP server:**
 
 ```bash
-python -m mcp_arangodb_async --transport http --host 0.0.0.0 --port 8000
+maa server transport http --host 0.0.0.0 --port 8000
 ```
 
 **2. Test health endpoint:**
 
-```bash
+```powershell
 curl http://localhost:8000/health
 ```
 
@@ -230,19 +337,20 @@ LOG_LEVEL=INFO                         # DEBUG, INFO, WARNING, ERROR
 
 ### Multi-Tenancy Configuration
 
-Work with multiple databases using YAML configuration:
+Work with multiple databases using YAML configuration and the Admin CLI:
 
-**1. Configure databases via CLI:**
+**1. Add databases to YAML configuration:**
 
 ```bash
-# Same server, same user = same password env var
-maa db add production \
+# Add production database configuration
+maa db config add production \
   --url http://localhost:8529 \
   --database myapp_prod \
   --username admin \
   --password-env ARANGO_PASSWORD
 
-maa db add staging \
+# Add staging database configuration
+maa db config add staging \
   --url http://localhost:8529 \
   --database myapp_staging \
   --username admin \
@@ -251,21 +359,29 @@ maa db add staging \
 # Note: 'maa' is a short alias for 'mcp-arangodb-async'
 ```
 
-**2. Set password for the user:**
+**2. Create databases and users in ArangoDB:**
+
+```bash
+# Set root password
+export ARANGO_ROOT_PASSWORD="changeme"
+
+# Create databases
+maa db add myapp_prod --with-user admin --arango-password-env ARANGO_PASSWORD
+maa db add myapp_staging --with-user admin --arango-password-env ARANGO_PASSWORD
+```
+
+**3. Set user password:**
 
 ```bash
 # Passwords are bound to users, not databases
 export ARANGO_PASSWORD="admin-password"
 ```
 
-**3. Restart the MCP server** to pick up the new configuration:
+**4. Restart the MCP server** to pick up the new configuration:
 
-```bash
-maa server
-# Or: python -m mcp_arangodb_async server
-```
+This might involve a UI action or running a command in your MCP host of choice.
 
-**Note:** The MCP server connects to existing databases. Use `scripts/setup-arango.ps1` or ArangoDB's web UI to create databases and users first.
+📖 **Migrating from PowerShell script?** See the [PowerShell Migration Guide](https://github.com/PCfVW/mcp-arango-async/blob/master/docs/getting-started/powershell-migration.md)
 
 **2. Use multi-tenancy tools:**
 
@@ -276,7 +392,7 @@ maa server
   "arguments": {"database_key": "staging"}
 }
 
-// Query focused database
+// Query focused database (i.e. "staging")
 {
   "tool": "arango_query",
   "arguments": {"query": "FOR doc IN users RETURN doc"}
@@ -445,7 +561,7 @@ docker ps | grep arangodb
 curl http://localhost:8529/_api/version
 
 # Check credentials
-python -m mcp_arangodb_async --health
+maa health
 ```
 
 **Server won't start in Claude Desktop:**
@@ -454,7 +570,7 @@ python -m mcp_arangodb_async --health
 python --version  # Must be 3.11+
 
 # Test module directly
-python -m mcp_arangodb_async --health
+maa health
 
 # Check Claude Desktop logs
 # Windows: %APPDATA%\Claude\logs\
