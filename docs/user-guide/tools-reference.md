@@ -361,7 +361,7 @@ Execute AQL (ArangoDB Query Language) queries with optional bind variables.
 List all non-system collections in the database.
 
 **Parameters:**
-- None (empty object or omitted)
+- `database` (string, optional) - Database override (see [Multi-Tenancy Guide](multi-tenancy-guide.md))
 
 **Returns:**
 - Array of collection names (strings)
@@ -392,6 +392,7 @@ Insert a document into a collection.
 - `collection` (string, required) - Collection name
 - `document` (object, required) - Document to insert
 - `return_new` (boolean, optional, default: true) - Return inserted document
+- `database` (string, optional) - Database override (see [Multi-Tenancy Guide](multi-tenancy-guide.md))
 
 **Returns:**
 - Inserted document with `_key`, `_id`, `_rev` fields
@@ -438,6 +439,7 @@ Update an existing document by key.
 - `key` (string, required) - Document key
 - `document` (object, required) - Fields to update (partial update)
 - `return_new` (boolean, optional, default: true) - Return updated document
+- `database` (string, optional) - Database override (see [Multi-Tenancy Guide](multi-tenancy-guide.md))
 
 **Returns:**
 - Updated document with new `_rev`
@@ -484,6 +486,7 @@ Remove a document by key from a collection.
 **Parameters:**
 - `collection` (string, required) - Collection name
 - `key` (string, required) - Document key to remove
+- `database` (string, optional) - Database override (see [Multi-Tenancy Guide](multi-tenancy-guide.md))
 
 **Returns:**
 - Confirmation object with removed document metadata
@@ -526,6 +529,7 @@ Create a new collection or return properties of existing collection.
 - `name` (string, required) - Collection name
 - `type` (string, optional, default: "document") - Collection type: "document" or "edge"
 - `wait_for_sync` (boolean, optional, default: false) - Synchronous writes
+- `database` (string, optional) - Database override (see [Multi-Tenancy Guide](multi-tenancy-guide.md))
 
 **Returns:**
 - Collection properties object
@@ -561,6 +565,56 @@ Create a new collection or return properties of existing collection.
 
 ---
 
+### arango_backup
+
+Export database collections and documents to JSON files.
+
+**Parameters:**
+- `output_dir` (string, optional) - Directory for backup files (auto-generated if not provided)
+- `collections` (array of strings, optional) - Specific collections to backup (all if not provided)
+- `include_system` (boolean, optional, default: false) - Include system collections
+- `doc_limit` (integer, optional) - Limit documents per collection
+- `database` (string, optional) - Database override (see [Multi-Tenancy Guide](multi-tenancy-guide.md))
+
+**Returns:**
+- Backup report with file paths and document counts
+
+**Example:**
+```json
+{
+  "output_dir": "/tmp/db_backup",
+  "collections": ["users", "products"],
+  "include_system": false
+}
+```
+
+**Result:**
+```json
+{
+  "output_dir": "/tmp/db_backup",
+  "collections_backed_up": 2,
+  "total_documents": 1500,
+  "files": [
+    {"collection": "users", "count": 1000, "file": "users.json"},
+    {"collection": "products", "count": 500, "file": "products.json"}
+  ]
+}
+```
+
+**Use Cases:**
+- Database backups before major changes
+- Data migration between environments
+- Creating test datasets
+- Disaster recovery preparation
+
+**Best Practices:**
+- Use `doc_limit` for large collections to avoid memory issues
+- Exclude system collections unless specifically needed
+- Verify backup integrity before relying on it
+- Store backups in secure, accessible locations
+
+---
+
 ## Indexing & Query Analysis (4)
 
 **Note:** All tools in this category support the optional `database` parameter for per-tool database override. See [Multi-Tenancy Guide](multi-tenancy-guide.md) for details.
@@ -571,6 +625,7 @@ List all indexes for a collection.
 
 **Parameters:**
 - `collection` (string, required) - Collection name
+- `database` (string, optional) - Database override (see [Multi-Tenancy Guide](multi-tenancy-guide.md))
 
 **Returns:**
 - Array of index objects with type, fields, and properties
@@ -600,6 +655,7 @@ Create an index on a collection.
 - `fields` (array of strings, required) - Fields to index
 - `unique` (boolean, optional, default: false) - Unique constraint
 - `sparse` (boolean, optional, default: false) - Sparse index (skip null values)
+- `database` (string, optional) - Database override (see [Multi-Tenancy Guide](multi-tenancy-guide.md))
 
 **Returns:**
 - Created index object
@@ -630,6 +686,7 @@ Delete an index by ID or name.
 - `collection` (string, required) - Collection name
 - `index_id` (string, optional) - Index ID (e.g., "users/123")
 - `index_name` (string, optional) - Index name
+- `database` (string, optional) - Database override (see [Multi-Tenancy Guide](multi-tenancy-guide.md))
 
 **Returns:**
 - Confirmation object
@@ -643,6 +700,7 @@ Explain AQL query execution plan.
 **Parameters:**
 - `query` (string, required) - AQL query
 - `bind_vars` (object, optional) - Bind variables
+- `database` (string, optional) - Database override (see [Multi-Tenancy Guide](multi-tenancy-guide.md))
 
 **Returns:**
 - Query execution plan, warnings, and statistics
@@ -667,6 +725,7 @@ Validate that reference fields point to existing documents.
 - `reference_fields` (array of objects, required) - Reference field definitions
   - `field` (string) - Field name
   - `target_collection` (string) - Target collection
+- `database` (string, optional) - Database override (see [Multi-Tenancy Guide](multi-tenancy-guide.md))
 
 **Returns:**
 - Validation report with invalid references
@@ -692,6 +751,7 @@ Insert document after validating references.
 - `collection` (string, required) - Collection name
 - `document` (object, required) - Document to insert
 - `reference_fields` (array of objects, required) - Reference field definitions
+- `database` (string, optional) - Database override (see [Multi-Tenancy Guide](multi-tenancy-guide.md))
 
 **Returns:**
 - Inserted document or validation error
@@ -705,6 +765,7 @@ Batch insert multiple documents.
 **Parameters:**
 - `collection` (string, required) - Collection name
 - `documents` (array of objects, required) - Documents to insert
+- `database` (string, optional) - Database override (see [Multi-Tenancy Guide](multi-tenancy-guide.md))
 
 **Returns:**
 - Insertion report with success/error counts
@@ -741,6 +802,7 @@ Batch update multiple documents by key.
 - `updates` (array of objects, required) - Update operations
   - `key` (string) - Document key
   - `document` (object) - Fields to update
+- `database` (string, optional) - Database override (see [Multi-Tenancy Guide](multi-tenancy-guide.md))
 
 **Returns:**
 - Update report with success/error counts
@@ -758,6 +820,7 @@ Create or update a named JSON Schema.
 **Parameters:**
 - `schema_name` (string, required) - Schema identifier
 - `schema` (object, required) - JSON Schema definition
+- `database` (string, optional) - Database override (see [Multi-Tenancy Guide](multi-tenancy-guide.md))
 
 **Returns:**
 - Confirmation with schema name
@@ -787,6 +850,7 @@ Validate a document against a stored or inline schema.
 - `document` (object, required) - Document to validate
 - `schema_name` (string, optional) - Stored schema name
 - `schema` (object, optional) - Inline JSON Schema
+- `database` (string, optional) - Database override (see [Multi-Tenancy Guide](multi-tenancy-guide.md))
 
 **Returns:**
 - Validation result with errors (if any)
@@ -806,6 +870,7 @@ Build and execute simple AQL queries from structured filters.
 - `filters` (object, optional) - Field filters
 - `sort` (object, optional) - Sort specification
 - `limit` (integer, optional) - Result limit
+- `database` (string, optional) - Database override (see [Multi-Tenancy Guide](multi-tenancy-guide.md))
 
 **Example:**
 ```json
@@ -826,6 +891,7 @@ Profile query execution with detailed statistics.
 **Parameters:**
 - `query` (string, required) - AQL query
 - `bind_vars` (object, optional) - Bind variables
+- `database` (string, optional) - Database override (see [Multi-Tenancy Guide](multi-tenancy-guide.md))
 
 **Returns:**
 - Execution plan, statistics, and optimization suggestions
@@ -847,6 +913,7 @@ Create a named graph with edge definitions.
   - `from` (array of strings) - Source vertex collections
   - `to` (array of strings) - Target vertex collections
 - `orphan_collections` (array of strings, optional) - Vertex collections without edges
+- `database` (string, optional) - Database override (see [Multi-Tenancy Guide](multi-tenancy-guide.md))
 
 **Returns:**
 - Graph object with name and edge definitions
@@ -882,6 +949,7 @@ Insert an edge between two vertices.
 - `from` (string, required) - Source vertex ID (e.g., "users/123")
 - `to` (string, required) - Target vertex ID (e.g., "users/456")
 - `attributes` (object, optional) - Additional edge attributes
+- `database` (string, optional) - Database override (see [Multi-Tenancy Guide](multi-tenancy-guide.md))
 
 **Returns:**
 - Inserted edge with `_key`, `_id`, `_rev`, `_from`, `_to`
@@ -909,6 +977,7 @@ Traverse a graph from a start vertex.
 - `direction` (string, optional, default: "outbound") - "outbound", "inbound", or "any"
 - `min_depth` (integer, optional, default: 1) - Minimum traversal depth
 - `max_depth` (integer, optional, default: 1) - Maximum traversal depth
+- `database` (string, optional) - Database override (see [Multi-Tenancy Guide](multi-tenancy-guide.md))
 
 **Returns:**
 - Array of visited vertices and edges
@@ -941,6 +1010,7 @@ Compute shortest path between two vertices.
 - `graph_name` (string, optional) - Named graph
 - `edge_collection` (string, optional) - Edge collection (if not using named graph)
 - `direction` (string, optional, default: "outbound") - Traversal direction
+- `database` (string, optional) - Database override (see [Multi-Tenancy Guide](multi-tenancy-guide.md))
 
 **Returns:**
 - Path object with vertices and edges
@@ -977,7 +1047,7 @@ Compute shortest path between two vertices.
 List all named graphs in the database.
 
 **Parameters:**
-- None
+- `database` (string, optional) - Database override (see [Multi-Tenancy Guide](multi-tenancy-guide.md))
 
 **Returns:**
 - Array of graph names
@@ -1001,6 +1071,7 @@ Add a vertex collection to an existing graph.
 **Parameters:**
 - `graph_name` (string, required) - Graph name
 - `collection` (string, required) - Vertex collection to add
+- `database` (string, optional) - Database override (see [Multi-Tenancy Guide](multi-tenancy-guide.md))
 
 **Returns:**
 - Updated graph object
@@ -1017,6 +1088,7 @@ Add an edge definition to an existing graph.
   - `collection` (string) - Edge collection name
   - `from` (array of strings) - Source vertex collections
   - `to` (array of strings) - Target vertex collections
+- `database` (string, optional) - Database override (see [Multi-Tenancy Guide](multi-tenancy-guide.md))
 
 **Returns:**
 - Updated graph object
@@ -1036,6 +1108,7 @@ Export complete graph structure including vertices, edges, and metadata.
 - `output_dir` (string, optional) - Directory for backup files (auto-generated if not provided)
 - `include_metadata` (boolean, optional, default: true) - Include graph metadata
 - `doc_limit` (integer, optional) - Limit documents per collection
+- `database` (string, optional) - Database override (see [Multi-Tenancy Guide](multi-tenancy-guide.md))
 
 **Returns:**
 - Backup report with file paths and counts
@@ -1074,6 +1147,7 @@ Import graph data with referential integrity validation.
 - `graph_name` (string, optional) - Name for restored graph (uses original if not provided)
 - `conflict_resolution` (string, optional, default: "error") - "skip", "overwrite", or "error"
 - `validate_integrity` (boolean, optional, default: true) - Validate referential integrity
+- `database` (string, optional) - Database override (see [Multi-Tenancy Guide](multi-tenancy-guide.md))
 
 **Returns:**
 - Restore report with success/error counts
@@ -1087,6 +1161,7 @@ Backup graph definitions from _graphs system collection.
 **Parameters:**
 - `output_file` (string, optional) - Output JSON file path
 - `graph_names` (array of strings, optional) - Specific graphs to backup
+- `database` (string, optional) - Database override (see [Multi-Tenancy Guide](multi-tenancy-guide.md))
 
 **Returns:**
 - Backup report with file path and graph count
@@ -1102,6 +1177,7 @@ Verify graph consistency and find orphaned edges.
 - `check_orphaned_edges` (boolean, optional, default: true) - Check for edges with missing vertices
 - `check_constraints` (boolean, optional, default: true) - Validate graph constraints
 - `return_details` (boolean, optional, default: false) - Return detailed violation information
+- `database` (string, optional) - Database override (see [Multi-Tenancy Guide](multi-tenancy-guide.md))
 
 **Returns:**
 - Validation report with orphaned edges and constraint violations
@@ -1143,6 +1219,7 @@ Generate comprehensive graph analytics.
 - `include_degree_distribution` (boolean, optional, default: true) - Calculate degree distribution
 - `include_connectivity` (boolean, optional, default: true) - Calculate connectivity metrics
 - `sample_size` (integer, optional, minimum: 100) - Sample size for connectivity analysis
+- `database` (string, optional) - Database override (see [Multi-Tenancy Guide](multi-tenancy-guide.md))
 
 **Returns:**
 - Graph statistics including vertex/edge counts, degree distribution, connectivity metrics
@@ -1187,7 +1264,7 @@ Generate comprehensive graph analytics.
 
 Alias for `arango_traverse`. Provides the same functionality with an alternative name for clarity in graph workflows.
 
-**Parameters:** Same as `arango_traverse`
+**Parameters:** Same as `arango_traverse` (including `database` parameter)
 
 ---
 
@@ -1195,7 +1272,7 @@ Alias for `arango_traverse`. Provides the same functionality with an alternative
 
 Alias for `arango_insert`. Provides semantic clarity when inserting vertices in graph workflows.
 
-**Parameters:** Same as `arango_insert`
+**Parameters:** Same as `arango_insert` (including `database` parameter)
 
 ---
 
@@ -1208,7 +1285,7 @@ Alias for `arango_insert`. Provides semantic clarity when inserting vertices in 
 Check database connectivity and return server information.
 
 **Parameters:**
-- None
+- `database` (string, optional) - Database override (see [Multi-Tenancy Guide](multi-tenancy-guide.md))
 
 **Returns:**
 - Database status object with connection info
@@ -1760,6 +1837,5 @@ Control available tools using the `MCP_COMPAT_TOOLSET` environment variable:
 ## Related Documentation
 - [MCP Design Patterns Guide](./mcp-design-patterns.md) - Comprehensive guide to progressive discovery, context switching, and tool unloading
 - [First Interaction Guide](../getting-started/first-interaction.md)
-- [Graph Operations Guide](graph-operations.md)
-- [Codebase Analysis Example](../examples/codebase-analysis.md)
+- [Codebase Analysis Example](../examples/codebase-analysis.md) - Advanced graph modeling patterns
 - [Troubleshooting](troubleshooting.md)

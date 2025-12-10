@@ -781,7 +781,7 @@ See [Transport Configuration](/docs/configuration/transport-configuration.md)
 ## Next Steps
 - [Configure Environment Variables](../configuration/environment-variables.md)
 - [Run Your First Query](first-interaction.md)
-- [Explore Graph Operations](../user-guide/graph-operations.md)
+- [Explore Codebase Analysis Example](../examples/codebase-analysis.md)
 ```
 
 ### Link Validation

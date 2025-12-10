@@ -909,9 +909,9 @@ Result: Used 15/43 tools, 28 tools never loaded (65% reduction)
 ## Related Documentation
 
 - [Tools Reference](./tools-reference.md) - Complete documentation for all 43 MCP tools
-- [Quick Start Guide](../getting-started/quick-start.md) - Get started with mcp-arangodb-async
-- [Configuration Guide](../configuration/README.md) - Configure the MCP server
-- [Graph Operations Guide](./graph-operations.md) - Comprehensive graph modeling documentation
+- [Quickstart Guide (stdio)](../getting-started/quickstart-stdio.md) - Get started with mcp-arangodb-async
+- [Environment Variables](../configuration/environment-variables.md) - Configure the MCP server
+- [Codebase Analysis Example](../examples/codebase-analysis.md) - Comprehensive graph modeling documentation
 - [Anthropic: Code Execution with MCP](https://www.anthropic.com/engineering/code-execution-with-mcp) - Official MCP design pattern guidance
 
 ---
