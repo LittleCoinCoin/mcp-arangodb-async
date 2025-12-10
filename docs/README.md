@@ -217,7 +217,9 @@ pip install mcp-arangodb-async
 docker compose up -d arangodb
 
 # 3. Initialize database
-pwsh -File scripts/setup-arango.ps1 -RootPassword "changeme"
+$env:ARANGO_ROOT_PASSWORD = "changeme"
+$env:MCP_USER_PASSWORD = "mcp_arangodb_password"
+maa db add mcp_arangodb_test --url http://localhost:8529 --database mcp_arangodb_test --username root --password-env ARANGO_ROOT_PASSWORD --with-user mcp_arangodb_user --arango-password-env MCP_USER_PASSWORD
 
 # 4. Test health
 python -m mcp_arangodb_async --health

@@ -183,17 +183,24 @@ Then use:
 
 ## Step 3: Initialize Database
 
-### 3.1 Run Setup Script
+### 3.1 Use Admin CLI
 
 ```powershell
-scripts\setup-arango.ps1 -RootPassword "changeme" -DbName "mcp_arangodb_test" -User "mcp_arangodb_user" -Password "mcp_arangodb_password" -Seed
+# Set environment variables
+$env:ARANGO_ROOT_PASSWORD = "changeme"
+$env:MCP_USER_PASSWORD = "mcp_arangodb_password"
+
+# Create database with user in one atomic operation
+maa db add mcp_arangodb_test --url http://localhost:8529 --database mcp_arangodb_test --username root --password-env ARANGO_ROOT_PASSWORD --with-user mcp_arangodb_user --arango-password-env MCP_USER_PASSWORD
 ```
 
 **What This Does:**
 - Creates database `mcp_arangodb_test`
 - Creates user `mcp_arangodb_user` with password `mcp_arangodb_password`
 - Grants read/write permissions
-- Seeds sample data (optional `-Seed` flag)
+- Adds database configuration to `config/databases.yaml`
+
+**Note:** The PowerShell setup script has been replaced by the Admin CLI. See [PowerShell Migration Guide](./powershell-migration.md) for details.
 
 ### 3.2 Verify Database Creation
 

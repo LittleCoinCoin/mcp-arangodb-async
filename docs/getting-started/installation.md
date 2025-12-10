@@ -255,34 +255,36 @@ docker compose logs arangodb
 
 ### Step 4: Initialize Database
 
-#### 4.1 Run Setup Script
+#### 4.1 Use Admin CLI
 
 ```powershell
-scripts\setup-arango.ps1 -RootPassword "changeme" -DbName "mcp_arangodb_test" -User "mcp_arangodb_user" -Password "mcp_arangodb_password" -Seed
+# Create database with user in one atomic operation
+maa db add mcp_arangodb_test --url http://localhost:8529 --database mcp_arangodb_test --username root --password-env ARANGO_ROOT_PASSWORD --with-user mcp_arangodb_user --arango-password-env MCP_USER_PASSWORD
 ```
 
-**Parameters:**
-- `-RootPassword` - ArangoDB root password (must match docker-compose.yml)
-- `-DbName` - Database name to create
-- `-User` - Application user to create
-- `-Password` - Application user password
-- `-Seed` - (Optional) Insert sample data for testing
+**Environment Variables:**
+Set these before running the command:
+```powershell
+$env:ARANGO_ROOT_PASSWORD = "changeme"
+$env:MCP_USER_PASSWORD = "mcp_arangodb_password"
+```
 
 **What This Does:**
 1. Connects to ArangoDB as root
 2. Creates database `mcp_arangodb_test`
-3. Creates user `mcp_arangodb_user` with read/write permissions
-4. Grants access to the database
-5. (Optional) Seeds sample collections and data
+3. Creates user `mcp_arangodb_user` with specified password
+4. Grants read/write permissions to the database
+5. Adds database configuration to `config/databases.yaml`
 
 **Expected Output:**
 ```
-✓ Connected to ArangoDB
-✓ Created database: mcp_arangodb_test
-✓ Created user: mcp_arangodb_user
-✓ Granted permissions
-✓ Seeded sample data (3 collections, 50 documents)
+✓ Database 'mcp_arangodb_test' created successfully
+✓ User 'mcp_arangodb_user' created successfully
+✓ Granted rw permission to 'mcp_arangodb_user' on 'mcp_arangodb_test'
+✓ Added database configuration to config/databases.yaml
 ```
+
+**Note:** The PowerShell setup script has been replaced by the Admin CLI. See [PowerShell Migration Guide](./powershell-migration.md) for details.
 
 #### 4.2 Verify Database Creation
 
@@ -403,13 +405,15 @@ Press `Ctrl+C` to stop the server.
 
 ### Setup Script Fails
 
-**Symptom:** `setup-arango.ps1` reports error
+**Symptom:** Admin CLI commands report errors
 
 **Solutions:**
 1. Verify root password matches docker-compose.yml
 2. Check container is running and healthy
-3. Ensure PowerShell execution policy allows scripts: `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass`
-4. Run script with verbose output: `scripts\setup-arango.ps1 -Verbose`
+3. Test connection: `maa db test`
+4. Use `--dry-run` flag to preview operations: `maa db add mydb --dry-run`
+
+**Note:** The PowerShell setup script has been replaced by the Admin CLI. See [CLI Reference](../user-guide/cli-reference.md) and [PowerShell Migration Guide](./powershell-migration.md).
 
 ---
 
