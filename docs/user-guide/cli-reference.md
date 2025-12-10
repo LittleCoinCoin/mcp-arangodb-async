@@ -1,10 +1,10 @@
 # CLI Reference
 
-Complete documentation for the `mcp-arangodb-async` (or `maa`) command-line tool for database configuration management.
+Complete documentation for the `mcp-arangodb-async` command-line interface.
 
 **Audience:** System Administrators and DevOps Engineers  
-**Prerequisites:** File system access to configuration files, Python 3.11+  
-**Estimated Time:** 10-15 minutes
+**Prerequisites:** Python 3.11+, ArangoDB 3.11 installed & running
+**Estimated Time:** 15-20 minutes
 
 ---
 
@@ -12,36 +12,30 @@ Complete documentation for the `mcp-arangodb-async` (or `maa`) command-line tool
 
 1. [Overview](#overview)
 2. [Installation](#installation)
-3. [Configuration File](#configuration-file)
-4. [Commands](#commands)
-5. [Examples](#examples)
-6. [Security](#security)
-7. [Troubleshooting](#troubleshooting)
-8. [Related Documentation](#related-documentation)
+3. [Command Structure](#command-structure)
+4. [Database Configuration Commands](#database-configuration-commands)
+5. [Database Operations Commands](#database-operations-commands)
+6. [User Management Commands](#user-management-commands)
+7. [Health and Version Commands](#health-and-version-commands)
+8. [Safety Features](#safety-features)
+9. [Examples](#examples)
+10. [Troubleshooting](#troubleshooting)
+11. [Related Documentation](#related-documentation)
 
 ---
 
 ## Overview
 
-The `mcp-arangodb-async` (or `maa` for short) CLI tool provides admin-controlled database configuration management. It enables adding, removing, listing, testing, and monitoring database configurations without code changes or server restarts.
+The `mcp-arangodb-async` CLI provides comprehensive database and user management capabilities for ArangoDB. It supports two distinct workflows:
 
-### Key Features
-
-- **Admin-Only Access** - Requires file system access to modify YAML configuration
-- **Secure Password Management** - Passwords stored in environment variables, not in YAML
-- **Connection Testing** - Verify database connectivity before deployment
-- **Status Reporting** - View database resolution order and configuration status
-- **No Server Restart Required** - Changes take effect on next MCP server start
-
-### Security Model
-
-The CLI tool is **not exposed via MCP protocol**. Only system administrators with file system access can modify database configurations. This separation ensures agents cannot modify infrastructure configuration.
+1. **YAML Configuration Management** - Manage databases exposed to the MCP server in `config/databases.yaml`
+2. **Direct ArangoDB Operations** - Create/delete databases and manage users directly on ArangoDB server
 
 ---
 
 ## Installation
 
-The CLI tool is included with the mcp-arangodb-async package:
+The CLI is included with the mcp-arangodb-async package:
 
 ```bash
 pip install mcp-arangodb-async
@@ -54,206 +48,130 @@ maa db --help
 # Or: python -m mcp_arangodb_async db --help
 ```
 
-**Note:** Both `maa` and `mcp-arangodb-async` commands are available. Use `maa` for brevity.
+**Note:** Both `maa` and `python -m mcp_arangodb_async` commands work. This guide uses `maa` for brevity.
 
 ---
 
-## Configuration File
+## Command Structure
 
-### Default Location
+The CLI uses a hierarchical command structure:
 
 ```
-config/databases.yaml
-```
-
-### How Configuration Works
-
-The CLI tool manages a YAML configuration file that stores database connection details. **Passwords are NOT stored in the YAML file** - only the names of environment variables that contain passwords.
-
-**Security Model:**
-1. YAML file stores: database URLs, usernames, and **environment variable names**
-2. Environment variables store: actual passwords (never in YAML)
-3. At connection time: Server reads environment variables to get passwords
-
-### YAML Schema
-
-**Important:** Passwords are bound to **users**, not databases. If you use the same user on the same ArangoDB server for multiple databases, they use the same password.
-
-**Example - Same server, same user (typical):**
-
-```yaml
-default_database: "production"
-
-databases:
-  production:
-    url: "http://localhost:8529"
-    database: "myapp_prod"
-    username: "admin"
-    password_env: "ARANGO_PASSWORD"  # Same user = same env var
-    timeout: 60.0
-    description: "Production database"
-
-  staging:
-    url: "http://localhost:8529"
-    database: "myapp_staging"
-    username: "admin"
-    password_env: "ARANGO_PASSWORD"  # Same user = same env var
-    timeout: 30.0
-    description: "Staging database"
-```
-
-**Example - Different servers (separate ArangoDB instances):**
-
-```yaml
-databases:
-  production:
-    url: "http://prod-server:8529"
-    database: "myapp_prod"
-    username: "admin"
-    password_env: "PROD_ARANGO_PASSWORD"  # Different server
-
-  staging:
-    url: "http://staging-server:8529"
-    database: "myapp_staging"
-    username: "admin"
-    password_env: "STAGING_ARANGO_PASSWORD"  # Different server
-```
-
-### Environment Variables
-
-Passwords are stored in environment variables. The YAML file only references the environment variable **names**:
-
-```bash
-# Same server, same user - one password
-export ARANGO_PASSWORD="admin-password"
-
-# OR for different servers - different passwords
-export PROD_ARANGO_PASSWORD="prod-admin-password"
-export STAGING_ARANGO_PASSWORD="staging-admin-password"
+maa
+├── server              # Run MCP server (default)
+├── health              # Health check
+├── version             # Show version
+├── db                  # Database management
+│   ├── config          # YAML configuration management
+│   │   ├── add         # Add database to YAML
+│   │   ├── remove      # Remove database from YAML
+│   │   ├── list        # List configured databases
+│   │   ├── test        # Test database connection
+│   │   └── status      # Show resolution status
+│   ├── add             # Create ArangoDB database
+│   ├── remove          # Delete ArangoDB database
+│   └── list            # List ArangoDB databases
+└── user                # User management
+    ├── add             # Create user
+    ├── remove          # Delete user
+    ├── list            # List users
+    ├── grant           # Grant permissions
+    ├── revoke          # Revoke permissions
+    ├── databases       # List accessible databases (self-service)
+    └── password        # Change password (self-service)
 ```
 
 ---
 
-## Important: Server Restart Required
+## Database Configuration Commands
 
-**After using `db add` or `db remove`, the MCP server must be restarted to pick up the changes.**
+These commands manage the YAML configuration file (`config/databases.yaml`). They do NOT connect to ArangoDB.
 
-The flow is:
-1. Run `db add production ...` → Updates YAML file ✅
-2. MCP server reads YAML file at startup
-3. **Stop and restart the MCP server** to load new configuration
-4. After restart, the database is accessible via MCP tools
+### db config add
 
-**Why?** The server loads the configuration once at startup. Changes to the YAML file are not automatically reloaded while the server is running.
-
----
-
-## Commands
-
-### db add
-
-Add a new database configuration to the YAML file.
+Add a database configuration to YAML file.
 
 **Syntax:**
 
 ```bash
-maa db add <key> \
+maa db config add <key> \
   --url <url> \
   --database <database> \
   --username <username> \
-  --password-env <env_var_name> \
+  --password-env <env_var> \
   [--timeout <seconds>] \
-  [--description <description>] \
-  [--config-path <path>]
+  [--description <text>] \
+  [--config-path <path>] \
+  [--dry-run] \
+  [--yes]
 ```
 
 **Parameters:**
 
-- `key` (required) - Unique identifier for this database configuration
-- `--url` (required) - ArangoDB server URL (e.g., `http://localhost:8529`)
-- `--database` (required) - Database name
-- `--username` (required) - Username for authentication
-- `--password-env` (required) - Environment variable name containing the password
-- `--timeout` (optional) - Connection timeout in seconds (default: 30.0)
-- `--description` (optional) - Human-readable description
-- `--config-path` (optional) - Path to configuration file (default: `config/databases.yaml`)
+- `key` - Unique identifier for this configuration
+- `--url` - ArangoDB server URL (e.g., `http://localhost:8529`)
+- `--database` - Database name
+- `--username` - Username for authentication
+- `--password-env` - Environment variable name containing password
+- `--timeout` - Connection timeout in seconds (default: 30.0)
+- `--description` - Optional description
+- `--config-path` - Path to YAML file (default: `config/databases.yaml`)
+- `--dry-run` - Preview without executing
+- `--yes` / `-y` - Skip confirmation
 
 **Example:**
 
 ```bash
-maa db add production \
+maa db config add production \
   --url http://localhost:8529 \
   --database myapp_prod \
   --username admin \
-  --password-env MCP_ARANGO_PROD_PASSWORD \
+  --password-env ARANGO_PASSWORD \
   --timeout 60 \
-  --description "Production database for live data"
-```
-
-**Output:**
-
-```
-✓ Database 'production' added successfully
-  URL: http://localhost:8529
-  Database: myapp_prod
-  Username: admin
-  Password env: MCP_ARANGO_PROD_PASSWORD
-  Timeout: 60.0s
-  Description: Production database for live data
-
-Configuration saved to: config/databases.yaml
+  --description "Production database"
 ```
 
 ---
 
-### db remove
+### db config remove
 
-Remove a database configuration from the YAML file.
+Remove a database configuration from YAML file.
 
 **Syntax:**
 
 ```bash
-maa db remove <key> [--config-path <path>]
+maa db config remove <key> \
+  [--config-path <path>] \
+  [--dry-run] \
+  [--yes]
 ```
 
-**Parameters:**
-
-- `key` (required) - Database key to remove
-- `--config-path` (optional) - Path to configuration file (default: `config/databases.yaml`)
+**Aliases:** `rm`
 
 **Example:**
 
 ```bash
-maa db remove staging
-```
-
-**Output:**
-
-```
-✓ Database 'staging' removed successfully
-Configuration saved to: config/databases.yaml
+maa db config remove staging
 ```
 
 ---
 
-### db list
+### db config list
 
-List all configured databases with their details.
+List all configured databases from YAML file.
 
 **Syntax:**
 
 ```bash
-maa db list [--config-path <path>]
+maa db config list [--config-path <path>]
 ```
 
-**Parameters:**
-
-- `--config-path` (optional) - Path to configuration file (default: `config/databases.yaml`)
+**Aliases:** `ls`
 
 **Example:**
 
 ```bash
-maa db list
+maa db config list
 ```
 
 **Output:**
@@ -267,87 +185,71 @@ Default database: production
     URL: http://localhost:8529
     Database: myapp_prod
     Username: admin
-    Password env: MCP_ARANGO_PROD_PASSWORD
+    Password env: ARANGO_PASSWORD
     Timeout: 60.0s
-    Description: Production database for live data
+    Description: Production database
 
   staging:
-    URL: http://staging.example.com:8529
+    URL: http://localhost:8529
     Database: myapp_staging
     Username: admin
-    Password env: MCP_ARANGO_STAGING_PASSWORD
+    Password env: ARANGO_PASSWORD
     Timeout: 30.0s
-    Description: Staging database for pre-production testing
+    Description: Staging database
 ```
 
 ---
 
-### db test
+### db config test
 
-Test connection to a specific database configuration.
+Test connection to a configured database.
 
 **Syntax:**
 
 ```bash
-maa db test <key> [--config-path <path>]
+maa db config test <key> [--config-path <path>]
 ```
 
-**Parameters:**
-
-- `key` (required) - Database key to test
-- `--config-path` (optional) - Path to configuration file (default: `config/databases.yaml`)
-
-**Example (Success):**
+**Example:**
 
 ```bash
-maa db test production
+maa db config test production
 ```
 
-**Output:**
+**Output (Success):**
 
 ```
 ✓ Connection to 'production' successful
   ArangoDB version: 3.11.0
 ```
 
-**Example (Failure):**
-
-```bash
-maa db test staging
-```
-
-**Output:**
+**Output (Failure):**
 
 ```
-✗ Connection to 'staging' failed
+✗ Connection to 'production' failed
   Error: Connection refused
 ```
 
 **Exit Codes:**
-
-- `0` - Connection successful
-- `1` - Connection failed or database not found
+- `0` - Success
+- `1` - Failure
 
 ---
 
-### db status
+### db config status
 
 Show database resolution status and configuration overview.
 
 **Syntax:**
 
 ```bash
-maa db status [--config-path <path>]
+maa db config status [--config-path <path>]
 ```
-
-**Parameters:**
-
-- `--config-path` (optional) - Path to configuration file (default: `config/databases.yaml`)
 
 **Example:**
 
 ```bash
-maa db status
+maa db config status
 ```
 
 **Output:**
@@ -372,278 +274,647 @@ Resolution order:
   6. Fallback to '_system'
 ```
 
-**Use Cases:**
+---
 
-- Verify configuration before deployment
-- Troubleshoot database resolution issues
-- Understand which database will be used in different scenarios
-- Audit configured databases
+## Database Operations Commands
+
+These commands manage ArangoDB databases directly on the server. They require root credentials.
+
+### db add
+
+Create a new ArangoDB database.
+
+**Syntax:**
+
+```bash
+maa db add <name> \
+  [--with-user <username>] \
+  [--permission <rw|ro|none>] \
+  [--url <url>] \
+  [--env-file <path>] \
+  [--arango-root-password-env <var>] \
+  [--arango-password-env <var>] \
+  [--dry-run] \
+  [--yes]
+```
+
+**Parameters:**
+
+- `name` - Database name to create
+- `--with-user` - Username to grant access (creates user if not exists)
+- `--permission` - Permission level: `rw`, `ro`, `none` (default: `rw`)
+- `--url` - ArangoDB URL (default: `ARANGO_URL` env or `http://localhost:8529`)
+- `--env-file` - Path to .env file for credentials
+- `--arango-root-password-env` - Root password env var (default: `ARANGO_ROOT_PASSWORD`)
+- `--arango-password-env` - User password env var (default: `ARANGO_PASSWORD`)
+- `--dry-run` - Preview without executing
+- `--yes` / `-y` - Skip confirmation
+
+**Example (Simple):**
+
+```bash
+export ARANGO_ROOT_PASSWORD="root-password"
+maa db add myapp_prod
+```
+
+**Example (Atomic with User):**
+
+```bash
+export ARANGO_ROOT_PASSWORD="root-password"
+export ARANGO_PASSWORD="user-password"
+
+maa db add myapp_prod \
+  --with-user myapp_user \
+  --permission rw
+```
+
+**Output:**
+
+```
+✓ Database 'myapp_prod' created
+✓ User 'myapp_user' created (active: true)
+✓ Permission rw granted: myapp_user → myapp_prod
+```
+
+---
+
+### db remove
+
+Delete an ArangoDB database.
+
+**Syntax:**
+
+```bash
+maa db remove <name> \
+  [--url <url>] \
+  [--env-file <path>] \
+  [--arango-root-password-env <var>] \
+  [--dry-run] \
+  [--yes]
+```
+
+**Aliases:** `rm`
+
+**Safety:** Cannot delete `_system` database.
+
+**Example:**
+
+```bash
+export ARANGO_ROOT_PASSWORD="root-password"
+maa db remove myapp_staging
+```
+
+**Output:**
+
+```
+⚠️  This will:
+  - Remove database 'myapp_staging'
+  - Revoke permission: myapp_user → myapp_staging (was: rw)
+
+Are you sure you want to proceed? [y/N]: y
+
+✓ Database 'myapp_staging' removed
+```
+
+---
+
+### db list
+
+List all ArangoDB databases.
+
+**Syntax:**
+
+```bash
+maa db list \
+  [--url <url>] \
+  [--env-file <path>] \
+  [--arango-root-password-env <var>] \
+  [--json]
+```
+
+**Aliases:** `ls`
+
+**Example:**
+
+```bash
+export ARANGO_ROOT_PASSWORD="root-password"
+maa db list
+```
+
+**Output:**
+
+```
+Databases (3):
+  - _system (system)
+  - myapp_prod
+  - myapp_staging
+```
+
+**Example (JSON):**
+
+```bash
+maa db list --json
+```
+
+**Output:**
+
+```json
+["_system", "myapp_prod", "myapp_staging"]
+```
+
+---
+
+## User Management Commands
+
+These commands manage ArangoDB users and permissions.
+
+### user add
+
+Create a new ArangoDB user (admin operation).
+
+**Syntax:**
+
+```bash
+maa user add <username> \
+  [--active] \
+  [--url <url>] \
+  [--env-file <path>] \
+  [--arango-root-password-env <var>] \
+  [--arango-password-env <var>] \
+  [--dry-run] \
+  [--yes]
+```
+
+**Parameters:**
+
+- `username` - Username to create
+- `--active` - User is active (default: true)
+- `--url` - ArangoDB URL (default: `ARANGO_URL` env or `http://localhost:8529`)
+- `--env-file` - Path to .env file
+- `--arango-root-password-env` - Root password env var (default: `ARANGO_ROOT_PASSWORD`)
+- `--arango-password-env` - User password env var (default: `ARANGO_PASSWORD`)
+- `--dry-run` - Preview without executing
+- `--yes` / `-y` - Skip confirmation
+
+**Example:**
+
+```bash
+export ARANGO_ROOT_PASSWORD="root-password"
+export ARANGO_PASSWORD="user-password"
+
+maa user add myapp_user
+```
+
+---
+
+### user remove
+
+Delete an ArangoDB user (admin operation).
+
+**Syntax:**
+
+```bash
+maa user remove <username> \
+  [--url <url>] \
+  [--env-file <path>] \
+  [--arango-root-password-env <var>] \
+  [--dry-run] \
+  [--yes]
+```
+
+**Aliases:** `rm`
+
+**Safety:** Cannot delete `root` user.
+
+**Example:**
+
+```bash
+export ARANGO_ROOT_PASSWORD="root-password"
+maa user remove old_user
+```
+
+---
+
+### user list
+
+List all ArangoDB users (admin operation).
+
+**Syntax:**
+
+```bash
+maa user list \
+  [--url <url>] \
+  [--env-file <path>] \
+  [--arango-root-password-env <var>] \
+  [--json]
+```
+
+**Aliases:** `ls`
+
+**Example:**
+
+```bash
+export ARANGO_ROOT_PASSWORD="root-password"
+maa user list
+```
+
+**Output:**
+
+```
+Users (3):
+  - root (active)
+  - myapp_user (active)
+  - readonly_user (inactive)
+```
+
+---
+
+### user grant
+
+Grant database permissions to a user (admin operation).
+
+**Syntax:**
+
+```bash
+maa user grant <username> <database> \
+  [--permission <rw|ro|none>] \
+  [--url <url>] \
+  [--env-file <path>] \
+  [--arango-root-password-env <var>] \
+  [--dry-run] \
+  [--yes]
+```
+
+**Parameters:**
+
+- `username` - Username to grant permissions to
+- `database` - Database name
+- `--permission` - Permission level: `rw`, `ro`, `none` (default: `rw`)
+
+**Permission Levels:**
+- `rw` - Read-write access (full CRUD operations)
+- `ro` - Read-only access (queries only)
+- `none` - No access (revokes permissions)
+
+**Example:**
+
+```bash
+export ARANGO_ROOT_PASSWORD="root-password"
+maa user grant myapp_user myapp_prod --permission rw
+```
+
+---
+
+### user revoke
+
+Revoke database permissions from a user (admin operation).
+
+**Syntax:**
+
+```bash
+maa user revoke <username> <database> \
+  [--url <url>] \
+  [--env-file <path>] \
+  [--arango-root-password-env <var>] \
+  [--dry-run] \
+  [--yes]
+```
+
+**Example:**
+
+```bash
+export ARANGO_ROOT_PASSWORD="root-password"
+maa user revoke myapp_user old_database
+```
+
+---
+
+### user databases
+
+List databases accessible to current user (self-service operation).
+
+**Syntax:**
+
+```bash
+maa user databases \
+  [--url <url>] \
+  [--env-file <path>] \
+  [--arango-password-env <var>] \
+  [--json]
+```
+
+**Note:** Uses current user's credentials (not root).
+
+**Example:**
+
+```bash
+export ARANGO_USERNAME="myapp_user"
+export ARANGO_PASSWORD="user-password"
+
+maa user databases
+```
+
+**Output:**
+
+```
+Accessible databases for user 'myapp_user' (2):
+  - myapp_prod
+  - myapp_staging
+```
+
+---
+
+### user password
+
+Change current user's password (self-service operation).
+
+**Syntax:**
+
+```bash
+maa user password \
+  [--url <url>] \
+  [--env-file <path>] \
+  [--arango-password-env <var>] \
+  [--new-password-env <var>] \
+  [--dry-run] \
+  [--yes]
+```
+
+**Parameters:**
+
+- `--arango-password-env` - Current password env var (default: `ARANGO_PASSWORD`)
+- `--new-password-env` - New password env var (default: `ARANGO_NEW_PASSWORD`)
+
+**Example:**
+
+```bash
+export ARANGO_USERNAME="myapp_user"
+export ARANGO_PASSWORD="old-password"
+export ARANGO_NEW_PASSWORD="new-secure-password"
+
+maa user password
+```
+
+---
+
+## Health and Version Commands
+
+### health
+
+Run health check and output JSON.
+
+**Syntax:**
+
+```bash
+maa health
+```
+
+**Output:**
+
+```json
+{
+  "ok": true,
+  "status": "healthy",
+  "url": "http://localhost:8529",
+  "database": "_system",
+  "username": "root",
+  "info": {
+    "version": "3.11.0"
+  }
+}
+```
+
+**Exit Codes:**
+- `0` - Healthy
+- `1` - Unhealthy
+
+---
+
+### version
+
+Display version information.
+
+**Syntax:**
+
+```bash
+maa version
+```
+
+**Output:**
+
+```
+mcp-arangodb-async version 0.3.2
+Python 3.11.0
+```
+
+---
+
+## Safety Features
+
+### Interactive Confirmations
+
+All destructive operations require confirmation:
+
+```bash
+maa db remove myapp_staging
+```
+
+**Output:**
+
+```
+⚠️  This will:
+  - Remove database 'myapp_staging'
+  - Revoke permission: myapp_user → myapp_staging (was: rw)
+
+Are you sure you want to proceed? [y/N]:
+```
+
+### Dry-Run Mode
+
+Preview changes without executing:
+
+```bash
+maa db add myapp_test \
+  --with-user test_user \
+  --dry-run
+```
+
+**Output:**
+
+```
+⚠️  DRY RUN - No changes will be made
+
+This would:
+  + Add database 'myapp_test'
+  + Add user 'test_user' (active: true)
+  + Grant permission rw: test_user → myapp_test
+```
+
+### Automation Mode
+
+Skip confirmations with `--yes` flag:
+
+```bash
+maa db remove myapp_staging --yes
+```
+
+Or set environment variable:
+
+```bash
+export MCP_ARANGODB_ASYNC_CLI_YES=1
+maa db remove myapp_staging
+```
+
+### Exit Codes
+
+| Code | Meaning | When |
+|------|---------|------|
+| `0` | Success | Operation completed successfully |
+| `1` | Error | Invalid input, connection failure, operation failed |
+| `2` | Cancelled | User declined confirmation |
 
 ---
 
 ## Examples
 
-### Example 1: Initial Setup
-
-Set up production and staging databases:
+### Example 1: Complete Setup
 
 ```bash
-# Add production database
-maa db add production \
+# Set credentials
+export ARANGO_ROOT_PASSWORD="root-password"
+export ARANGO_PASSWORD="user-password"
+
+# Create database with user (atomic)
+maa db add myapp_prod \
+  --with-user myapp_user \
+  --permission rw
+
+# Add to YAML config
+maa db config add production \
   --url http://localhost:8529 \
   --database myapp_prod \
-  --username admin \
-  --password-env MCP_ARANGO_PROD_PASSWORD \
-  --timeout 60 \
+  --username myapp_user \
+  --password-env ARANGO_PASSWORD \
   --description "Production database"
 
-# Add staging database
-maa db add staging \
-  --url http://staging:8529 \
-  --database myapp_staging \
-  --username admin \
-  --password-env MCP_ARANGO_STAGING_PASSWORD \
-  --timeout 30 \
-  --description "Staging database"
+# Test connection
+maa db config test production
 
-# Set environment variables
-export MCP_ARANGO_PROD_PASSWORD="prod-password"
-export MCP_ARANGO_STAGING_PASSWORD="staging-password"
-
-# Test connections
-maa db test production
-maa db test staging
-
-# Verify configuration
+# Verify
 maa db list
+maa db config list
 ```
 
 ---
 
-### Example 2: Update Configuration
-
-Replace an existing database configuration:
+### Example 2: Permission Management
 
 ```bash
-# Remove old configuration
-maa db remove production
+export ARANGO_ROOT_PASSWORD="root-password"
 
-# Add new configuration
-maa db add production \
-  --url http://new-server:8529 \
-  --database myapp_prod_v2 \
-  --username admin \
-  --password-env MCP_ARANGO_PROD_PASSWORD \
-  --timeout 90 \
-  --description "Production database (migrated)"
+# Grant read-write to production
+maa user grant myapp_user myapp_prod --permission rw
 
-# Test new configuration
-maa db test production
+# Grant read-only to staging
+maa user grant myapp_user myapp_staging --permission ro
+
+# Verify user's access
+export ARANGO_USERNAME="myapp_user"
+export ARANGO_PASSWORD="user-password"
+maa user databases
 ```
 
 ---
 
-### Example 3: Multi-Environment Setup
+### Example 3: Using .env Files
 
-Configure databases for development, staging, and production:
+Create `.env.production`:
 
-```bash
-# Development (local)
-maa db add dev \
-  --url http://localhost:8529 \
-  --database myapp_dev \
-  --username root \
-  --password-env MCP_ARANGO_DEV_PASSWORD \
-  --description "Local development database"
-
-# Staging (remote)
-maa db add staging \
-  --url http://staging.example.com:8529 \
-  --database myapp_staging \
-  --username admin \
-  --password-env MCP_ARANGO_STAGING_PASSWORD \
-  --description "Staging environment"
-
-# Production (remote, high timeout)
-maa db add production \
-  --url http://prod.example.com:8529 \
-  --database myapp_prod \
-  --username admin \
-  --password-env MCP_ARANGO_PROD_PASSWORD \
-  --timeout 120 \
-  --description "Production environment"
-
-# Set environment variables
-export MCP_ARANGO_DEV_PASSWORD="dev"
-export MCP_ARANGO_STAGING_PASSWORD="staging-secret"
-export MCP_ARANGO_PROD_PASSWORD="prod-secret"
-
-# Verify all connections
-for db in dev staging production; do
-  maa db test $db
-done
+```dotenv
+ARANGO_URL=http://prod-server:8529
+ARANGO_ROOT_PASSWORD=prod-root-password
+ARANGO_PASSWORD=prod-user-password
 ```
 
----
-
-## Security
-
-### Password Management
-
-**Best Practices:**
-
-1. **Never store passwords in YAML** - Always use environment variables
-2. **Use different passwords per environment** - Don't reuse passwords
-3. **Rotate passwords regularly** - Update environment variables and test connections
-4. **Use strong passwords** - Minimum 16 characters, mixed case, numbers, symbols
-5. **Restrict file permissions** - Protect YAML file and environment variable files
-
-**File Permissions:**
+Use with commands:
 
 ```bash
-# Restrict YAML file to owner only
-chmod 600 config/databases.yaml
-
-# Restrict environment file to owner only
-chmod 600 .env
-```
-
-### Access Control
-
-The CLI tool requires:
-
-- **File system access** to read/write YAML configuration
-- **Environment variable access** to read passwords
-- **Network access** to test database connections
-
-Only grant CLI access to trusted administrators.
-
-### Audit Trail
-
-Track configuration changes using version control:
-
-```bash
-# Initialize git repository
-git init
-git add config/databases.yaml
-git commit -m "Initial database configuration"
-
-# Track changes
-git diff config/databases.yaml
-git log config/databases.yaml
+maa db add myapp_prod \
+  --env-file .env.production \
+  --with-user myapp_user
 ```
 
 ---
 
 ## Troubleshooting
 
-### Error: Database already exists
+### Connection Refused
 
-**Problem:**
-
-```
-Error: Database 'production' already exists
-Use 'db remove' to remove it first, or choose a different key
-```
+**Problem:** Cannot connect to ArangoDB
 
 **Solution:**
 
-Remove the existing configuration first:
-
-```bash
-maa db remove production
-maa db add production ...
-```
-
----
-
-### Error: Database not found
-
-**Problem:**
-
-```
-Error: Database 'staging' not found
-```
-
-**Solution:**
-
-List configured databases to verify the key:
-
-```bash
-maa db list
-```
-
----
-
-### Error: Connection failed
-
-**Problem:**
-
-```
-✗ Connection to 'production' failed
-  Error: Connection refused
-```
-
-**Solutions:**
-
-1. **Verify ArangoDB is running:**
-
+1. Verify ArangoDB is running:
 ```bash
 curl http://localhost:8529/_api/version
 ```
 
-2. **Check URL and port:**
-
+2. Check URL in configuration:
 ```bash
-maa db list
+maa db config list
 ```
 
-3. **Verify credentials:**
-
+3. Verify credentials:
 ```bash
-echo $MCP_ARANGO_PROD_PASSWORD
-```
-
-4. **Test with curl:**
-
-```bash
-curl -u admin:$MCP_ARANGO_PROD_PASSWORD http://localhost:8529/_api/version
+echo $ARANGO_ROOT_PASSWORD
 ```
 
 ---
 
-### Error: Permission denied
+### Permission Denied
 
-**Problem:**
-
-```
-Error: [Errno 13] Permission denied: 'config/databases.yaml'
-```
+**Problem:** Cannot write to config file
 
 **Solution:**
 
-Check file permissions and ownership:
+```bash
+# Linux/macOS
+chmod 600 config/databases.yaml
+
+# Windows
+icacls config\databases.yaml /inheritance:r /grant:r "%USERNAME%:F"
+```
+
+---
+
+### User Already Exists
+
+**Problem:** User creation fails because user exists
+
+**Solution:**
+
+Use `--with-user` with `db add` - it handles existing users automatically:
 
 ```bash
-ls -l config/databases.yaml
-chmod 600 config/databases.yaml
+maa db add myapp_prod \
+  --with-user existing_user \
+  --permission rw
 ```
 
 ---
 
 ## Related Documentation
 
-- [Multi-Tenancy Guide](multi-tenancy-guide.md) - Using multiple databases with MCP tools
-- [Tools Reference](tools-reference.md) - MCP tools with database parameter
-- [Configuration Guide](../deployment/configuration.md) - Server configuration options
-- [Security Best Practices](../deployment/security.md) - Security guidelines
+- [Multi-Tenancy Guide](multi-tenancy-guide.md) - Using multiple databases
+- [Tools Reference](tools-reference.md) - MCP tools
+- [Installation Guide](../getting-started/installation.md) - Setup instructions
+- [Troubleshooting](troubleshooting.md) - Common issues
 
 ---
 
 **Next Steps:**
 
-1. Configure your databases using `db add`
-2. Test connections using `db test`
-3. Start the MCP server and use multi-tenancy tools
+1. Set up your databases using `db add` or `db config add`
+2. Test connections using `db config test`
+3. Start the MCP server: `maa server`
 4. Read the [Multi-Tenancy Guide](multi-tenancy-guide.md) for usage patterns
-

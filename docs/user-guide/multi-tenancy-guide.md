@@ -81,7 +81,7 @@ databases:
     password_env: "PROD_ARANGO_PASSWORD"  # ← Different server = different password
 
   staging:
-    url: "http://staging-server:8529"
+    url: "http://staging-server:8530"
     database: "myapp_staging"
     username: "admin"
     password_env: "STAGING_ARANGO_PASSWORD"  # ← Different server = different password
@@ -96,7 +96,6 @@ export STAGING_ARANGO_PASSWORD="staging-admin-password"
 - Passwords are never committed to version control
 - Supports both single-server and multi-server setups
 - Passwords can be rotated without changing YAML files
-- Follows security best practices (12-factor app)
 
 ---
 
@@ -134,7 +133,7 @@ python -m mcp_arangodb_async db add production \
   --password-env PROD_ARANGO_PASSWORD
 
 python -m mcp_arangodb_async db add staging \
-  --url http://staging-server:8529 \
+  --url http://staging-server:8530 \
   --database myapp_staging \
   --username admin \
   --password-env STAGING_ARANGO_PASSWORD
@@ -268,196 +267,9 @@ Use the `arango_get_database_resolution` tool to see the current resolution:
 }
 ```
 
----
+Details about other multi-tenancy tools can be found in the [tools reference](./tools-reference.md#multi-tenancy-tools-6).
 
-## Multi-Tenancy Tools
-
-Six MCP tools for database management and monitoring.
-
-### arango_set_focused_database
-
-Set the focused database for the current session.
-
-**Parameters:**
-
-- `database_key` (string, required) - Database key from configuration
-
-**Example:**
-
-```json
-{
-  "tool": "arango_set_focused_database",
-  "arguments": {
-    "database_key": "staging"
-  }
-}
-```
-
-**Response:**
-
-```json
-{
-  "success": true,
-  "previous_database": "production",
-  "new_database": "staging",
-  "message": "Focused database set to 'staging'"
-}
-```
-
----
-
-### arango_get_focused_database
-
-Get the currently focused database.
-
-**Parameters:** None
-
-**Example:**
-
-```json
-{
-  "tool": "arango_get_focused_database"
-}
-```
-
-**Response:**
-
-```json
-{
-  "focused_database": "staging",
-  "is_set": true
-}
-```
-
----
-
-### arango_list_available_databases
-
-List all configured databases.
-
-**Parameters:** None
-
-**Example:**
-
-```json
-{
-  "tool": "arango_list_available_databases"
-}
-```
-
-**Response:**
-
-```json
-{
-  "databases": [
-    {
-      "key": "production",
-      "url": "http://localhost:8529",
-      "database": "myapp_prod",
-      "username": "admin",
-      "timeout": 60.0,
-      "description": "Production database"
-    },
-    {
-      "key": "staging",
-      "url": "http://staging:8529",
-      "database": "myapp_staging",
-      "username": "admin",
-      "timeout": 30.0,
-      "description": "Staging database"
-    }
-  ],
-  "count": 2,
-  "default_database": "production"
-}
-```
-
----
-
-### arango_get_database_resolution
-
-Show the database resolution algorithm and current state.
-
-**Parameters:** None
-
-**Example:** See [Database Resolution](#database-resolution) section above.
-
-
-
----
-
-## Database Parameter
-
-All 32 data operation tools support an optional `database` parameter for per-tool database override.
-
-### Supported Tools
-
-**Core Data Operations (7):**
-- arango_query
-- arango_list_collections
-- arango_insert
-- arango_update
-- arango_remove
-- arango_create_collection
-- arango_backup
-
-**Indexing & Query Analysis (4):**
-- arango_list_indexes
-- arango_create_index
-- arango_delete_index
-- arango_explain_query
-
-**Validation & Bulk Operations (4):**
-- arango_validate_references
-- arango_insert_with_validation
-- arango_bulk_insert
-- arango_bulk_update
-
-**Graph Operations (12):**
-- arango_create_graph
-- arango_add_edge
-- arango_traverse
-- arango_shortest_path
-- arango_list_graphs
-- arango_add_vertex_collection
-- arango_add_edge_definition
-- arango_backup_graph
-- arango_restore_graph
-- arango_backup_named_graphs
-- arango_validate_graph_integrity
-- arango_graph_statistics
-
-**Schema Management (2):**
-- arango_create_schema
-- arango_validate_document
-
-**Enhanced Query Tools (2):**
-- arango_query_builder
-- arango_query_profile
-
-**Health & Status (1):**
-- arango_database_status
-
-### Usage Example
-
-```json
-// Query staging database (focused database)
-{
-  "tool": "arango_query",
-  "arguments": {
-    "query": "FOR doc IN users RETURN doc"
-  }
-}
-
-// Query production database (override with parameter)
-{
-  "tool": "arango_query",
-  "arguments": {
-    "query": "FOR doc IN users RETURN doc",
-    "database": "production"
-  }
-}
-```
+Regarding, per-tool database override (resolution level 1), **all 32 data operation tools** support an optional `database` parameter for per-tool database override.
 
 ---
 
@@ -646,6 +458,50 @@ Test database connections before starting work:
 
 ---
 
+## Incremental Setup Scenarios
+
+This section provides step-by-step scenarios for setting up multi-tenancy, building from simple to complex configurations. Each scenario includes architecture diagrams, copy-pastable commands, and verification steps.
+
+For detailed tutorials with complete setup instructions, see the [Multi-Tenancy Scenarios](multi-tenancy-scenarios/) directory.
+
+### [Scenario 1: Single Instance, Single Database](multi-tenancy-scenarios/01-single-instance-single-database.md)
+
+**Setup:** 1 user + 1 MCP server + 1 ArangoDB instance (port 8529) + 1 database
+
+**Use Case:** Basic setup for a single project or development environment.
+
+Learn the fundamentals of ArangoDB setup, Admin CLI configuration, and MCP server connection.
+
+### [Scenario 2: Single Instance, Multiple Databases](multi-tenancy-scenarios/02-single-instance-multiple-databases.md)
+
+**Setup:** 1 user + 1 MCP server + 1 ArangoDB instance (port 8529) + 2 databases
+
+**Use Case:** Database separation on the same ArangoDB instance.
+
+**Building on:** Scenario 1 (db1 already exists)
+
+Practice database switching, focused database management, and cross-database operations.
+
+### [Scenario 3: Multiple Instances, Multiple Databases](multi-tenancy-scenarios/03-multiple-instances-multiple-databases.md)
+
+**Setup:** 1 user + 1 MCP server + 2 ArangoDB instances (ports 8529 & 8530) + 3 databases total
+
+**Use Case:** Complete isolation between environments, different ArangoDB versions, or production/non-production separation.
+
+**Building on:** Scenario 2 (db1 and db2 on port 8529)
+
+Scale to multiple ArangoDB instances with Docker Compose and manage separate credentials.
+
+### [Scenario 4: Agent-Based Access Control](multi-tenancy-scenarios/04-agent-based-access-control.md)
+
+**Setup:** 1 MCP server + 1 ArangoDB instance + 2 databases + 2 users with different permissions
+
+**Use Case:** Protect sensitive content while allowing controlled agent access.
+
+Implement fine-grained access control with read-only and read-write permissions for AI agents.
+
+---
+
 ## Troubleshooting
 
 ### Issue: Wrong database being used
@@ -711,7 +567,8 @@ Review the status for database 'xyz' and check:
 
 - [CLI Reference](cli-reference.md) - Database configuration management
 - [Tools Reference](tools-reference.md) - Complete tool documentation
-- [Configuration Guide](../deployment/configuration.md) - Server configuration
+- [Environment Variables](../configuration/environment-variables.md) - Server configuration
+- [Transport Configuration](../configuration/transport-configuration.md) - Transport setup
 
 ---
 

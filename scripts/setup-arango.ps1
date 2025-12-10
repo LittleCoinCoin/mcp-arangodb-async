@@ -1,3 +1,20 @@
+<#
+.SYNOPSIS
+    [DEPRECATED] ArangoDB setup script - Use Admin CLI instead
+
+.DESCRIPTION
+    This PowerShell script is deprecated and will be removed in a future release.
+    Please use the cross-platform Admin CLI instead:
+    
+    maa db add <name> --url <url> --database <db> --username <user> --password-env <env>
+    maa user add <username> --arango-password-env <env>
+    maa user grant <username> <database> --permission rw
+
+.NOTES
+    This script still works but is no longer recommended.
+    Migration guide: https://github.com/PCfVW/mcp-arango-async/blob/master/docs/getting-started/powershell-migration.md
+#>
+
 param(
     [string]$RootPassword = "changeme",
     [string]$DbName = "mcp_arangodb_test",

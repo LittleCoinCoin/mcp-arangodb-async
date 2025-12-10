@@ -118,10 +118,12 @@ curl -u root:changeme http://localhost:8529/_api/version
 # Login and check user permissions in Users section
 ```
 
-**3. Re-run setup script:**
+**3. Use Admin CLI to recreate database:**
 ```powershell
-pwsh -File .\scripts\setup-arango.ps1 -RootPassword "changeme"
+maa db add mcp_arangodb_test --url http://localhost:8529 --database mcp_arangodb_test --username root --password-env ARANGO_ROOT_PASSWORD
 ```
+
+**Note:** The PowerShell setup script has been replaced by the Admin CLI. See [PowerShell Migration Guide](../getting-started/powershell-migration.md) for details.
 
 **4. Verify environment variables match:**
 ```powershell
@@ -160,9 +162,11 @@ curl -u root:changeme http://localhost:8529/_api/database
 **2. Create database manually:**
 ```powershell
 # Via web UI: http://localhost:8529
-# Or via setup script:
-pwsh -File .\scripts\setup-arango.ps1
+# Or via Admin CLI:
+maa db add mcp_arangodb_test --url http://localhost:8529 --database mcp_arangodb_test --username root --password-env ARANGO_ROOT_PASSWORD
 ```
+
+**Note:** See [PowerShell Migration Guide](../getting-started/powershell-migration.md) for migrating from the legacy PowerShell script.
 
 **3. Verify ARANGO_DB environment variable:**
 ```bash
@@ -624,9 +628,11 @@ ArangoError: [HTTP 403][ERR 11] insufficient permissions
 
 **2. Grant permissions:**
 ```powershell
-# Re-run setup script with correct permissions
-pwsh -File .\scripts\setup-arango.ps1
+# Use Admin CLI to grant permissions
+maa user grant mcp_arangodb_user mcp_arangodb_test --permission rw
 ```
+
+**Note:** The PowerShell setup script has been replaced by the Admin CLI. See [PowerShell Migration Guide](../getting-started/powershell-migration.md) for details.
 
 **3. Use admin user (development only):**
 ```bash

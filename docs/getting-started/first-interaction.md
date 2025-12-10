@@ -412,8 +412,8 @@ Create a hash index on the 'name' field of the 'tests' collection to improve que
 
 **Explore More:**
 - [Tools Reference](../user-guide/tools-reference.md) - Complete documentation for all 34 tools
-- [Graph Operations Guide](../user-guide/graph-operations.md) - Advanced graph modeling patterns
-- [Codebase Analysis Example](../examples/codebase-analysis.md) - Comprehensive real-world example
+- [Codebase Analysis Example](../examples/codebase-analysis.md) - Comprehensive real-world example with advanced graph modeling patterns
+- [MCP Design Patterns Guide](../user-guide/mcp-design-patterns.md) - Progressive tool discovery and context switching
 
 ---
 

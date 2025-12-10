@@ -184,42 +184,80 @@ The Docker image supports 4 deployment modes via docker-compose profiles:
 
 ---
 
-### Step 3: Start ArangoDB Container
+### Step 3: Set Up ArangoDB with Docker
 
-#### 3.1 Review docker-compose.yml
+#### 3.1 Create docker-compose.yml
 
-The project includes a pre-configured `docker-compose.yml`:
+Create a `docker-compose.yml` file in your project directory with the following content:
 
 ```yaml
 services:
   arangodb:
     image: arangodb:3.11
-    container_name: mcp_arangodb_test
     environment:
       ARANGO_ROOT_PASSWORD: ${ARANGO_ROOT_PASSWORD:-changeme}
     ports:
       - "8529:8529"
+    volumes:
+      - arangodb_data:/var/lib/arangodb3
+      - arangodb_apps:/var/lib/arangodb3-apps
     healthcheck:
       test: arangosh --server.username root --server.password "$ARANGO_ROOT_PASSWORD" --javascript.execute-string "require('@arangodb').db._version()" > /dev/null 2>&1 || exit 1
       interval: 5s
       timeout: 2s
       retries: 30
     restart: unless-stopped
-    volumes:
-      - arango_data:/var/lib/arangodb3
 
 volumes:
-  arango_data:
+  arangodb_data:
+    driver: local
+  arangodb_apps:
+    driver: local
 ```
 
 **Key Configuration:**
 - **Image:** `arangodb:3.11` (Apache 2.0 licensed)
 - **Port:** 8529 (ArangoDB default)
 - **Root Password:** `changeme` (override with environment variable)
-- **Persistent Data:** `arango_data` volume preserves data across restarts
+- **Persistent Data:** `arangodb_data` volume preserves data across restarts
 - **Health Check:** Ensures database is ready before accepting connections
 
-#### 3.2 Start Container
+**Note:** The project repository includes a more comprehensive `docker-compose.yml` with additional profiles for stdio and HTTP transports. The template above provides a minimal setup for getting started.
+
+#### 3.2 Create .env File
+
+Create a `.env` file in the same directory:
+
+```bash
+# ArangoDB root password
+ARANGO_ROOT_PASSWORD=changeme
+
+# MCP Server connection settings
+ARANGO_URL=http://localhost:8529
+ARANGO_DB=mcp_arangodb_test
+ARANGO_USERNAME=mcp_arangodb_user
+ARANGO_PASSWORD=mcp_arangodb_password
+
+# Optional: Tuning parameters
+ARANGO_TIMEOUT_SEC=30.0
+LOG_LEVEL=INFO
+```
+
+**Configuration Explained:**
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `ARANGO_ROOT_PASSWORD` | Root password for ArangoDB | `changeme` |
+| `ARANGO_URL` | Database connection endpoint | `http://localhost:8529` |
+| `ARANGO_DB` | Target database name | `mcp_arangodb_test` |
+| `ARANGO_USERNAME` | Authentication username | `mcp_arangodb_user` |
+| `ARANGO_PASSWORD` | Authentication password | `mcp_arangodb_password` |
+| `ARANGO_TIMEOUT_SEC` | Connection timeout | `30.0` |
+| `LOG_LEVEL` | Logging verbosity | `INFO` |
+
+⚠️ **Security Note:** Never commit `.env` files to version control. The `.gitignore` file should already exclude them.
+
+#### 3.3 Start ArangoDB Container
 
 ```powershell
 docker compose up -d
@@ -228,11 +266,11 @@ docker compose up -d
 **Expected Output:**
 ```
 [+] Running 2/2
- ✔ Volume "mcp-arangodb-async_arango_data"  Created
- ✔ Container mcp_arangodb_test              Started
+ ✔ Volume "arangodb_data"  Created
+ ✔ Container arangodb-1    Started
 ```
 
-#### 3.3 Verify Container Health
+#### 3.4 Verify Container Health
 
 ```powershell
 docker compose ps
@@ -240,8 +278,8 @@ docker compose ps
 
 **Expected Output:**
 ```
-NAME                 STATUS              PORTS
-mcp_arangodb_test    Up (healthy)        0.0.0.0:8529->8529/tcp
+NAME           STATUS              PORTS
+arangodb-1     Up (healthy)        0.0.0.0:8529->8529/tcp
 ```
 
 ⚠️ **Wait for "healthy" status** (usually 10-15 seconds).
@@ -251,38 +289,47 @@ mcp_arangodb_test    Up (healthy)        0.0.0.0:8529->8529/tcp
 docker compose logs arangodb
 ```
 
+**Verify ArangoDB is accessible:**
+```powershell
+curl http://localhost:8529/_api/version
+```
+
+**Expected:** JSON response with ArangoDB version information.
+
 ---
 
 ### Step 4: Initialize Database
 
-#### 4.1 Run Setup Script
+#### 4.1 Use Admin CLI
 
 ```powershell
-scripts\setup-arango.ps1 -RootPassword "changeme" -DbName "mcp_arangodb_test" -User "mcp_arangodb_user" -Password "mcp_arangodb_password" -Seed
+# Create database with user in one atomic operation
+maa db add mcp_arangodb_test --url http://localhost:8529 --database mcp_arangodb_test --username root --password-env ARANGO_ROOT_PASSWORD --with-user mcp_arangodb_user --arango-password-env MCP_USER_PASSWORD
 ```
 
-**Parameters:**
-- `-RootPassword` - ArangoDB root password (must match docker-compose.yml)
-- `-DbName` - Database name to create
-- `-User` - Application user to create
-- `-Password` - Application user password
-- `-Seed` - (Optional) Insert sample data for testing
+**Environment Variables:**
+Set these before running the command:
+```powershell
+$env:ARANGO_ROOT_PASSWORD = "changeme"
+$env:MCP_USER_PASSWORD = "mcp_arangodb_password"
+```
 
 **What This Does:**
 1. Connects to ArangoDB as root
 2. Creates database `mcp_arangodb_test`
-3. Creates user `mcp_arangodb_user` with read/write permissions
-4. Grants access to the database
-5. (Optional) Seeds sample collections and data
+3. Creates user `mcp_arangodb_user` with specified password
+4. Grants read/write permissions to the database
+5. Adds database configuration to `config/databases.yaml`
 
 **Expected Output:**
 ```
-✓ Connected to ArangoDB
-✓ Created database: mcp_arangodb_test
-✓ Created user: mcp_arangodb_user
-✓ Granted permissions
-✓ Seeded sample data (3 collections, 50 documents)
+✓ Database 'mcp_arangodb_test' created successfully
+✓ User 'mcp_arangodb_user' created successfully
+✓ Granted rw permission to 'mcp_arangodb_user' on 'mcp_arangodb_test'
+✓ Added database configuration to config/databases.yaml
 ```
+
+**Note:** The PowerShell setup script has been replaced by the Admin CLI. See [PowerShell Migration Guide](./powershell-migration.md) for details.
 
 #### 4.2 Verify Database Creation
 
@@ -301,47 +348,32 @@ curl -u root:changeme http://localhost:8529/_api/database
 
 ---
 
-### Step 5: Configure Environment
+### Step 5: Verify Environment Configuration
 
-#### 5.1 Create .env File
-
-```powershell
-Copy-Item env.example .env
-notepad .env
-```
-
-#### 5.2 Edit Configuration
+The `.env` file created in Step 3.2 contains all necessary configuration for the MCP server. If you need to customize additional settings, you can add:
 
 ```dotenv
-# ArangoDB Connection
-ARANGO_URL=http://localhost:8529
-ARANGO_DB=mcp_arangodb_test
-ARANGO_USERNAME=mcp_arangodb_user
-ARANGO_PASSWORD=mcp_arangodb_password
-ARANGO_TIMEOUT_SEC=30.0
-
-# MCP Transport
+# MCP Transport (optional)
 MCP_TRANSPORT=stdio
 
-# Toolset Configuration
+# Toolset Configuration (optional)
 MCP_COMPAT_TOOLSET=full
 
-# Logging (Optional)
-LOG_LEVEL=INFO
+# Connection Tuning (optional)
+ARANGO_CONNECT_RETRIES=10
+ARANGO_CONNECT_DELAY_SEC=1.0
 ```
 
-**Configuration Explained:**
+**Additional Configuration Options:**
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `ARANGO_URL` | Database connection endpoint | `http://localhost:8529` |
-| `ARANGO_DB` | Target database name | `mcp_arangodb_test` |
-| `ARANGO_USERNAME` | Authentication username | `mcp_arangodb_user` |
-| `ARANGO_PASSWORD` | Authentication password | (required) |
-| `ARANGO_TIMEOUT_SEC` | Connection timeout | `30.0` |
 | `MCP_TRANSPORT` | Transport type (stdio or http) | `stdio` |
 | `MCP_COMPAT_TOOLSET` | Tool availability (baseline or full) | `full` |
-| `LOG_LEVEL` | Logging verbosity | `INFO` |
+| `ARANGO_CONNECT_RETRIES` | Connection retry attempts | `10` |
+| `ARANGO_CONNECT_DELAY_SEC` | Delay between retries | `1.0` |
+
+**Note:** The basic `.env` file from Step 3.2 is sufficient for most use cases. These additional options are for advanced configurations.
 
 ---
 
@@ -403,13 +435,15 @@ Press `Ctrl+C` to stop the server.
 
 ### Setup Script Fails
 
-**Symptom:** `setup-arango.ps1` reports error
+**Symptom:** Admin CLI commands report errors
 
 **Solutions:**
 1. Verify root password matches docker-compose.yml
 2. Check container is running and healthy
-3. Ensure PowerShell execution policy allows scripts: `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass`
-4. Run script with verbose output: `scripts\setup-arango.ps1 -Verbose`
+3. Test connection: `maa db test`
+4. Use `--dry-run` flag to preview operations: `maa db add mydb --dry-run`
+
+**Note:** The PowerShell setup script has been replaced by the Admin CLI. See [CLI Reference](../user-guide/cli-reference.md) and [PowerShell Migration Guide](./powershell-migration.md).
 
 ---
 
