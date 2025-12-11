@@ -130,7 +130,7 @@ maa db config test db1
 
 ### Test 2: List available databases via MCP
 
-Start the MCP server and use the multi-tenancy request using the tool `arango_list_available_databases`.
+With the MCP server configured in your preferred MCP Host (e.g. Claude Desktop, LM Studio, etc.) and use the multi-tenancy request using the tool `arango_list_available_databases`.
 This will confirm that the MCP server has loaded the expected config file.
 
 **Example prompt:**

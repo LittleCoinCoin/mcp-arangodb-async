@@ -81,7 +81,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Multi-Tenancy Tool Consolidation:**
   - Merged `arango_test_database_connection` and `arango_get_multi_database_status` into single `arango_database_status` tool
   - New tool provides comprehensive status with summary counts and focused database indicator
-  - Reduced tool count from 49 to 48 tools
+  - Total tool count: 46 tools (4 multi-tenancy + 7 core + 4 indexing + 4 validation + 2 schema + 2 query + 7 graph basic + 5 graph advanced + 2 aliases + 1 health + 8 MCP patterns)
   - Improved output format with clear summary section
 
 ### Changed

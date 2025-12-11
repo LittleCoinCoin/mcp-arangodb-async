@@ -3,7 +3,7 @@
 Complete guide to using multiple ArangoDB databases with the mcp-arangodb-async server.
 
 **Audience:** End Users and Developers  
-**Prerequisites:** Server installed, databases configured via CLI  
+**Prerequisites:** MCP server running, databases added in the ArangoDB server  
 **Estimated Time:** 20-30 minutes
 
 ---
@@ -103,21 +103,21 @@ export STAGING_ARANGO_PASSWORD="staging-admin-password"
 
 ### Step 1: Configure Databases
 
-Use the CLI tool to add database configurations. The `--password-env` parameter specifies the **name** of an environment variable that contains the password for that user.
+Use the CLI tool to add database configurations to the YAML file. The `--password-env` parameter specifies the **name** of an environment variable that contains the password for that user.
 
 **Same server, same user (typical local development):**
 
 ```bash
 # Both databases on same server, same user = same password env var
-python -m mcp_arangodb_async db add production \
+maa db config add db1 \
   --url http://localhost:8529 \
-  --database myapp_prod \
+  --database db1 \
   --username admin \
   --password-env ARANGO_PASSWORD
 
-python -m mcp_arangodb_async db add staging \
+maa db config add db2 \
   --url http://localhost:8529 \
-  --database myapp_staging \
+  --database db2 \
   --username admin \
   --password-env ARANGO_PASSWORD  # Same user = same password
 ```
@@ -126,17 +126,17 @@ python -m mcp_arangodb_async db add staging \
 
 ```bash
 # Different servers have separate users/passwords
-python -m mcp_arangodb_async db add production \
-  --url http://prod-server:8529 \
-  --database myapp_prod \
+maa db config add db1 \
+  --url http://server1:8529 \
+  --database db1 \
   --username admin \
-  --password-env PROD_ARANGO_PASSWORD
+  --password-env DB1_ARANGO_PASSWORD
 
-python -m mcp_arangodb_async db add staging \
-  --url http://staging-server:8530 \
-  --database myapp_staging \
+maa db config add db2 \
+  --url http://server2:8530 \
+  --database db2 \
   --username admin \
-  --password-env STAGING_ARANGO_PASSWORD
+  --password-env DB2_ARANGO_PASSWORD
 ```
 
 ### Step 2: Set Environment Variables
@@ -157,44 +157,30 @@ export STAGING_ARANGO_PASSWORD="staging-admin-password"
 ### Step 3: Start MCP Server
 
 ```bash
-python -m mcp_arangodb_async server
+maa server
 ```
 
 **Important:** The server reads the configuration file at startup. If you add or remove databases, you must restart the server for changes to take effect.
 
-### Step 3: Use Multi-Tenancy Tools
+### Step 4: Use Multi-Tenancy Tools
 
-```json
-// List available databases
-{
-  "tool": "arango_list_available_databases"
-}
-
-// Set focused database
-{
-  "tool": "arango_set_focused_database",
-  "arguments": {
-    "database_key": "staging"
-  }
-}
-
-// Query the focused database
-{
-  "tool": "arango_query",
-  "arguments": {
-    "query": "FOR doc IN users RETURN doc"
-  }
-}
-
-// Override with database parameter
-{
-  "tool": "arango_query",
-  "arguments": {
-    "query": "FOR doc IN users RETURN doc",
-    "database": "production"
-  }
-}
+**Example prompt:**
+```markdown
+List all available databases, then set the focused database to db1.
 ```
+
+**Expected behavior:**
+- MCP server calls `arango_list_available_databases` to show configured databases
+- MCP server calls `arango_set_focused_database` with database="db1"
+
+**Example prompt (with database override):**
+```markdown
+Query a collection from db2 directly, without changing the focused database.
+```
+
+**Expected behavior:**
+- MCP server calls `arango_query` with database="db2" parameter override
+- Focused database remains unchanged
 
 ---
 
@@ -216,15 +202,15 @@ The server uses a **6-level resolution algorithm** to determine which database t
 **Configuration:**
 
 ```yaml
-default_database: "production"
+default_database: "db1"
 databases:
-  production:
+  db1:
     url: "http://localhost:8529"
-    database: "myapp_prod"
+    database: "db1"
     ...
-  staging:
-    url: "http://staging:8529"
-    database: "myapp_staging"
+  db2:
+    url: "http://localhost:8529"
+    database: "db2"
     ...
 ```
 
@@ -232,40 +218,19 @@ databases:
 
 | Tool Call | Focused DB | Result | Reason |
 |-----------|------------|--------|--------|
-| `arango_query(query="...")` | None | `production` | Config default |
-| `arango_query(query="...")` | `staging` | `staging` | Focused database |
-| `arango_query(query="...", database="production")` | `staging` | `production` | Tool argument (highest priority) |
+| `arango_query(query="...")` | None | `db1` | Config default |
+| `arango_query(query="...")` | `db2` | `db2` | Focused database |
+| `arango_query(query="...", database="db1")` | `db2` | `db1` | Tool argument (highest priority) |
 
 ### View Resolution Status
 
-Use the `arango_get_database_resolution` tool to see the current resolution:
-
-```json
-{
-  "tool": "arango_get_database_resolution"
-}
+**Example prompt:**
+```markdown
+Show me the current database resolution status.
 ```
 
-**Response:**
-
-```json
-{
-  "focused_database": "staging",
-  "config_default": "production",
-  "env_default": null,
-  "first_configured": "production",
-  "fallback": "_system",
-  "resolution_order": [
-    "1. Tool argument (database parameter)",
-    "2. Focused database (session state): staging",
-    "3. Config default (from YAML): production",
-    "4. Environment variable (MCP_DEFAULT_DATABASE): Not set",
-    "5. First configured database: production",
-    "6. Fallback to '_system'"
-  ],
-  "current_database": "staging"
-}
-```
+**Expected behavior:**
+- MCP server calls `arango_get_database_resolution` to display the resolution algorithm state
 
 Details about other multi-tenancy tools can be found in the [tools reference](./tools-reference.md#multi-tenancy-tools-6).
 
@@ -275,100 +240,48 @@ Regarding, per-tool database override (resolution level 1), **all 32 data operat
 
 ## Usage Patterns
 
-### Pattern 1: Environment Switching
+### Pattern 1: Database Switching
 
-Switch between environments during development:
-
-```json
-// Start with staging
-{
-  "tool": "arango_set_focused_database",
-  "arguments": {"database_key": "staging"}
-}
-
-// Test query on staging
-{
-  "tool": "arango_query",
-  "arguments": {"query": "FOR doc IN users LIMIT 10 RETURN doc"}
-}
-
-// Switch to production
-{
-  "tool": "arango_set_focused_database",
-  "arguments": {"database_key": "production"}
-}
-
-// Run same query on production
-{
-  "tool": "arango_query",
-  "arguments": {"query": "FOR doc IN users LIMIT 10 RETURN doc"}
-}
+**Example prompt:**
+```markdown
+Set the focused database to db1, run a query, then switch to db2 and run the same query.
 ```
+
+**Expected behavior:**
+- MCP server sets focused database to db1
+- Queries db1
+- Switches focused database to db2
+- Queries db2 with same query
 
 ---
 
 ### Pattern 2: Cross-Database Comparison
 
-Compare data across databases without switching:
-
-```json
-// Get staging count
-{
-  "tool": "arango_query",
-  "arguments": {
-    "query": "RETURN LENGTH(users)",
-    "database": "staging"
-  }
-}
-
-// Get production count
-{
-  "tool": "arango_query",
-  "arguments": {
-    "query": "RETURN LENGTH(users)",
-    "database": "production"
-  }
-}
+**Example prompt:**
+```markdown
+Compare data across db1 and db2 without changing the focused database.
 ```
+
+**Expected behavior:**
+- MCP server queries db1 with database parameter override
+- MCP server queries db2 with database parameter override
+- Focused database remains unchanged
 
 ---
 
 ### Pattern 3: Safe Testing Workflow
 
-Test queries on staging before running on production:
-
-```json
-// 1. Set focused database to staging
-{
-  "tool": "arango_set_focused_database",
-  "arguments": {"database_key": "staging"}
-}
-
-// 2. Test query on staging
-{
-  "tool": "arango_query",
-  "arguments": {
-    "query": "FOR doc IN users FILTER doc.age > 18 UPDATE doc WITH {verified: true} IN users"
-  }
-}
-
-// 3. Verify results on staging
-{
-  "tool": "arango_query",
-  "arguments": {
-    "query": "FOR doc IN users FILTER doc.verified == true RETURN COUNT(doc)"
-  }
-}
-
-// 4. If successful, run on production with override
-{
-  "tool": "arango_query",
-  "arguments": {
-    "query": "FOR doc IN users FILTER doc.age > 18 UPDATE doc WITH {verified: true} IN users",
-    "database": "production"
-  }
-}
+**Example prompt:**
+```markdown
+Set focused database to db1, run an update query, verify the results,
+then run the same update on db2 using database parameter override.
 ```
+
+**Expected behavior:**
+- MCP server sets focused database to db1
+- Runs UPDATE query on db1
+- Verifies results on db1
+- Runs same UPDATE query on db2 using database parameter override
 
 ---
 
@@ -376,85 +289,54 @@ Test queries on staging before running on production:
 
 ### 1. Use Focused Database for Workflows
 
-Set focused database at the start of a workflow to avoid repeating database parameter:
-
-```json
-// Good: Set once, use many times
-{
-  "tool": "arango_set_focused_database",
-  "arguments": {"database_key": "staging"}
-}
-// All subsequent tools use staging automatically
-
-// Avoid: Repeating database parameter
-{
-  "tool": "arango_query",
-  "arguments": {"query": "...", "database": "staging"}
-}
-{
-  "tool": "arango_insert",
-  "arguments": {"collection": "...", "document": {...}, "database": "staging"}
-}
+**Good Practice:**
+```markdown
+Set the focused database to db1, then perform multiple operations.
 ```
+
+This sets the database once and all subsequent operations use it automatically.
+
+**Avoid:**
+```markdown
+Query from db1, then insert into db1, then update in db1.
+```
+
+This requires the agent to specify the database parameter for each operation, which is verbose and error-prone.
 
 ### 2. Use Database Parameter for One-Off Overrides
 
-Use database parameter for occasional cross-database operations:
-
-```json
-// Focused database is staging
-{
-  "tool": "arango_set_focused_database",
-  "arguments": {"database_key": "staging"}
-}
-
-// Most operations use staging
-{
-  "tool": "arango_query",
-  "arguments": {"query": "FOR doc IN users RETURN doc"}
-}
-
-// One-off production query
-{
-  "tool": "arango_query",
-  "arguments": {
-    "query": "FOR doc IN users RETURN COUNT(doc)",
-    "database": "production"
-  }
-}
+**Example prompt:**
+```markdown
+Set focused database to db1, perform operations on db1,
+then get data from db2 without changing the focused database.
 ```
+
+**Expected behavior:**
+- Most operations use the focused database (db1)
+- One-off db2 query uses database parameter override
+- Focused database remains db1
 
 ### 3. Verify Resolution Before Critical Operations
 
-Always check database resolution before destructive operations:
-
-```json
-// Check current database
-{
-  "tool": "arango_get_database_resolution"
-}
-
-// Verify it's the intended database
-// Then proceed with operation
-{
-  "tool": "arango_remove",
-  "arguments": {
-    "collection": "users",
-    "key": "123"
-  }
-}
+**Example prompt:**
+```markdown
+Show me the current database resolution, then delete a document from a collection.
 ```
+
+**Expected behavior:**
+- MCP server calls `arango_get_database_resolution` to show current database
+- User verifies it's the intended database
+- MCP server calls `arango_remove` to delete the document
 
 ### 4. Test Connections Before Use
 
-Test database connections before starting work:
-
-```json
-// Check status of all databases
-{
-  "tool": "arango_database_status"
-}
+**Example prompt:**
+```markdown
+Check the connection status of all configured databases.
 ```
+
+**Expected behavior:**
+- MCP server calls `arango_database_status` to test all database connections
 
 ---
 
@@ -527,18 +409,17 @@ Review the resolution order and verify:
 
 **Symptom:** Error "Database 'xyz' not found in configuration"
 
-**Solution:** List available databases:
+**Solution:**
 
-```json
-{
-  "tool": "arango_list_available_databases"
-}
+**Prompt:**
+```markdown
+List all available databases.
 ```
 
-Verify the database key exists. If not, add it via CLI:
+Verify the database key exists in the response. If not, add it via CLI:
 
 ```bash
-python -m mcp_arangodb_async db add xyz ...
+maa db config add xyz --url <url> --database <db> --username <user> --password-env <ENV_VAR>
 ```
 
 ---
@@ -547,12 +428,11 @@ python -m mcp_arangodb_async db add xyz ...
 
 **Symptom:** Error "Failed to connect to database 'xyz'"
 
-**Solution:** Check database status:
+**Solution:**
 
-```json
-{
-  "tool": "arango_database_status"
-}
+**Prompt:**
+```markdown
+Check the connection status of all databases.
 ```
 
 Review the status for database 'xyz' and check:

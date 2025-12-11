@@ -33,7 +33,7 @@ A production-ready Model Context Protocol (MCP) server exposing advanced ArangoD
 
 ## Features
 
-✅ **49 MCP Tools** - Complete ArangoDB operations (queries, collections, indexes, graphs)
+✅ **46 MCP Tools** - Complete ArangoDB operations (queries, collections, indexes, graphs)
 ✅ **Multi-Tenancy** - Work with multiple databases, environment switching, cross-database operations
 ✅ **MCP Design Patterns** - Progressive discovery, context switching, tool unloading (98.7% token savings)
 ✅ **Graph Management** - Create, traverse, backup/restore named graphs
@@ -53,7 +53,7 @@ A production-ready Model Context Protocol (MCP) server exposing advanced ArangoD
 ┌────────────────────┐      ┌─────────────────────┐       ┌──────────────────┐
 │   MCP Client       │      │  ArangoDB MCP       │       │   ArangoDB       │
 │ (Claude, Augment)  │─────▶│  Server (Python)    │─────▶│  (Docker)        │
-│                    │      │  • 49 Tools         │       │  • Multi-Model   │
+│                    │      │  • 46 Tools         │       │  • Multi-Model   │
 │                    │      │  • Multi-Tenancy    │       │  • Graph Engine  │
 │                    │      │  • Graph Mgmt       │       │  • AQL Engine    │
 │                    │      │  • MCP Patterns     │       │                  │
@@ -416,14 +416,13 @@ This might involve a UI action or running a command in your MCP host of choice.
 
 ## Available Tools
 
-The server exposes **49 MCP tools** organized into 11 categories:
+The server exposes **46 MCP tools** organized into 11 categories:
 
-### Multi-Tenancy Tools (6 tools)
+### Multi-Tenancy Tools (4 tools)
 - `arango_set_focused_database` - Set focused database for session
 - `arango_get_focused_database` - Get currently focused database
 - `arango_list_available_databases` - List all configured databases
 - `arango_get_database_resolution` - Show database resolution algorithm
-- `arango_database_status` - Get comprehensive status of all databases
 
 ### Core Data Operations (7 tools)
 - `arango_query` - Execute AQL queries
@@ -467,17 +466,21 @@ The server exposes **49 MCP tools** organized into 11 categories:
 - `arango_traverse` - Graph traversal
 - `arango_shortest_path` - Find shortest paths
 
-### Graph Backup/Restore (4 tools)
+### Graph Backup/Restore (5 tools)
 - `arango_backup_graph` - Backup single graph
 - `arango_restore_graph` - Restore single graph
 - `arango_backup_named_graphs` - Backup all named graphs
 - `arango_validate_graph_integrity` - Validate graph integrity
-
-### Analytics (2 tools)
 - `arango_graph_statistics` - Graph statistics
-- `arango_database_status` - Database status
 
-### MCP Design Pattern Tools (9 tools)
+### Health & Status (1 tool)
+- `arango_database_status` - Get comprehensive status of all databases
+
+### Tool Aliases (2 tools)
+- `arango_graph_traversal` - Alias for arango_traverse
+- `arango_add_vertex` - Alias for arango_insert
+
+### MCP Design Pattern Tools (8 tools)
 - `arango_search_tools` - Search for tools by keywords
 - `arango_list_tools_by_category` - List tools by category
 - `arango_switch_workflow` - Switch workflow context
@@ -486,7 +489,6 @@ The server exposes **49 MCP tools** organized into 11 categories:
 - `arango_advance_workflow_stage` - Advance workflow stage
 - `arango_get_tool_usage_stats` - Get tool usage statistics
 - `arango_unload_tools` - Unload specific tools
-- `arango_graph_traversal` - Alias for arango_traverse
 
 📖 **Complete tools reference:** [https://github.com/PCfVW/mcp-arango-async/blob/master/docs/user-guide/tools-reference.md](https://github.com/PCfVW/mcp-arango-async/blob/master/docs/user-guide/tools-reference.md)
 
