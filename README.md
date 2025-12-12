@@ -13,9 +13,9 @@ A production-ready Model Context Protocol (MCP) server exposing advanced ArangoD
 
 📚 **Documentation:** [https://github.com/PCfVW/mcp-arango-async/tree/master/docs](https://github.com/PCfVW/mcp-arango-async/tree/master/docs)
 
-🚀 **Quick Start:** [https://github.com/PCfVW/mcp-arango-async/blob/master/docs/getting-started/quickstart-stdio.md](https://github.com/PCfVW/mcp-arango-async/blob/master/docs/getting-started/quickstart-stdio.md)
+🚀 **Quick Start:** [https://github.com/PCfVW/mcp-arango-async/blob/master/docs/getting-started/quickstart.md](https://github.com/PCfVW/mcp-arango-async/blob/master/docs/getting-started/quickstart.md)
 
-🔧 **Installation:** [https://github.com/PCfVW/mcp-arango-async/blob/master/docs/getting-started/installation.md](https://github.com/PCfVW/mcp-arango-async/blob/master/docs/getting-started/installation.md)
+🔧 **ArangoDB Setup:** [https://github.com/PCfVW/mcp-arango-async/blob/master/docs/getting-started/install-arangodb.md](https://github.com/PCfVW/mcp-arango-async/blob/master/docs/getting-started/install-arangodb.md)
 
 🗄️ **Multi-Tenancy Guide:** [https://github.com/PCfVW/mcp-arango-async/blob/master/docs/user-guide/multi-tenancy-guide.md](https://github.com/PCfVW/mcp-arango-async/blob/master/docs/user-guide/multi-tenancy-guide.md)
 
@@ -114,7 +114,7 @@ ARANGO_PASSWORD=mcp_arangodb_password
 Start ArangoDB:
 
 ```bash
-docker compose up -d
+docker compose --env-file .env up -d
 ```
 
 ### Step 2: Install mcp-arangodb-async
@@ -193,226 +193,6 @@ maa health
 ```json
 {"status": "healthy", "database_connected": true, "database_info": {"version": "3.11.x", "name": "mcp_arangodb_test"}}
 ```
-
-### Next Steps
-
-- [Multi-Tenancy Setup Guide](https://github.com/PCfVW/mcp-arango-async/blob/master/docs/user-guide/multi-tenancy-guide.md)
-- [CLI Reference](https://github.com/PCfVW/mcp-arango-async/blob/master/docs/user-guide/cli-reference.md)
-- [Complete Installation Guide](https://github.com/PCfVW/mcp-arango-async/blob/master/docs/getting-started/installation.md)
-
----
-
-## Quick Start
-
-### stdio Transport (Desktop Clients)
-
-**1. Configure Claude Desktop**
-
-Edit `%APPDATA%\Claude\claude_desktop_config.json` (Windows) or `~/.config/Claude/claude_desktop_config.json` (macOS/Linux):
-
-```json
-{
-  "mcpServers": {
-    "arangodb": {
-      "command": "maa",
-      "args": ["server"],
-      "env": {
-        "ARANGO_URL": "http://localhost:8529",
-        "ARANGO_DB": "mcp_arangodb_test",
-        "ARANGO_USERNAME": "mcp_arangodb_user",
-        "ARANGO_PASSWORD": "mcp_arangodb_password"
-      }
-    }
-  }
-}
-```
-
-**2. Restart Claude Desktop**
-
-**3. Test the connection:**
-
-Ask Claude: *"List all collections in the ArangoDB database"*
-
-📖 **Full stdio quickstart:** [https://github.com/PCfVW/mcp-arango-async/blob/master/docs/getting-started/quickstart-stdio.md](https://github.com/PCfVW/mcp-arango-async/blob/master/docs/getting-started/quickstart-stdio.md)
-
----
-
-### Docker Container (Alternative)
-
-**1. Build the Docker image:**
-
-```bash
-docker build -t mcp-arangodb-async:latest .
-```
-
-**2. Configure Claude Desktop:**
-
-Edit `%APPDATA%\Claude\claude_desktop_config.json` (Windows) or `~/.config/Claude/claude_desktop_config.json` (macOS/Linux):
-
-```json
-{
-  "mcpServers": {
-    "arangodb": {
-      "command": "docker",
-      "args": ["run", "-i", "--rm", "mcp-arangodb-async:latest"],
-      "env": {
-        "ARANGO_URL": "http://host.docker.internal:8529",
-        "ARANGO_DB": "mcp_arangodb_test",
-        "ARANGO_USERNAME": "mcp_arangodb_user",
-        "ARANGO_PASSWORD": "mcp_arangodb_password"
-      }
-    }
-  }
-}
-```
-
-**3. Restart Claude Desktop**
-
-📖 **Transport configuration guide:** [https://github.com/PCfVW/mcp-arango-async/blob/master/docs/configuration/transport-configuration.md](https://github.com/PCfVW/mcp-arango-async/blob/master/docs/configuration/transport-configuration.md)
-
----
-
-### HTTP Transport (Web/Containerized)
-
-**1. Start HTTP server:**
-
-```bash
-maa server transport http --host 0.0.0.0 --port 8000
-```
-
-**2. Test health endpoint:**
-
-```powershell
-curl http://localhost:8000/health
-```
-
-**3. Connect from web client:**
-
-```javascript
-import { MCPClient } from '@modelcontextprotocol/sdk';
-
-const client = new MCPClient({
-  transport: 'http',
-  url: 'http://localhost:8000/mcp'
-});
-
-await client.connect();
-const tools = await client.listTools();
-```
-
-📖 **HTTP transport guide:** [https://github.com/PCfVW/mcp-arango-async/blob/master/docs/developer-guide/http-transport.md](https://github.com/PCfVW/mcp-arango-async/blob/master/docs/developer-guide/http-transport.md)
-
----
-
-## Configuration
-
-### Environment Variables
-
-**Required:**
-```bash
-ARANGO_URL=http://localhost:8529
-ARANGO_DB=mcp_arangodb_test
-ARANGO_USERNAME=root
-ARANGO_PASSWORD=changeme
-```
-
-**Optional:**
-```bash
-# Transport configuration
-MCP_TRANSPORT=stdio                    # stdio or http
-MCP_HTTP_HOST=0.0.0.0                  # HTTP bind address
-MCP_HTTP_PORT=8000                     # HTTP port
-MCP_HTTP_STATELESS=false               # Stateless mode
-
-# Connection tuning
-ARANGO_TIMEOUT_SEC=30.0                # Request timeout
-ARANGO_CONNECT_RETRIES=3               # Connection retries
-ARANGO_CONNECT_DELAY_SEC=1.0           # Retry delay
-
-# Logging
-LOG_LEVEL=INFO                         # DEBUG, INFO, WARNING, ERROR
-```
-
-📖 **Complete configuration reference:** [https://github.com/PCfVW/mcp-arango-async/blob/master/docs/configuration/environment-variables.md](https://github.com/PCfVW/mcp-arango-async/blob/master/docs/configuration/environment-variables.md)
-
-### Multi-Tenancy Configuration
-
-Work with multiple databases using YAML configuration and the Admin CLI:
-
-**1. Add databases to YAML configuration:**
-
-```bash
-# Add production database configuration
-maa db config add production \
-  --url http://localhost:8529 \
-  --database myapp_prod \
-  --username admin \
-  --password-env ARANGO_PASSWORD
-
-# Add staging database configuration
-maa db config add staging \
-  --url http://localhost:8529 \
-  --database myapp_staging \
-  --username admin \
-  --password-env ARANGO_PASSWORD
-
-# Note: 'maa' is a short alias for 'mcp-arangodb-async'
-```
-
-**2. Create databases and users in ArangoDB:**
-
-```bash
-# Set root password
-export ARANGO_ROOT_PASSWORD="changeme"
-
-# Create databases
-maa db add myapp_prod --with-user admin --arango-password-env ARANGO_PASSWORD
-maa db add myapp_staging --with-user admin --arango-password-env ARANGO_PASSWORD
-```
-
-**3. Set user password:**
-
-```bash
-# Passwords are bound to users, not databases
-export ARANGO_PASSWORD="admin-password"
-```
-
-**4. Restart the MCP server** to pick up the new configuration:
-
-This might involve a UI action or running a command in your MCP host of choice.
-
-📖 **Migrating from PowerShell script?** See the [PowerShell Migration Guide](https://github.com/PCfVW/mcp-arango-async/blob/master/docs/getting-started/powershell-migration.md)
-
-**2. Use multi-tenancy tools:**
-
-```json
-// Set focused database
-{
-  "tool": "arango_set_focused_database",
-  "arguments": {"database_key": "staging"}
-}
-
-// Query focused database (i.e. "staging")
-{
-  "tool": "arango_query",
-  "arguments": {"query": "FOR doc IN users RETURN doc"}
-}
-
-// Override with database parameter
-{
-  "tool": "arango_query",
-  "arguments": {
-    "query": "FOR doc IN users RETURN doc",
-    "database": "production"
-  }
-}
-```
-
-📖 **Multi-tenancy guide:** [https://github.com/PCfVW/mcp-arango-async/blob/master/docs/user-guide/multi-tenancy-guide.md](https://github.com/PCfVW/mcp-arango-async/blob/master/docs/user-guide/multi-tenancy-guide.md)
-
-📖 **CLI reference:** [https://github.com/PCfVW/mcp-arango-async/blob/master/docs/user-guide/cli-reference.md](https://github.com/PCfVW/mcp-arango-async/blob/master/docs/user-guide/cli-reference.md)
-
----
 
 ## Available Tools
 
@@ -498,12 +278,11 @@ The server exposes **46 MCP tools** organized into 11 categories:
 
 ## Use Case Example: Codebase Graph Analysis
 
-Model your codebase as a graph to analyze dependencies, find circular references, and understand architecture:
+Model your codebase as a graph to analyze dependencies, find circular references, and understand architecture. Here is an excert from the longer [codebase analysis example](https://github.com/PCfVW/mcp-arango-async/blob/master/docs/examples/codebase-analysis.md):
 
 ```python
 # 1. Create graph structure
-Ask Claude: "Create a graph called 'codebase' with vertex collections 'modules' and 'functions', 
-and edge collection 'calls' connecting functions"
+Ask Claude: "Create a graph called 'codebase' with vertex collections 'modules' and  functions', and edge collection 'calls' connecting functions"
 
 # 2. Import codebase data
 Ask Claude: "Insert these modules into the 'modules' collection: [...]"
@@ -518,15 +297,16 @@ Ask Claude: "Check for circular dependencies in the codebase graph"
 Ask Claude: "Export the codebase graph structure as Markdown for visualization"
 ```
 
-📖 **More examples:** [https://github.com/PCfVW/mcp-arango-async/blob/master/docs/examples/codebase-analysis.md](https://github.com/PCfVW/mcp-arango-async/blob/master/docs/examples/codebase-analysis.md)
+📖 [More examples](https://github.com/PCfVW/mcp-arango-async/blob/master/docs/examples/codebase-analysis.md)
 
 ---
 
 ## Documentation
 
 ### Getting Started
-- [Installation Guide](https://github.com/PCfVW/mcp-arango-async/blob/master/docs/getting-started/installation.md)
-- [Quick Start (stdio)](https://github.com/PCfVW/mcp-arango-async/blob/master/docs/getting-started/quickstart-stdio.md)
+- [ArangoDB Installation](https://github.com/PCfVW/mcp-arango-async/blob/master/docs/getting-started/install-arangodb.md)
+- [Quickstart Guide](https://github.com/PCfVW/mcp-arango-async/blob/master/docs/getting-started/quickstart.md)
+- [Install from Source](https://github.com/PCfVW/mcp-arango-async/blob/master/docs/getting-started/install-from-source.md)
 - [First Interaction](https://github.com/PCfVW/mcp-arango-async/blob/master/docs/getting-started/first-interaction.md)
 
 ### Configuration
@@ -584,7 +364,7 @@ maa health
 - Check environment variables are set correctly
 - Review server logs for detailed error messages
 
-📖 **Complete troubleshooting guide:** [https://github.com/PCfVW/mcp-arango-async/blob/master/docs/user-guide/troubleshooting.md](https://github.com/PCfVW/mcp-arango-async/blob/master/docs/user-guide/troubleshooting.md)
+📖 [Complete troubleshooting guide](https://github.com/PCfVW/mcp-arango-async/blob/master/docs/user-guide/troubleshooting.md)
 
 ---
 
@@ -607,7 +387,7 @@ maa health
 
 ⚠️ **Important:** This repository does not grant rights to ArangoDB binaries. You must comply with ArangoDB's license for your deployment version.
 
-📖 **License details:** [https://github.com/PCfVW/mcp-arango-async/blob/master/docs/getting-started/installation.md#arangodb-licensing](https://github.com/PCfVW/mcp-arango-async/blob/master/docs/getting-started/installation.md#arangodb-licensing)
+📖 [License details](https://github.com/PCfVW/mcp-arango-async/blob/master/docs/getting-started/install-arangodb.md#licensing-considerations)
 
 ---
 
@@ -615,15 +395,15 @@ maa health
 
 Contributions are welcome! Please see our documentation for guidelines.
 
-📖 **Architecture decisions:** [https://github.com/PCfVW/mcp-arango-async/blob/master/docs/developer-guide/low-level-mcp-rationale.md](https://github.com/PCfVW/mcp-arango-async/blob/master/docs/developer-guide/low-level-mcp-rationale.md)
+📖 [Architecture decisions](https://github.com/PCfVW/mcp-arango-async/blob/master/docs/developer-guide/low-level-mcp-rationale.md)
 
 ---
 
 ## Support
 
-- **Issues:** [https://github.com/PCfVW/mcp-arango-async/issues](https://github.com/PCfVW/mcp-arango-async/issues)
-- **Discussions:** [https://github.com/PCfVW/mcp-arango-async/discussions](https://github.com/PCfVW/mcp-arango-async/discussions)
-- **Documentation:** [https://github.com/PCfVW/mcp-arango-async/tree/master/docs](https://github.com/PCfVW/mcp-arango-async/tree/master/docs)
+- [Issues](https://github.com/PCfVW/mcp-arango-async/issues)
+- [Discussions](https://github.com/PCfVW/mcp-arango-async/discussions)
+- [Documentation](https://github.com/PCfVW/mcp-arango-async/tree/master/docs)
 
 ---
 
