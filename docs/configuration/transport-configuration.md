@@ -233,7 +233,7 @@ Run the MCP server in Docker for environment isolation.
 }
 ```
 
-📖 **Complete Docker guide:** [Quickstart (stdio) - Docker Container](../getting-started/quickstart-stdio.md#alternative-using-docker-container)
+📖 **Complete Docker guide:** [Install from Source - Docker Deployment](../getting-started/install-from-source.md#docker-deployment)
 
 ---
 
@@ -815,7 +815,7 @@ python -m mcp_arangodb_async --transport http
 - [Transport Comparison](../architecture/transport-comparison.md)
 - [Design Decisions](../architecture/design-decisions.md)
 - [Environment Variables](environment-variables.md)
-- [Quickstart Guide (stdio)](../getting-started/quickstart-stdio.md)
+- [Quickstart Guide](../getting-started/quickstart.md)
 - [Troubleshooting](../user-guide/troubleshooting.md)
 ### Docker Configuration
 

@@ -852,8 +852,9 @@ docs/
 ├── README.md - Navigation hub with learning paths
 ├── STYLE_GUIDE.md - Documentation standards
 ├── getting-started/
-│   ├── installation.md
-│   ├── quickstart-stdio.md
+│   ├── install-arangodb.md
+│   ├── quickstart.md
+│   ├── install-from-source.md
 │   └── first-interaction.md
 ├── user-guide/
 │   ├── tools-reference.md
@@ -1416,7 +1417,7 @@ This project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html):
 
 ## Related Documentation
 
-- [Installation Guide](../getting-started/installation.md)
+- [Quickstart Guide](../getting-started/quickstart.md)
 - [Environment Variables](../configuration/environment-variables.md)
 - [HTTP Transport](http-transport.md)
 - [Tools Reference](../user-guide/tools-reference.md)

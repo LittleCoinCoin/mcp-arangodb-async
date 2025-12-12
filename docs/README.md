@@ -8,8 +8,8 @@ Complete documentation for mcp-arangodb-async - A Model Context Protocol server 
 
 | I want to... | Start here |
 |--------------|------------|
-| **Get started quickly** | [Quick Start (stdio)](#quick-start) |
-| **Install the server** | [Installation Guide](getting-started/installation.md) |
+| **Get started quickly** | [Quickstart Guide](#quick-start) |
+| **Install the server** | [Quickstart Guide](getting-started/quickstart.md) |
 | **See all available tools** | [Tools Reference](user-guide/tools-reference.md) |
 | **Configure HTTP transport** | [Transport Configuration](configuration/transport-configuration.md) |
 | **Troubleshoot issues** | [Troubleshooting Guide](user-guide/troubleshooting.md) |
@@ -24,18 +24,14 @@ Complete documentation for mcp-arangodb-async - A Model Context Protocol server 
 
 Start here if you're new to mcp-arangodb-async.
 
-1. **[Installation Guide](getting-started/installation.md)** (15 min)
-   - Prerequisites and system requirements
-   - Python environment setup
-   - ArangoDB Docker installation
-   - Database initialization
-   - Health check verification
+1. **[ArangoDB Installation](getting-started/install-arangodb.md)** (10 min)
+   - Docker or native installation
+   - Database and user setup
 
-2. **[Quick Start (stdio)](getting-started/quickstart-stdio.md)** (10 min)
-   - Fastest path to first interaction
-   - Claude Desktop configuration
-   - Augment Code configuration
-   - First tool execution
+2. **[Quickstart Guide](getting-started/quickstart.md)** (10 min)
+   - Install from PyPI
+   - Configure MCP clients (stdio and HTTP)
+   - Health check verification
 
 3. **[First Interaction](getting-started/first-interaction.md)** (15 min)
    - Test prompts for verification
@@ -140,14 +136,14 @@ Understand the internals and contribute to the project.
 
 ## Learning Paths
 
-### Path 1: End User (Desktop AI Client)
+### Path 1: End User
 
 **Goal:** Use mcp-arangodb-async with Claude Desktop or Augment Code
 
 **Time:** 30-40 minutes
 
-1. [Installation Guide](getting-started/installation.md) → Install Python, ArangoDB, and server
-2. [Quick Start (stdio)](getting-started/quickstart-stdio.md) → Configure Claude Desktop
+1. [ArangoDB Installation](getting-started/install-arangodb.md) → Set up ArangoDB
+2. [Quickstart Guide](getting-started/quickstart.md) → Install and configure MCP client
 3. [First Interaction](getting-started/first-interaction.md) → Test with prompts
 4. [Tools Reference](user-guide/tools-reference.md) → Learn available tools
 5. [Codebase Analysis Example](examples/codebase-analysis.md) → Advanced graph usage
@@ -155,13 +151,13 @@ Understand the internals and contribute to the project.
 
 ---
 
-### Path 2: Developer (Web Application)
+### Path 2: Developer
 
 **Goal:** Integrate mcp-arangodb-async into a web application
 
 **Time:** 60-90 minutes
 
-1. [Installation Guide](getting-started/installation.md) → Set up development environment
+1. [Install from Source](getting-started/install-from-source.md) → Set up development environment
 2. [Architecture Overview](developer-guide/architecture.md) → Understand system design
 3. [HTTP Transport Implementation](developer-guide/http-transport.md) → Learn HTTP transport
 4. [Transport Configuration](configuration/transport-configuration.md) → Configure HTTP transport
@@ -190,7 +186,7 @@ Understand the internals and contribute to the project.
 
 **Time:** 90-120 minutes
 
-1. [Installation Guide](getting-started/installation.md) → Set up development environment
+1. [Install from Source](getting-started/install-from-source.md) → Set up development environment
 2. [Architecture Overview](developer-guide/architecture.md) → Understand codebase structure
 3. [Low-Level MCP Rationale](developer-guide/low-level-mcp-rationale.md) → Understand design decisions
 4. [HTTP Transport Implementation](developer-guide/http-transport.md) → Learn transport layer

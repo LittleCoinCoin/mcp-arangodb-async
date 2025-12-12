@@ -907,7 +907,7 @@ maa db add myapp_prod \
 
 - [Multi-Tenancy Guide](multi-tenancy-guide.md) - Using multiple databases
 - [Tools Reference](tools-reference.md) - MCP tools
-- [Installation Guide](../getting-started/installation.md) - Setup instructions
+- [Quickstart Guide](../getting-started/quickstart.md) - Setup instructions
 - [Troubleshooting](troubleshooting.md) - Common issues
 
 ---
