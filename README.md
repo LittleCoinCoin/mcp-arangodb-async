@@ -196,30 +196,15 @@ maa health
 {"status": "healthy", "database_connected": true, "database_info": {"version": "3.11.x", "name": "mcp_arangodb_test"}}
 ```
 
-### Step 4: Configure MCP Client
+### Step 4: Configure MCP Host
 
-Configure your MCP client to use the server. The configuration includes environment variables for database connection.
+Configure your MCP host to use the server. The configuration includes environment variables for database connection. The location of the configuration file depends on your MCP host. For Claude Desktop, the file is located at:
 
-**For Claude Desktop** (`%APPDATA%\Claude\claude_desktop_config.json` on Windows):
+- **Windows:** `%APPDATA%\Claude\claude_desktop_config.json`
+- **macOS:** `~/Library/Application Support/Claude/claude_desktop_config.json`
+- **Linux:** `~/.config/Claude/claude_desktop_config.json`
 
-```json
-{
-  "mcpServers": {
-    "arangodb": {
-      "command": "python",
-      "args": ["-m", "mcp_arangodb_async"],
-      "env": {
-        "ARANGO_URL": "http://localhost:8529",
-        "ARANGO_DB": "mcp_arangodb_test",
-        "ARANGO_USERNAME": "mcp_arangodb_user",
-        "ARANGO_PASSWORD": "mcp_arangodb_password"
-      }
-    }
-  }
-}
-```
-
-**For Augment Code** (`.augmentcode/config.json` in your workspace):
+**Configuration:**
 
 ```json
 {

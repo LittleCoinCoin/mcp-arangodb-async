@@ -41,10 +41,33 @@ Before proceeding, ensure you have:
 pip install mcp-arangodb-async
 ```
 
+<details>
+<summary><b>Alternative: Install with Conda/Mamba/Micromamba</b></summary>
+
+```bash
+# Create environment and install
+conda create -n mcp-arango python=3.11
+conda activate mcp-arango
+pip install mcp-arangodb-async
+```
+
+</details>
+
+<details>
+<summary><b>Alternative: Install with uv</b></summary>
+
+```bash
+# Create environment and install
+uv venv .venv --python 3.11
+uv pip install mcp-arangodb-async
+```
+
+</details>
+
 **Verify Installation:**
 
 ```powershell
-maa --version
+maa version
 ```
 
 ---
@@ -61,7 +84,7 @@ $env:ARANGO_USERNAME = "mcp_arangodb_user"
 $env:ARANGO_PASSWORD = "mcp_arangodb_password"
 
 # Run health check
-maa --health
+maa health
 ```
 
 **Expected Output:**
@@ -86,10 +109,32 @@ Choose your transport mode and client:
 
 | Transport | Use Case |
 |-----------|----------|
-| **stdio** | Desktop AI assistants |
+| **stdio** | Stdio-only Desktop applications |
 | **HTTP** | Web applications, remote access |
 
 ### stdio Transport (Desktop Clients)
+
+The `command` and `args` fields in the following examples must be adapted to match your Python installation.
+
+<details>
+<summary><b>If you installed with Conda/Mamba/Micromamba</b></summary>
+
+Use:
+
+- `"command": "conda|mamba|micromamba"`
+- `"args": ["run", "-n", "mcp-arango", "maa", "server"]`
+
+</details>
+
+<details>
+<summary><b>If you installed with uv</b></summary>
+
+Use:
+
+- `"command": "uv"`
+- `"args": ["run", "--directory", "/path/to/project", "maa", "server"]`
+
+</details>
 
 #### Claude Desktop
 
@@ -100,7 +145,7 @@ Choose your transport mode and client:
   "mcpServers": {
     "arangodb": {
       "command": "python",
-      "args": ["-m", "mcp_arangodb_async"],
+      "args": ["-m", "mcp_arangodb_async", "server"],
       "env": {
         "ARANGO_URL": "http://localhost:8529",
         "ARANGO_DB": "mcp_arangodb_test",
@@ -129,7 +174,7 @@ Choose your transport mode and client:
   "mcpServers": {
     "arangodb": {
       "command": "python",
-      "args": ["-m", "mcp_arangodb_async"],
+      "args": ["-m", "mcp_arangodb_async", "server"],
       "env": {
         "ARANGO_URL": "http://localhost:8529",
         "ARANGO_DB": "mcp_arangodb_test",
@@ -143,9 +188,11 @@ Choose your transport mode and client:
 
 ---
 
-### HTTP Transport (Web Clients)
+### HTTP Transport (Remote Access)
 
-First, start the MCP server in HTTP mode:
+In the case of HTTP transport, you are responsible for managing the server process yourself. The MCP Host will not automatically start or stop the server; it will only connect to it.
+
+You can start the MCP server in HTTP mode:
 
 ```powershell
 # Set environment variables
@@ -155,7 +202,7 @@ $env:ARANGO_USERNAME = "mcp_arangodb_user"
 $env:ARANGO_PASSWORD = "mcp_arangodb_password"
 
 # Start HTTP server
-python -m mcp_arangodb_async --transport http --port 8000
+maa server --transport http --port 8000
 ```
 
 **Verify the server is running:**
@@ -219,13 +266,14 @@ See [First Interaction Guide](first-interaction.md) for more prompts and example
 
 ### Server Won't Start
 
-**Symptom:** `python -m mcp_arangodb_async` fails immediately
+**Symptom:** `maa server` fails immediately
 
 **Solutions:**
 
 1. Check Python version: `python --version` (must be 3.11+)
-2. Reinstall package: `pip install --force-reinstall mcp-arangodb-async`
-3. Check for port conflicts: `netstat -ano | findstr :8000`
+2. Check whether you installed the package in a virtual environment: `pip show mcp-arangodb-async`
+3. Reinstall package: `pip install --force-reinstall mcp-arangodb-async`
+4. Check for port conflicts: `netstat -ano | findstr :8000`
 
 ### Connection Refused
 

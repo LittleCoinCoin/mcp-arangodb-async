@@ -43,7 +43,7 @@ cd mcp-arangodb-async
 
 **Alternative (Download ZIP):**
 
-1. Visit https://github.com/PCfVW/mcp-arangodb-async
+1. Visit <https://github.com/PCfVW/mcp-arangodb-async>
 2. Click "Code" → "Download ZIP"
 3. Extract to desired location
 
