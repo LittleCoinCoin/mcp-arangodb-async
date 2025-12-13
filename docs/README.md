@@ -25,7 +25,7 @@ Complete documentation for mcp-arangodb-async - A Model Context Protocol server 
 Start here if you're new to mcp-arangodb-async.
 
 1. **[ArangoDB Installation](getting-started/install-arangodb.md)** (10 min)
-   - Docker or native installation
+   - Docker installation
    - Database and user setup
 
 2. **[Quickstart Guide](getting-started/quickstart.md)** (10 min)
@@ -45,7 +45,7 @@ Start here if you're new to mcp-arangodb-async.
 Complete reference for using the server.
 
 1. **[Tools Reference](user-guide/tools-reference.md)** (30 min)
-   - All 43 MCP tools documented
+   - All 46 MCP tools documented
    - 10 categories: CRUD, Queries, Collections, Indexes, Graphs, Analytics, Backup, Content, Database, MCP Patterns
    - Arguments, return values, examples
 
@@ -166,7 +166,7 @@ Understand the internals and contribute to the project.
 
 ---
 
-### Path 3: DevOps Engineer (Production Deployment)
+### Path 3: DevOps Engineer
 
 **Goal:** Deploy mcp-arangodb-async to Kubernetes
 
@@ -215,7 +215,7 @@ docker compose up -d arangodb
 # 3. Initialize database
 $env:ARANGO_ROOT_PASSWORD = "changeme"
 $env:MCP_USER_PASSWORD = "mcp_arangodb_password"
-maa db add mcp_arangodb_test --url http://localhost:8529 --database mcp_arangodb_test --username root --password-env ARANGO_ROOT_PASSWORD --with-user mcp_arangodb_user --arango-password-env MCP_USER_PASSWORD
+maa db add mcp_arangodb_test --url http://localhost:8529 --database mcp_arangodb_test  --with-user mcp_arangodb_user --arango-password-env MCP_USER_PASSWORD
 
 # 4. Test health
 python -m mcp_arangodb_async --health
