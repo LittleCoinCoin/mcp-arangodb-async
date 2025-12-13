@@ -117,7 +117,37 @@ Start ArangoDB:
 docker compose --env-file .env up -d
 ```
 
-### Step 2: Install mcp-arangodb-async
+### Step 2: Create Database and User
+
+After ArangoDB is running, create the database and user for the MCP server:
+
+```bash
+# Set environment variables for database creation
+export ARANGO_ROOT_PASSWORD=changeme
+export MCP_USER_PASSWORD=mcp_arangodb_password
+
+# Install mcp-arangodb-async (if not already installed)
+pip install mcp-arangodb-async
+
+# Create database with user
+maa db add mcp_arangodb_test \
+  --url http://localhost:8529 \
+  --database mcp_arangodb_test \
+  --username root \
+  --password-env ARANGO_ROOT_PASSWORD \
+  --with-user mcp_arangodb_user \
+  --arango-password-env MCP_USER_PASSWORD
+```
+
+**Expected output:**
+```
+✓ Database 'mcp_arangodb_test' created successfully
+✓ User 'mcp_arangodb_user' created with access to 'mcp_arangodb_test'
+```
+
+### Step 3: Install mcp-arangodb-async (if not already done)
+
+If you already installed `mcp-arangodb-async` in Step 2, skip to Step 4.
 
 **Option 1: Install in default Python environment**
 
@@ -147,7 +177,13 @@ pip install mcp-arangodb-async
   "mcpServers": {
     "arangodb": {
       "command": "conda",
-      "args": ["run", "-n", "mcp-arango", "maa", "server"]
+      "args": ["run", "-n", "mcp-arango", "maa", "server"],
+      "env": {
+        "ARANGO_URL": "http://localhost:8529",
+        "ARANGO_DB": "mcp_arangodb_test",
+        "ARANGO_USERNAME": "mcp_arangodb_user",
+        "ARANGO_PASSWORD": "mcp_arangodb_password"
+      }
     }
   }
 }
@@ -173,7 +209,13 @@ uv pip install mcp-arangodb-async
   "mcpServers": {
     "arangodb": {
       "command": "uv",
-      "args": ["run", "--directory", "/path/to/project", "maa", "server"]
+      "args": ["run", "--directory", "/path/to/project", "maa", "server"],
+      "env": {
+        "ARANGO_URL": "http://localhost:8529",
+        "ARANGO_DB": "mcp_arangodb_test",
+        "ARANGO_USERNAME": "mcp_arangodb_user",
+        "ARANGO_PASSWORD": "mcp_arangodb_password"
+      }
     }
   }
 }
@@ -183,9 +225,60 @@ Replace `/path/to/project` with the directory containing your `.venv` folder.
 
 </details>
 
-### Step 3: Verify Installation
+### Step 4: Configure MCP Client
+
+Configure your MCP client (Claude Desktop, Augment Code, etc.) to use the server.
+
+**For Claude Desktop** (`%APPDATA%\Claude\claude_desktop_config.json` on Windows):
+
+```json
+{
+  "mcpServers": {
+    "arangodb": {
+      "command": "python",
+      "args": ["-m", "mcp_arangodb_async"],
+      "env": {
+        "ARANGO_URL": "http://localhost:8529",
+        "ARANGO_DB": "mcp_arangodb_test",
+        "ARANGO_USERNAME": "mcp_arangodb_user",
+        "ARANGO_PASSWORD": "mcp_arangodb_password"
+      }
+    }
+  }
+}
+```
+
+**For Augment Code** (`.augmentcode/config.json` in your workspace):
+
+```json
+{
+  "mcpServers": {
+    "arangodb": {
+      "command": "python",
+      "args": ["-m", "mcp_arangodb_async"],
+      "env": {
+        "ARANGO_URL": "http://localhost:8529",
+        "ARANGO_DB": "mcp_arangodb_test",
+        "ARANGO_USERNAME": "mcp_arangodb_user",
+        "ARANGO_PASSWORD": "mcp_arangodb_password"
+      }
+    }
+  }
+}
+```
+
+Restart your MCP client after updating the configuration.
+
+### Step 5: Verify Installation
 
 ```bash
+# Set environment variables
+export ARANGO_URL=http://localhost:8529
+export ARANGO_DB=mcp_arangodb_test
+export ARANGO_USERNAME=mcp_arangodb_user
+export ARANGO_PASSWORD=mcp_arangodb_password
+
+# Run health check
 maa health
 ```
 
@@ -193,6 +286,12 @@ maa health
 ```json
 {"status": "healthy", "database_connected": true, "database_info": {"version": "3.11.x", "name": "mcp_arangodb_test"}}
 ```
+
+**Test with your MCP client:**
+
+Ask Claude or Augment: *"List all collections in the ArangoDB database"*
+
+The assistant should successfully connect and list your collections.
 
 ## Available Tools
 
