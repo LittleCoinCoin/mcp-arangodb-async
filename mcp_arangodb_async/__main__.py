@@ -189,6 +189,7 @@ def main() -> int:
         default="config/databases.yaml",
         help="Path to configuration file (default: config/databases.yaml)",
     )
+    config_test_parser.add_argument("--env-file", help="Path to .env file")
 
     # db config status subcommand
     config_status_parser = db_config_subparsers.add_parser("status", help="Show database resolution status")

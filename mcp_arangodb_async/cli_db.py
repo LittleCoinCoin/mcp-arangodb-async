@@ -221,6 +221,11 @@ def handle_test(args: Namespace) -> int:
         Exit code (0 for success, 1 for error)
     """
     try:
+        # Load credentials from --env-file if specified
+        if hasattr(args, 'env_file') and args.env_file:
+            from .cli_utils import load_credentials
+            load_credentials(args)
+        
         # Load configuration
         loader = ConfigFileLoader(args.config_path)
         loader.load()
