@@ -66,7 +66,7 @@ class TestResolveDatabase:
         
         assert result == "production"
 
-    @patch.dict(os.environ, {"MCP_DEFAULT_DATABASE": "env_default"})
+    @patch.dict(os.environ, {"ARANGO_DB": "env_default"})
     def test_level_4_environment_variable(self):
         """Test Level 4: Environment variable when no config default."""
         tool_args = {}
@@ -77,8 +77,13 @@ class TestResolveDatabase:
         
         assert result == "env_default"
 
+    @patch.dict(os.environ, {}, clear=False)
     def test_level_5_first_configured_database(self):
         """Test Level 5: First configured database."""
+        # Clear ARANGO_DB to ensure we test level 5 fallback
+        if 'ARANGO_DB' in os.environ:
+            del os.environ['ARANGO_DB']
+            
         tool_args = {}
         config1 = DatabaseConfig(
             url="http://localhost:8529",
@@ -103,8 +108,13 @@ class TestResolveDatabase:
         
         assert result == "first"
 
+    @patch.dict(os.environ, {}, clear=False)
     def test_level_6_hardcoded_fallback(self):
         """Test Level 6: Hardcoded fallback to _system."""
+        # Clear ARANGO_DB to ensure we test level 6 fallback
+        if 'ARANGO_DB' in os.environ:
+            del os.environ['ARANGO_DB']
+            
         tool_args = {}
         
         result = resolve_database(

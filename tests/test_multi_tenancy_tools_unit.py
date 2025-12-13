@@ -210,13 +210,21 @@ class TestMultiTenancyTools:
 
     def test_get_database_resolution_fallback_to_first_configured(self):
         """Test database resolution falls back to first configured database."""
+        import os
+        from unittest.mock import patch
+        
         self.config_loader.default_database = None
 
-        args = self._create_session_context()
-        result = handle_get_database_resolution(self.mock_db, args)
+        # Mock environment to not have ARANGO_DB set so we can test level 5 fallback
+        with patch.dict(os.environ, {}, clear=False):
+            if 'ARANGO_DB' in os.environ:
+                del os.environ['ARANGO_DB']
+            
+            args = self._create_session_context()
+            result = handle_get_database_resolution(self.mock_db, args)
 
-        assert result["resolved_database"] == "production"
-        assert result["resolved_level"] == "5_first_configured"
+            assert result["resolved_database"] == "production"
+            assert result["resolved_level"] == "5_first_configured"
 
     @pytest.mark.asyncio
     async def test_database_status_all_connected(self):
