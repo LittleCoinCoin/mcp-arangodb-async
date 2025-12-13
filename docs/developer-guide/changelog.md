@@ -679,7 +679,7 @@ Closes [#1](https://github.com/LittleCoinCoin/mcp-arangodb-async/issues/1), [#2]
 
 - **Updated Main Documentation:**
   - `README.md` - Added MCP Design Patterns feature highlight and quick link
-  - `docs/README.md` - Added MCP Design Patterns Guide to learning paths
+  - `docs/index.md` - Added MCP Design Patterns Guide to learning paths
   - Updated architecture diagram to reflect 43 tools
 
 ✅ **Manual Validation Test Suite**
@@ -821,7 +821,7 @@ Closes [#1](https://github.com/LittleCoinCoin/mcp-arangodb-async/issues/1), [#2]
   - Dependency analysis and circular detection
   - Impact analysis and complexity scoring
 - **Navigation:**
-  - Documentation hub (docs/README.md) with learning paths
+  - Documentation hub (docs/index.md) with learning paths
   - Style guide for documentation consistency
 
 ✅ **Enhanced Root README**
@@ -897,7 +897,7 @@ docs/
   - Added "Examples" section to documentation links
   - Optimized to 382 lines (within 400-500 target)
   - All 30 absolute GitHub URLs verified for PyPI compatibility
-- **docs/README.md Updated:**
+- **docs/index.md Updated:**
   - Added "Examples" section with codebase-analysis.md
   - Updated Learning Path 1 to include example
   - Cross-references validated, relative links maintained
