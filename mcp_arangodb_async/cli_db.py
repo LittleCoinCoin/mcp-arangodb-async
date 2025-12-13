@@ -285,11 +285,11 @@ def handle_status(args: Namespace) -> int:
             print("Default database (from config): Not set")
 
         # Show environment variable
-        env_default = os.getenv("MCP_DEFAULT_DATABASE")
+        env_default = os.getenv("ARANGO_DB")
         if env_default:
-            print(f"Default database (from MCP_DEFAULT_DATABASE): {env_default}")
+            print(f"Default database (from ARANGO_DB): {env_default}")
         else:
-            print("Default database (from MCP_DEFAULT_DATABASE): Not set")
+            print("Default database (from ARANGO_DB): Not set")
 
         print()
         print(f"Configured databases: {len(databases)}")
@@ -301,7 +301,7 @@ def handle_status(args: Namespace) -> int:
         print("  1. Tool argument (database parameter)")
         print("  2. Focused database (session state)")
         print("  3. Config default (from YAML)")
-        print("  4. Environment variable (MCP_DEFAULT_DATABASE)")
+        print("  4. Environment variable (ARANGO_DB)")
         print("  5. First configured database")
         print("  6. Fallback to '_system'")
 
