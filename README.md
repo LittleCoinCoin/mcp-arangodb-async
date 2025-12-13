@@ -69,7 +69,7 @@ A production-ready Model Context Protocol (MCP) server exposing advanced ArangoD
 - **Docker and Docker Compose** installed
 - **Python 3.11+** (for mcp-arangodb-async)
 
-### Step 1: Set Up ArangoDB with Docker
+### Step 1: Install ArangoDB
 
 Create a `docker-compose.yml` file:
 
@@ -117,46 +117,16 @@ Start ArangoDB:
 docker compose --env-file .env up -d
 ```
 
-### Step 2: Create Database and User
+### Step 2: Install mcp-arangodb-async
 
-After ArangoDB is running, create the database and user for the MCP server:
-
-```bash
-# Set environment variables for database creation
-export ARANGO_ROOT_PASSWORD=changeme
-export MCP_USER_PASSWORD=mcp_arangodb_password
-
-# Install mcp-arangodb-async (if not already installed)
-pip install mcp-arangodb-async
-
-# Create database with user
-maa db add mcp_arangodb_test \
-  --url http://localhost:8529 \
-  --database mcp_arangodb_test \
-  --username root \
-  --password-env ARANGO_ROOT_PASSWORD \
-  --with-user mcp_arangodb_user \
-  --arango-password-env MCP_USER_PASSWORD
-```
-
-**Expected output:**
-```
-✓ Database 'mcp_arangodb_test' created successfully
-✓ User 'mcp_arangodb_user' created with access to 'mcp_arangodb_test'
-```
-
-### Step 3: Install mcp-arangodb-async (if not already done)
-
-If you already installed `mcp-arangodb-async` in Step 2, skip to Step 4.
-
-**Option 1: Install in default Python environment**
+Install the MCP server package:
 
 ```bash
 pip install mcp-arangodb-async
 ```
 
 <details>
-<summary><b>Option 2: Install with Conda/Mamba/Micromamba</b></summary>
+<summary><b>Alternative: Install with Conda/Mamba/Micromamba</b></summary>
 
 ```bash
 # Create environment and install
@@ -170,31 +140,10 @@ pip install mcp-arangodb-async
 # pip install mcp-arangodb-async
 ```
 
-**MCP Client Configuration:** Use the run command to execute from the environment:
-
-```json
-{
-  "mcpServers": {
-    "arangodb": {
-      "command": "conda",
-      "args": ["run", "-n", "mcp-arango", "maa", "server"],
-      "env": {
-        "ARANGO_URL": "http://localhost:8529",
-        "ARANGO_DB": "mcp_arangodb_test",
-        "ARANGO_USERNAME": "mcp_arangodb_user",
-        "ARANGO_PASSWORD": "mcp_arangodb_password"
-      }
-    }
-  }
-}
-```
-
-Or with mamba/micromamba, replace `"conda"` with `"mamba"` or `"micromamba"`.
-
 </details>
 
 <details>
-<summary><b>Option 3: Install with uv</b></summary>
+<summary><b>Alternative: Install with uv</b></summary>
 
 ```bash
 # Create environment and install
@@ -202,32 +151,54 @@ uv venv .venv --python 3.11
 uv pip install mcp-arangodb-async
 ```
 
-**MCP Client Configuration:** Use `uv run` to execute from the environment:
+</details>
 
-```json
-{
-  "mcpServers": {
-    "arangodb": {
-      "command": "uv",
-      "args": ["run", "--directory", "/path/to/project", "maa", "server"],
-      "env": {
-        "ARANGO_URL": "http://localhost:8529",
-        "ARANGO_DB": "mcp_arangodb_test",
-        "ARANGO_USERNAME": "mcp_arangodb_user",
-        "ARANGO_PASSWORD": "mcp_arangodb_password"
-      }
-    }
-  }
-}
+### Step 3: Create Database and User
+
+Create the database and user for the MCP server:
+
+```bash
+maa db add mcp_arangodb_test \
+  --url http://localhost:8529 \
+  --with-user mcp_arangodb_user \
+  --env-file .env
 ```
 
-Replace `/path/to/project` with the directory containing your `.venv` folder.
+**Expected output:**
+```
+The following actions will be performed:
+  [ADD] Database 'mcp_arangodb_test'
+  [ADD] User 'mcp_arangodb_user' (active: true)
+  [GRANT] Permission rw: mcp_arangodb_user → mcp_arangodb_test
 
-</details>
+Are you sure you want to proceed? [y/N]: y
+db add:
+[ADDED] Database 'mcp_arangodb_test'
+[ADDED] User 'mcp_arangodb_user' (active: true)
+[GRANTED] Permission rw: mcp_arangodb_user → mcp_arangodb_test
+```
+
+Verify the database connection:
+
+```bash
+# Set environment variables
+export ARANGO_URL=http://localhost:8529
+export ARANGO_DB=mcp_arangodb_test
+export ARANGO_USERNAME=mcp_arangodb_user
+export ARANGO_PASSWORD=mcp_arangodb_password
+
+# Run health check
+maa health
+```
+
+**Expected output:**
+```json
+{"status": "healthy", "database_connected": true, "database_info": {"version": "3.11.x", "name": "mcp_arangodb_test"}}
+```
 
 ### Step 4: Configure MCP Client
 
-Configure your MCP client (Claude Desktop, Augment Code, etc.) to use the server.
+Configure your MCP client to use the server. The configuration includes environment variables for database connection.
 
 **For Claude Desktop** (`%APPDATA%\Claude\claude_desktop_config.json` on Windows):
 
@@ -267,29 +238,63 @@ Configure your MCP client (Claude Desktop, Augment Code, etc.) to use the server
 }
 ```
 
-Restart your MCP client after updating the configuration.
+<details>
+<summary><b>Alternative: Configuration for Conda/Mamba/Micromamba</b></summary>
 
-### Step 5: Verify Installation
+If you installed with conda/mamba/micromamba, use the `run` command:
 
-```bash
-# Set environment variables
-export ARANGO_URL=http://localhost:8529
-export ARANGO_DB=mcp_arangodb_test
-export ARANGO_USERNAME=mcp_arangodb_user
-export ARANGO_PASSWORD=mcp_arangodb_password
-
-# Run health check
-maa health
-```
-
-**Expected output:**
 ```json
-{"status": "healthy", "database_connected": true, "database_info": {"version": "3.11.x", "name": "mcp_arangodb_test"}}
+{
+  "mcpServers": {
+    "arangodb": {
+      "command": "conda",
+      "args": ["run", "-n", "mcp-arango", "maa", "server"],
+      "env": {
+        "ARANGO_URL": "http://localhost:8529",
+        "ARANGO_DB": "mcp_arangodb_test",
+        "ARANGO_USERNAME": "mcp_arangodb_user",
+        "ARANGO_PASSWORD": "mcp_arangodb_password"
+      }
+    }
+  }
+}
 ```
 
-**Test with your MCP client:**
+Replace `"conda"` with `"mamba"` or `"micromamba"` if using those tools.
 
-Ask Claude or Augment: *"List all collections in the ArangoDB database"*
+</details>
+
+<details>
+<summary><b>Alternative: Configuration for uv</b></summary>
+
+If you installed with uv, use `uv run`:
+
+```json
+{
+  "mcpServers": {
+    "arangodb": {
+      "command": "uv",
+      "args": ["run", "--directory", "/path/to/project", "maa", "server"],
+      "env": {
+        "ARANGO_URL": "http://localhost:8529",
+        "ARANGO_DB": "mcp_arangodb_test",
+        "ARANGO_USERNAME": "mcp_arangodb_user",
+        "ARANGO_PASSWORD": "mcp_arangodb_password"
+      }
+    }
+  }
+}
+```
+
+Replace `/path/to/project` with the directory containing your `.venv` folder.
+
+</details>
+
+**Restart your MCP client** after updating the configuration.
+
+**Test the connection:**
+
+Ask your MCP client: *"List all collections in the ArangoDB database"*
 
 The assistant should successfully connect and list your collections.
 
