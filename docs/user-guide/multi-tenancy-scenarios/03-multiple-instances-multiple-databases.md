@@ -41,13 +41,13 @@ graph TB
     Arango1 -->|Contains| DB2
     Arango2 -->|Contains| DB3
     
-    style User fill:#e1f5ff
-    style MCP fill:#fff4e1
-    style Arango1 fill:#ffe1e1
-    style Arango2 fill:#ffe1e1
-    style DB1 fill:#e1ffe1
-    style DB2 fill:#ffe1e1
-    style DB3 fill:#ffe1f5
+    style User fill: #45abdfff,color:#000000
+    style MCP fill: #eec98aff,color:#000000
+    style Arango1 fill: #e48080ff,color:#000000
+    style Arango2 fill: #e48080ff,color:#000000
+    style DB1 fill: #82d682ff,color:#000000
+    style DB2 fill: #ee9ddcff,color:#000000
+    style DB3 fill: #f5af54ff,color:#000000
 ```
 
 ## Setup Commands
