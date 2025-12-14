@@ -64,7 +64,7 @@ services:
   arangodb:
     image: arangodb:3.11
     environment:
-      ARANGO_ROOT_PASSWORD: ${ARANGO_ROOT_PASSWORD:-changeme}
+      ARANGO_ROOT_PASSWORD: ${ARANGO_ROOT_PASSWORD:-your-secure-password}
     ports:
       - "${ARANGO_PORT:-8529}:8529"
     volumes:
@@ -90,11 +90,11 @@ volumes:
 
 ### Step 2: Create Environment File
 
-Create a `.env` file in the same directory:
+Create a `.arangodb-launch.env` file in the same directory:
 
 ```dotenv
 # ArangoDB root password (change in production!)
-ARANGO_ROOT_PASSWORD=changeme
+ARANGO_ROOT_PASSWORD=your-secure-password
 
 # Optional: Custom port if 8529 is in use
 # ARANGO_PORT=8530
@@ -102,8 +102,8 @@ ARANGO_ROOT_PASSWORD=changeme
 
 ### Step 3: Start ArangoDB
 
-```powershell
-docker compose up -d
+```bash
+docker compose --env-file .arangodb-launch.env up arangodb -d
 ```
 
 **Expected Output:**
@@ -140,16 +140,13 @@ If you have `mcp-arangodb-async` installed:
 ```powershell
 # Set environment variables
 $env:ARANGO_ROOT_PASSWORD = "changeme"
-$env:MCP_USER_PASSWORD = "mcp_arangodb_password"
+$env:ARANGO_PASSWORD = "mcp_arangodb_password"
 
 # Create database with user
 maa db add mcp_arangodb_test `
   --url http://localhost:8529 `
-  --database mcp_arangodb_test `
-  --username root `
-  --password-env ARANGO_ROOT_PASSWORD `
   --with-user mcp_arangodb_user `
-  --arango-password-env MCP_USER_PASSWORD
+  --arango-password-env ARANGO_PASSWORD
 ```
 
 ### Using ArangoDB Web UI
