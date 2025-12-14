@@ -95,6 +95,8 @@ maa health
 
 ✅ **Success!** The server can connect to ArangoDB.
 
+> **Note on `ARANGO_DB`:** In this single-database setup, `ARANGO_DB` specifies the database name directly. When you later configure multi-tenancy with YAML (see [Multi-Tenancy Guide](../user-guide/multi-tenancy-guide.md)), `ARANGO_DB` becomes a database key reference instead. The value can stay the same, but its meaning changes based on your configuration mode.
+
 ❌ **If you see an error:**
 
 - Check ArangoDB is running
