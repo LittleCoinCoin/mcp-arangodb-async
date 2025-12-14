@@ -41,7 +41,7 @@ export ARANGO_PASSWORD='admin-password'
 maa server
 
 # Or start the HTTP transport so web clients can connect:
-maa server transport http --host 0.0.0.0 --port 8000
+maa server --transport http --host 0.0.0.0 --port 8000
 ```
 
 Note: Starting the server with default stdio (`maa server`) is useful primarily when run by an MCP Host (Claude Desktop, LM Studio, etc.) which manages the process lifecycle; running it interactively by itself is suitable only for manual testing and is not a supported UI for interactive use. If you want to connect from a web client or run in a container, start the HTTP transport as shown above. You can find more information in the [transport configuration guide](../configuration/transport-configuration.md).
@@ -65,9 +65,11 @@ When a tool call is executed, the database chosen is the result of a 6-level pri
 1. Tool argument: `database` parameter passed in the tool call.
 2. Focused database: set with `arango_set_focused_database` for the session.
 3. Config default: `default_database` in YAML.
-4. Environment variable: `MCP_DEFAULT_DATABASE`.
+4. Environment variable: `ARANGO_DB` (treated as a database key when YAML config exists).
 5. First configured: the first database listed in YAML.
 6. Fallback: `_system` (hardcoded fallback).
+
+> **Important:** In multi-tenancy mode, `ARANGO_DB` is treated as a **database key** (e.g., `first_db`, `production`), not a database name. It must match a key in your `config/databases.yaml`. See [Environment Variables](../configuration/environment-variables.md#arango_db) for details on the dual meaning of `ARANGO_DB`.
 
 Note: Implementation is in `mcp_arangodb_async/db_resolver.py` if you want to inspect exact behavior.
 
