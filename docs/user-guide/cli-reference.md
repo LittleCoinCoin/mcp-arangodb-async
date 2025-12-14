@@ -98,7 +98,7 @@ maa server \
   [--host <host>] \
   [--port <port>] \
   [--stateless] \
-  [--config-file <path>] | [--cfgf <path>]
+  [--<config-file|cfgf> <path>]
 ```
 
 **Parameters:**
