@@ -15,16 +15,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Table of Contents
 
-1. [Version 0.4.9 (Current)](#version-049---2025-12-09)
-2. [Version 0.4.8](#version-048---2025-12-04)
-2. [Version 0.4.7](#version-047---2025-11-28)
-3. [Version 0.4.6](#version-046---2025-11-27)
-3. [Version 0.4.5](#version-045---2025-11-27)
-3. [Version 0.4.4](#version-044---2025-11-27)
-4. [Version 0.4.3](#version-043---2025-11-24)
-5. [Version 0.4.2](#version-042---2025-11-24)
-6. [Version 0.4.1](#version-041---2025-11-24)
-7. [Version 0.4.0](#version-040---2025-11-11)
+1. [Version 0.5.0 (Current)](#version-050---2025-12-15)
+2. [Version 0.4.9](#version-049---2025-12-09)
+3. [Version 0.4.8](#version-048---2025-12-04)
+3. [Version 0.4.7](#version-047---2025-11-28)
+4. [Version 0.4.6](#version-046---2025-11-27)
+4. [Version 0.4.5](#version-045---2025-11-27)
+4. [Version 0.4.4](#version-044---2025-11-27)
+5. [Version 0.4.3](#version-043---2025-11-24)
+6. [Version 0.4.2](#version-042---2025-11-24)
+7. [Version 0.4.1](#version-041---2025-11-24)
+8. [Version 0.4.0](#version-040---2025-11-11)
 8. [Version 0.3.2](#version-032---2025-10-20)
 9. [Version 0.3.1](#version-031---2025-10-20)
 10. [Version 0.3.0](#version-030---2025-10-20)
@@ -41,9 +42,156 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [0.4.9] - 2025-12-09
+## [0.5.0] - 2025-12-15
 
 **Current Release**
+
+### Fixed
+
+✅ **Database Connection System Consistency (Verification & Cleanup Phase)**
+- **Server Initialization Architecture Mismatch:**
+  - Fixed inconsistent database resolution between server startup and tool execution
+  - Root cause: Server initialization used `load_config()` + `get_client_and_db()` while tools used `resolve_database()` + `MultiDatabaseConnectionManager`
+  - Server now uses `resolve_database()` for consistent database resolution during startup
+  - Eliminated legacy single-database connection path
+  - Both server initialization and lazy tool connections now use unified `MultiDatabaseConnectionManager`
+  - Database resolution follows same 6-level priority algorithm throughout application lifecycle
+  - Maintains same retry logic and graceful degradation behavior
+
+### Added
+
+✅ **Enhanced Database Context Management**
+- **Focused Database Unsetting:**
+  - Added support for unsetting focused database via `arango_set_focused_database`
+  - Pass `None` or empty string to revert to default database resolution behavior
+  - Tool now resolves and displays fallback database when unsetting
+  - Improved user feedback with fallback database information
+  - `fallback_database` field added to tool response
+  - Enables flexible session-based database context management
+
+- **CLI Enhancement:**
+  - Added `--env-file` parameter to `maa db config test` command
+  - Enables local `.env` file credential testing without global environment setup
+
+### Changed
+
+⚠️ **Environment Variable Standardization**
+- **ARANGO_DB Unified Variable:**
+  - Replaced `MCP_DEFAULT_DATABASE` with `ARANGO_DB` for consistent naming convention
+  - Updated Level 4 of 6-level database resolution algorithm to use `ARANGO_DB`
+  - Aligns with existing ArangoDB environment variable conventions (`ARANGO_HOST`, `ARANGO_PORT`, etc.)
+  - Eliminates confusion between different variable naming schemes
+  - Updated across entire codebase:
+    - `db_resolver.py`: Level 4 resolution now uses `ARANGO_DB`
+    - `handlers.py`: Diagnostic output updated to reference `ARANGO_DB`
+    - `cli_db.py`: Status command output updated
+    - `cli_utils.py`: CLI environment variable enum updated
+    - All documentation strings updated
+
+### Technical Details
+
+**Database Resolution Architecture:**
+- Server initialization and tool execution now share identical database resolution pathway
+- Unified system ensures all connections follow 6-level priority algorithm:
+  1. Per-tool override (`tool_args["database"]`)
+  2. Focused database (`session_state.get_focused_database()`)
+  3. Config default (`config_loader.default_database`)
+  4. Environment variable (`ARANGO_DB`)
+  5. First configured database
+  6. Hardcoded fallback (`"_system"`)
+
+**Test Coverage:**
+- Added comprehensive server initialization consistency tests
+- Tests verify database resolution behavior matches between startup and tool execution
+- Updated existing tests to use `ARANGO_DB` environment variable
+- All existing tests continue to pass
+
+**Files Modified:**
+- `mcp_arangodb_async/entry.py` - Integrated resolve_database() into server initialization
+- `mcp_arangodb_async/db_resolver.py` - Updated Level 4 to use ARANGO_DB
+- `mcp_arangodb_async/handlers.py` - Updated diagnostic output and unsetting capability
+- `mcp_arangodb_async/cli_db.py` - Updated status output and added `--env-file` support
+- `mcp_arangodb_async/cli_utils.py` - Updated CLIEnvVar enum
+- `tests/test_entry_point_integration_unit.py` - Added server initialization tests
+- `tests/test_db_resolver_unit.py` - Updated for ARANGO_DB variable
+- `tests/test_config_loader_unit.py` - Updated environment variable references
+
+### Documentation
+
+✅ **Multi-Tenancy Documentation Cleanup & Enhancement**
+- **Multi-Tenancy Scenario Rewrite:**
+  - Completely rewritten Scenario 1 (Single Instance, Single Database)
+  - Completely rewritten Scenario 2 (Single Instance, Multiple Databases)
+  - Completely rewritten Scenario 3 (Multiple Instances)
+  - Each scenario includes:
+    - Prerequisites section referencing ArangoDB installation guide
+    - Consolidated setup into single logical flow
+    - Standard user workflow instead of admin-only patterns
+    - Explicit env-file usage for credential management
+    - Configuration file adaptation step for MCP host setup
+    - Detailed verification steps with expected outputs
+    - Multiple launcher options (Conda, Mamba, uv)
+    - Explicit expected outputs for each command step
+    - Cross-database operation testing patterns
+    - Comprehensive web UI verification steps
+    - Clarification of config file key vs database name
+
+- **Scenario 4 Removal:**
+  - Removed agent-based access control scenario from documentation
+  - Simplified prerequisites and getting started section
+  - Updated README to reflect current 3-scenario progression
+  - Deferred for future implementation (not part of current learning progression)
+
+- **CLI Documentation Additions:**
+  - Added comprehensive `maa server` command documentation
+  - Complete syntax reference with all supported arguments
+  - Detailed parameter explanations (transport, host, port, stateless, config-file)
+  - Environment variable reference for all server options
+  - Fixed CLI syntax errors throughout examples (`maa --health` → `maa health`)
+  - Updated HTTP transport command examples
+  - Added graceful degradation documentation for missing config files
+
+- **Tools Reference Updates:**
+  - Updated `arango_set_focused_database` with unset capability
+  - Added examples for unsetting with None/empty string
+  - Documented fallback database information in response format
+  - Clarified database resolution behavior after unset
+
+- **Environment Variable Documentation:**
+  - Updated all references from `MCP_DEFAULT_DATABASE` to `ARANGO_DB`
+  - Clarified dual meaning of `ARANGO_DB` in different contexts
+  - Added examples using new variable name
+  - Updated all Getting Started guides
+
+- **Cross-Platform Compatibility:**
+  - Added comprehensive 'Getting Started with ArangoDB' section to README
+  - Provided copy-pastable docker-compose.yml and .env templates
+  - Replaced PowerShell-exclusive syntax with cross-platform bash syntax
+  - Updated MCP client configuration examples (conda run, uv run)
+  - Added collapsible installation alternatives (conda/mamba/micromamba/uv)
+  - Fixed command syntax consistency across all examples
+  - Enhanced ArangoDB installation guide
+
+- **Documentation Organization:**
+  - Refactored Getting Started to logical 4-step flow
+  - Transformed docs/README into comprehensive navigation index
+  - Removed deprecated monolithic installation guides
+  - Created progressive learning path structure
+  - Updated all cross-references and links
+  - Streamlined multi-tenancy top-level guide
+  - Added Apache 2.0 license text to repository
+
+**Documentation Improvements:**
+- ~2,000+ lines updated/rewritten
+- Consistent pedagogical approach throughout
+- All cross-references validated
+- Step-by-step instructions with expected outputs
+- Multiple launcher/environment options documented
+- Professional tone and formatting consistency
+
+---
+
+## [0.4.9] - 2025-12-09
 
 ### Fixed
 
