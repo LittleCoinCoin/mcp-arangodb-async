@@ -52,7 +52,7 @@ Note: Starting the server with default stdio (`maa server`) is useful primarily 
 
 ## Core Concepts
 
-- Focused database: session-scoped database applied automatically to tools that don’t include a per-call override.
+- Focused database: session-scoped database applied automatically to tools that don’t include a per-call override. Can be set with `arango_set_focused_database` or unset to revert to default resolution.
 - Per-call database override: a `database` parameter passed to a tool call which supersedes the focused database for that call only.
 - Passwords: the YAML file stores the env var name; actual secrets come from environment variables at runtime.
 
@@ -76,7 +76,7 @@ Note: Implementation is in `mcp_arangodb_async/db_resolver.py` if you want to in
 ## Recommended Tools (Top-level)
 
 - `arango_list_available_databases` — list all configured database entries.
-- `arango_set_focused_database` — set the session-focused database.
+- `arango_set_focused_database` — set or unset the session-focused database.
 - `arango_get_focused_database` — view the currently focused database.
 - `arango_get_database_resolution` — show the resolution state and reason for a resolved database.
 - `arango_database_status` / `arango_test_database_connection` — test connection and status for configured DBs.
@@ -90,6 +90,7 @@ For full parameter documentation, see `docs/user-guide/tools-reference.md`.
 - Focused database for routine workflows — set once, run many operations.
 - Per-call database override for ad-hoc queries or cross-database comparison.
 - Switch and verify: set focused database, call `arango_get_database_resolution` to confirm before critical updates.
+- Unset focused database to revert to default resolution — useful after completing a workflow or switching contexts.
 
 ---
 

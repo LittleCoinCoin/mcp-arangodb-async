@@ -68,21 +68,22 @@ Tools for managing multiple databases, switching contexts, and testing connectio
 
 ### arango_set_focused_database
 
-Set the focused database for the current session. All subsequent tool calls will use this database unless overridden by the `database` parameter.
+Set the focused database for the current session. All subsequent tool calls will use this database unless overridden by the `database` parameter. You can also unset the focused database to revert to default database resolution.
 
 **Parameters:**
-- `database_key` (string, required) - Database key from configuration
+- `database` (string, optional) - Database key from configuration. Pass `null` or empty string (`""`) to unset the focused database.
 
 **Returns:**
 - `success` (boolean) - Whether the operation succeeded
-- `previous_database` (string|null) - Previously focused database
-- `new_database` (string) - Newly focused database
+- `focused_database` (string|null) - The focused database key (or `null` if unset)
+- `session_id` (string) - Session identifier
 - `message` (string) - Success message
+- `fallback_database` (string|null) - Database that will be used after unsetting (only present when unsetting)
 
-**Example:**
+**Example 1: Setting a focused database**
 ```json
 {
-  "database_key": "staging"
+  "database": "staging"
 }
 ```
 
@@ -90,9 +91,27 @@ Set the focused database for the current session. All subsequent tool calls will
 ```json
 {
   "success": true,
-  "previous_database": "production",
-  "new_database": "staging",
+  "focused_database": "staging",
+  "session_id": "stdio",
   "message": "Focused database set to 'staging'"
+}
+```
+
+**Example 2: Unsetting the focused database**
+```json
+{
+  "database": null
+}
+```
+
+**Result:**
+```json
+{
+  "success": true,
+  "focused_database": null,
+  "session_id": "stdio",
+  "message": "Focused database has been unset. Database resolution will fall back to default priority levels (will use 'production')",
+  "fallback_database": "production"
 }
 ```
 
@@ -100,6 +119,7 @@ Set the focused database for the current session. All subsequent tool calls will
 - Switch between development, staging, and production environments
 - Set database context at the start of a workflow
 - Avoid repeating database parameter in multiple tool calls
+- Unset focused database to revert to default resolution (e.g., after completing a workflow)
 
 ---
 
