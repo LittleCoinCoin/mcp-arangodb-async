@@ -13,14 +13,15 @@ Complete documentation for the `mcp-arangodb-async` command-line interface.
 1. [Overview](#overview)
 2. [Installation](#installation)
 3. [Command Structure](#command-structure)
-4. [Database Configuration Commands](#database-configuration-commands)
-5. [Database Operations Commands](#database-operations-commands)
-6. [User Management Commands](#user-management-commands)
-7. [Health and Version Commands](#health-and-version-commands)
-8. [Safety Features](#safety-features)
-9. [Examples](#examples)
-10. [Troubleshooting](#troubleshooting)
-11. [Related Documentation](#related-documentation)
+4. [Server Commands](#server-commands)
+5. [Database Configuration Commands](#database-configuration-commands)
+6. [Database Operations Commands](#database-operations-commands)
+7. [User Management Commands](#user-management-commands)
+8. [Health and Version Commands](#health-and-version-commands)
+9. [Safety Features](#safety-features)
+10. [Examples](#examples)
+11. [Troubleshooting](#troubleshooting)
+12. [Related Documentation](#related-documentation)
 
 ---
 
@@ -79,6 +80,80 @@ maa
     ├── revoke          # Revoke permissions
     ├── databases       # List accessible databases (self-service)
     └── password        # Change password (self-service)
+```
+
+---
+
+## Server Commands
+
+### server
+
+Run the MCP (Model Context Protocol) server.
+
+**Syntax:**
+
+```bash
+maa server \
+  [--transport <stdio|http>] \
+  [--host <host>] \
+  [--port <port>] \
+  [--stateless] \
+  [--<config-file|cfgf> <path>]
+```
+
+**Parameters:**
+
+- `--transport` - Transport type: `stdio` or `http` (default: `stdio`, or from `MCP_TRANSPORT` env var)
+- `--host` - HTTP host address (default: `0.0.0.0`, or from `MCP_HTTP_HOST` env var). Only applies to HTTP transport.
+- `--port` - HTTP port number (default: `8000`, or from `MCP_HTTP_PORT` env var). Only applies to HTTP transport.
+- `--stateless` - Enable stateless mode for HTTP transport. In stateless mode, each request is independent.
+- `--config-file` or `-cfgf` - Path to database configuration YAML file (default: `ARANGO_DATABASES_CONFIG_FILE` env var, or `config/databases.yaml`)
+
+**Transport Types:**
+
+- **stdio** - Standard input/output transport. Suitable for integrating with Claude Desktop and other MCP clients that support stdio transport.
+- **http** - HTTP transport. Runs the server as an HTTP service for remote access.
+
+**Environment Variables:**
+
+- `MCP_TRANSPORT` - Default transport type (overridden by `--transport`)
+- `MCP_HTTP_HOST` - Default HTTP host (overridden by `--host`)
+- `MCP_HTTP_PORT` - Default HTTP port (overridden by `--port`)
+- `MCP_HTTP_STATELESS` - Enable stateless mode by default (set to `true` or `1`)
+- `MCP_HTTP_CORS_ORIGINS` - CORS origins for HTTP transport (comma-separated, default: `*`)
+- `ARANGO_DATABASES_CONFIG_FILE` - Path to database configuration file (overridden by `--config-file`)
+
+**Example (Default - stdio):**
+
+```bash
+maa server
+```
+
+**Example (HTTP Transport):**
+
+```bash
+maa server --transport http --host 0.0.0.0 --port 8000
+```
+
+**Example (HTTP with Stateless Mode):**
+
+```bash
+maa server --transport http --stateless --port 9000
+```
+
+**Example (With Custom Config File):**
+
+```bash
+maa server --config-file /etc/arango/databases.yaml
+```
+
+**Example (Using Environment Variables):**
+
+```bash
+export MCP_TRANSPORT=http
+export MCP_HTTP_HOST=localhost
+export MCP_HTTP_PORT=8001
+maa server
 ```
 
 ---
@@ -907,7 +982,7 @@ maa db add myapp_prod \
 
 - [Multi-Tenancy Guide](multi-tenancy-guide.md) - Using multiple databases
 - [Tools Reference](tools-reference.md) - MCP tools
-- [Installation Guide](../getting-started/installation.md) - Setup instructions
+- [Quickstart Guide](../getting-started/quickstart.md) - Setup instructions
 - [Troubleshooting](troubleshooting.md) - Common issues
 
 ---

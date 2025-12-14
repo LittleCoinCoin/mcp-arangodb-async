@@ -888,7 +888,7 @@ When reporting issues, include:
 
 ## Related Documentation
 
-- [Installation Guide](../getting-started/installation.md)
+- [Quickstart Guide](../getting-started/quickstart.md)
 - [Environment Variables](../configuration/environment-variables.md)
 - [Transport Configuration](../configuration/transport-configuration.md)
 - [Tools Reference](tools-reference.md)

@@ -274,4 +274,4 @@ maa db add myapp_prod --env-file .env.production --with-user myapp_user --arango
 
 - [CLI Reference](../user-guide/cli-reference.md) - Complete documentation of all CLI commands
 - [Multi-Tenancy Guide](../user-guide/multi-tenancy-guide.md) - Advanced multi-database scenarios
-- [Installation Guide](installation.md) - Getting started with mcp-arangodb-async
+- [Quickstart Guide](quickstart.md) - Getting started with mcp-arangodb-async

@@ -418,8 +418,9 @@ Create a hash index on the 'name' field of the 'tests' collection to improve que
 ---
 
 ## Related Documentation
-- [Quickstart Guide (stdio)](quickstart-stdio.md)
-- [Installation Guide](installation.md)
+
+- [Quickstart Guide](quickstart.md)
+- [ArangoDB Installation](install-arangodb.md)
 - [Tools Reference](../user-guide/tools-reference.md)
 - [Troubleshooting](../user-guide/troubleshooting.md)
 

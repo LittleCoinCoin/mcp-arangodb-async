@@ -81,7 +81,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Multi-Tenancy Tool Consolidation:**
   - Merged `arango_test_database_connection` and `arango_get_multi_database_status` into single `arango_database_status` tool
   - New tool provides comprehensive status with summary counts and focused database indicator
-  - Reduced tool count from 49 to 48 tools
+  - Total tool count: 46 tools (4 multi-tenancy + 7 core + 4 indexing + 4 validation + 2 schema + 2 query + 7 graph basic + 5 graph advanced + 2 aliases + 1 health + 8 MCP patterns)
   - Improved output format with clear summary section
 
 ### Changed
@@ -679,7 +679,7 @@ Closes [#1](https://github.com/LittleCoinCoin/mcp-arangodb-async/issues/1), [#2]
 
 - **Updated Main Documentation:**
   - `README.md` - Added MCP Design Patterns feature highlight and quick link
-  - `docs/README.md` - Added MCP Design Patterns Guide to learning paths
+  - `docs/index.md` - Added MCP Design Patterns Guide to learning paths
   - Updated architecture diagram to reflect 43 tools
 
 ✅ **Manual Validation Test Suite**
@@ -821,7 +821,7 @@ Closes [#1](https://github.com/LittleCoinCoin/mcp-arangodb-async/issues/1), [#2]
   - Dependency analysis and circular detection
   - Impact analysis and complexity scoring
 - **Navigation:**
-  - Documentation hub (docs/README.md) with learning paths
+  - Documentation hub (docs/index.md) with learning paths
   - Style guide for documentation consistency
 
 ✅ **Enhanced Root README**
@@ -852,8 +852,9 @@ docs/
 ├── README.md - Navigation hub with learning paths
 ├── STYLE_GUIDE.md - Documentation standards
 ├── getting-started/
-│   ├── installation.md
-│   ├── quickstart-stdio.md
+│   ├── install-arangodb.md
+│   ├── quickstart.md
+│   ├── install-from-source.md
 │   └── first-interaction.md
 ├── user-guide/
 │   ├── tools-reference.md
@@ -896,7 +897,7 @@ docs/
   - Added "Examples" section to documentation links
   - Optimized to 382 lines (within 400-500 target)
   - All 30 absolute GitHub URLs verified for PyPI compatibility
-- **docs/README.md Updated:**
+- **docs/index.md Updated:**
   - Added "Examples" section with codebase-analysis.md
   - Updated Learning Path 1 to include example
   - Cross-references validated, relative links maintained
@@ -1416,7 +1417,7 @@ This project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html):
 
 ## Related Documentation
 
-- [Installation Guide](../getting-started/installation.md)
+- [Quickstart Guide](../getting-started/quickstart.md)
 - [Environment Variables](../configuration/environment-variables.md)
 - [HTTP Transport](http-transport.md)
 - [Tools Reference](../user-guide/tools-reference.md)

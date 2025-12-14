@@ -593,7 +593,7 @@ ARANGO_CONNECT_DELAY_SEC=1.0
 ## Related Documentation
 
 - [Transport Configuration](transport-configuration.md)
-- [Installation Guide](../getting-started/installation.md)
+- [Quickstart Guide](../getting-started/quickstart.md)
 - [Troubleshooting](../user-guide/troubleshooting.md)
 - [HTTP Transport](../developer-guide/http-transport.md)
 

@@ -1,6 +1,6 @@
 # Tools Reference
 
-Complete documentation for all 49 MCP tools provided by the mcp-arangodb-async server.
+Complete documentation for all 46 MCP tools provided by the mcp-arangodb-async server.
 
 **Audience:** End Users and Developers
 **Prerequisites:** Server installed and configured
@@ -11,7 +11,7 @@ Complete documentation for all 49 MCP tools provided by the mcp-arangodb-async s
 ## Table of Contents
 
 1. [Overview](#overview)
-2. [Multi-Tenancy Tools (6)](#multi-tenancy-tools-6)
+2. [Multi-Tenancy Tools (4)](#multi-tenancy-tools-4)
 3. [Core Data Operations (7)](#core-data-operations-7)
 4. [Indexing & Query Analysis (4)](#indexing--query-analysis-4)
 5. [Validation & Bulk Operations (4)](#validation--bulk-operations-4)
@@ -21,14 +21,14 @@ Complete documentation for all 49 MCP tools provided by the mcp-arangodb-async s
 9. [Advanced Graph Management (5)](#advanced-graph-management-5)
 10. [Tool Aliases (2)](#tool-aliases-2)
 11. [Health & Status (1)](#health--status-1)
-12. [MCP Design Pattern Tools (9)](#mcp-design-pattern-tools-9)
+12. [MCP Design Pattern Tools (8)](#mcp-design-pattern-tools-8)
 13. [Toolset Configuration](#toolset-configuration)
 
 ---
 
 ## Overview
 
-The mcp-arangodb-async server provides **49 comprehensive tools** organized into logical categories. Each tool:
+The mcp-arangodb-async server provides **46 comprehensive tools** organized into logical categories. Each tool:
 - Uses **strict Pydantic validation** for arguments
 - Provides **consistent error handling** with detailed messages
 - Returns **JSON-serializable results** for easy integration
@@ -48,7 +48,7 @@ See the [Multi-Tenancy Guide](multi-tenancy-guide.md) for complete documentation
 
 | Category | Tools | Use Cases |
 |----------|-------|-----------|
-| **Multi-Tenancy Tools** | 6 | Database management, connection testing, resolution |
+| **Multi-Tenancy Tools** | 4 | Database management, connection testing, resolution |
 | **Core Data Operations** | 7 | Basic CRUD, queries, backups |
 | **Indexing & Query Analysis** | 4 | Performance optimization, query profiling |
 | **Validation & Bulk Operations** | 4 | Data integrity, batch processing |
@@ -58,31 +58,32 @@ See the [Multi-Tenancy Guide](multi-tenancy-guide.md) for complete documentation
 | **Advanced Graph Management** | 5 | Graph backup/restore, integrity validation, analytics |
 | **Tool Aliases** | 2 | Convenience aliases for common operations |
 | **Health & Status** | 1 | Server health checks |
-| **MCP Design Pattern Tools** | 9 | Progressive discovery, context switching, tool unloading |
+| **MCP Design Pattern Tools** | 8 | Progressive discovery, context switching, tool unloading |
 
 ---
 
-## Multi-Tenancy Tools (6)
+## Multi-Tenancy Tools (4)
 
 Tools for managing multiple databases, switching contexts, and testing connections. See the [Multi-Tenancy Guide](multi-tenancy-guide.md) for complete usage patterns.
 
 ### arango_set_focused_database
 
-Set the focused database for the current session. All subsequent tool calls will use this database unless overridden by the `database` parameter.
+Set the focused database for the current session. All subsequent tool calls will use this database unless overridden by the `database` parameter. You can also unset the focused database to revert to default database resolution.
 
 **Parameters:**
-- `database_key` (string, required) - Database key from configuration
+- `database` (string, optional) - Database key from configuration. Pass `null` or empty string (`""`) to unset the focused database.
 
 **Returns:**
 - `success` (boolean) - Whether the operation succeeded
-- `previous_database` (string|null) - Previously focused database
-- `new_database` (string) - Newly focused database
+- `focused_database` (string|null) - The focused database key (or `null` if unset)
+- `session_id` (string) - Session identifier
 - `message` (string) - Success message
+- `fallback_database` (string|null) - Database that will be used after unsetting (only present when unsetting)
 
-**Example:**
+**Example 1: Setting a focused database**
 ```json
 {
-  "database_key": "staging"
+  "database": "staging"
 }
 ```
 
@@ -90,9 +91,27 @@ Set the focused database for the current session. All subsequent tool calls will
 ```json
 {
   "success": true,
-  "previous_database": "production",
-  "new_database": "staging",
+  "focused_database": "staging",
+  "session_id": "stdio",
   "message": "Focused database set to 'staging'"
+}
+```
+
+**Example 2: Unsetting the focused database**
+```json
+{
+  "database": null
+}
+```
+
+**Result:**
+```json
+{
+  "success": true,
+  "focused_database": null,
+  "session_id": "stdio",
+  "message": "Focused database has been unset. Database resolution will fall back to default priority levels (will use 'production')",
+  "fallback_database": "production"
 }
 ```
 
@@ -100,6 +119,7 @@ Set the focused database for the current session. All subsequent tool calls will
 - Switch between development, staging, and production environments
 - Set database context at the start of a workflow
 - Avoid repeating database parameter in multiple tool calls
+- Unset focused database to revert to default resolution (e.g., after completing a workflow)
 
 ---
 
@@ -1307,7 +1327,7 @@ Check database connectivity and return server information.
 
 ---
 
-## MCP Design Pattern Tools (9)
+## MCP Design Pattern Tools (8)
 
 Tools for efficient MCP tool management through progressive discovery, context switching, and tool unloading patterns. These tools enable AI agents to reduce context window consumption by up to 98.7% when working with large tool sets.
 
@@ -1824,7 +1844,7 @@ Control available tools using the `MCP_COMPAT_TOOLSET` environment variable:
 
 **Value:** `MCP_COMPAT_TOOLSET=full` (or unset)
 
-**Includes:** All 43 tools across all categories
+**Includes:** All 46 tools across all categories
 
 **Use Cases:**
 - Production deployments

@@ -54,59 +54,133 @@ graph TB
 
 ### Step 1: Start second ArangoDB instance on port 8530
 
-Update your `docker-compose.yml` to include a second instance:
+Update your `docker-compose.yml` [file](../../getting-started/install-arangodb.md#step-1-create-docker-compose-file) to include a second instance:
 
 ```yaml
 services:
-  arangodb:
+
+# ...
+# Existing arangodb service
+# ...
+
+  arangodb2:
     image: arangodb:3.11
     environment:
       ARANGO_ROOT_PASSWORD: ${ARANGO_INSTANCE2_ROOT_PASSWORD:-changeme}
     ports:
-      - "8530:8530"
+      - "${ARANGO_INSTANCE2_PORT:-8530}:8529"
     volumes:
       - arangodb_data_2:/var/lib/arangodb3
       - arangodb_apps_2:/var/lib/arangodb3-apps
     healthcheck:
-      test: arangosh --server.username root --server.password "$ARANGO_INSTANCE2_ROOT_PASSWORD" --javascript.execute-string "require('@arangodb').db._version()" > /dev/null 2>&1 || exit 1
+      test: >
+        arangosh --server.username root
+        --server.password "${ARANGO_INSTANCE2_ROOT_PASSWORD:-changeme}"
+        --javascript.execute-string "require('@arangodb').db._version()"
+        > /dev/null 2>&1 || exit 1
       interval: 5s
       timeout: 2s
       retries: 30
     restart: unless-stopped
 
 volumes:
+
+  # ...
+  # Existing volumes
+  # ...
+
   arangodb_data_2:
     driver: local
   arangodb_apps_2:
     driver: local
 ```
 
-Start both services:
+### Step 2: Add the second root password to the environment file
 
-```bash
-docker compose up -d
+In the `arangodb-launch.env` [file](../../getting-started/install-arangodb.md#step-2-create-environment-file), add a second root password, as well as a port that will be used for the second ArangoDB instance:
+
+```dotenv
+ARANGO_INSTANCE2_ROOT_PASSWORD=instance2-password
+ARANGO_INSTANCE2_PORT=8530
 ```
 
-### Step 2: Set environment variables for both instances
+### Step 3: Start the second ArangoDB instance
 
 ```bash
-export ARANGO_ROOT_PASSWORD="instance1-password"
-export ARANGO_INSTANCE2_ROOT_PASSWORD="instance2-password"
+docker compose --env-file arangodb-launch.env up -d arangodb2
 ```
 
-### Step 3: Add shared database on second instance
+### Step 4: Add shared database on second instance
+
+Add a specific password for user1 to access the second instance in `.user1.env`:
+
+```dotenv
+# ...
+# Existing variables
+# ...
+
+USER1_INSTANCE2_PASSWORD=user1_password2
+```
 
 ```bash
 maa db add shared \
   --url http://localhost:8530 \
-  --database shared \
-  --username root \
-  --password-env ARANGO_INSTANCE2_ROOT_PASSWORD
+  --with-user user1 \
+  --env-file .user1.env \
+  --arango-password-env USER1_INSTANCE2_PASSWORD \
+  --arango-root-password-env ARANGO_INSTANCE2_ROOT_PASSWORD
 ```
 
-**Note:** Different ArangoDB instances require different password environment variables, even if using the same username.
+> [!NOTE]
+> We are explicitely specifying the root and user password environment variables because we are already using the default `ARANGO_ROOT_PASSWORD` and `ARANGO_PASSWORD` variables for the first instance. Hence, to avoid promoting bad practices of reusing the same credentials across different instances, we set different variable names in `.user1.env` and using the `--arango-password-env` and `--arango-root-password-env` options to specify them.
 
-### Step 4: Verify all three databases are configured
+**Expected output:**
+
+```text
+The following actions will be performed:
+  [ADD] Database 'shared'
+  [ADD] User 'user1' (active: true)
+  [GRANT] Permission rw: user1 → shared
+
+Are you sure you want to proceed? [y/N]: y
+db add:
+[ADDED] Database 'shared'
+[ADDED] User 'user1' (active: true)
+[GRANTED] Permission rw: user1 → shared
+```
+
+### Step 5: Configure the shared database in the YAML file
+
+Similarly to the previous scenario, we need to add the database to the YAML file to make it accessible to the MCP server.
+
+```bash
+maa db config add shared_db \
+  --url http://localhost:8530 \
+  --database shared \
+  --username user1 \
+  --password-env USER1_INSTANCE2_PASSWORD
+```
+
+**Expected output:**
+
+```text
+The following actions will be performed:
+  [ADD] Database configuration 'shared_db'
+  [ADD]   URL: http://localhost:8530
+  [ADD]   Database: shared
+  [ADD]   Username: user1
+
+Are you sure you want to proceed? [y/N]: y
+db config add:
+[ADDED] Database configuration 'shared_db'
+[ADDED]   URL: http://localhost:8530
+[ADDED]   Database: shared
+[ADDED]   Username: user1
+
+Configuration saved to: path/to/config/databases.yaml
+```
+
+You can then confirm the configuration was saved:
 
 ```bash
 maa db config list
@@ -114,55 +188,75 @@ maa db config list
 
 **Expected output:**
 ```
-Configured databases:
-  - db1 (http://localhost:8529/db1)
-  - db2 (http://localhost:8529/db2)
-  - shared (http://localhost:8530/shared)
+Configured databases (3):
+Configuration file: path/to/config/databases.yaml
+
+  first_db:
+    URL: http://localhost:8529
+    Database: db1
+    Username: user1
+    Password env: ARANGO_PASSWORD
+    Timeout: 30.0s
+
+  second_db:
+    URL: http://localhost:8529
+    Database: db2
+    Username: user1
+    Password env: ARANGO_PASSWORD
+    Timeout: 30.0s
+
+  shared_db:
+    URL: http://localhost:8530
+    Database: shared
+    Username: user1
+    Password env: USER1_INSTANCE2_PASSWORD
+    Timeout: 30.0s
 ```
+
+
+### Add the password to the second instance in the MCP Host's configuration
+
+In the previous scenario, [we had only one password](./01-single-instance-single-database.md#step-4-adapt-your-mcp-hosts-configuration-to-use-the-new-config-file) to pass to the MCP server. Now that we have a new instance using a new password, the MCP server configuration must be updated accordingly:
+
+```json
+{
+  "mcpServers": {
+    "arangodb": {
+      "command": "<your command>",
+      "args": "<your args>",
+      "env": {
+        "ARANGO_PASSWORD": "user1_password",
+        "USER1_INSTANCE2_PASSWORD": "user1_password2"
+      }
+    }
+  }
+}
+```
+
+> [!NOTE]
+> You must restart the MCP server for all changes to take effect if it was already running.
 
 ## Verification Steps
 
 ### Test 1: Check all database connections
 
 ```bash
-maa db config test db1
-maa db config test db2
-maa db config test shared
+maa db config test first_db --env-file .user1.env
+maa db config test second_db --env-file .user1.env
+maa db config test shared_db --env-file .user1.env
 ```
 
 **Expected output:**
 ```
-✓ Connection to 'db1' successful
+✓ Connection to 'first_db' successful
   ArangoDB version: 3.11.14
-✓ Connection to 'db2' successful
+✓ Connection to 'second_db' successful
   ArangoDB version: 3.11.14
-✓ Connection to 'shared' successful
+✓ Connection to 'shared_db' successful
   ArangoDB version: 3.11.14
 ```
 
-### Test 2: Verify instance isolation
-
-**Example prompt:**
-```markdown
-Query each database to verify they're running on different ArangoDB instances:
-- Query db1 to return 'Instance 1 - db1'
-- Query db2 to return 'Instance 1 - db2'  
-- Query shared to return 'Instance 2 - shared'
-```
-
-**Expected behavior:**
-- MCP server queries databases on different ArangoDB instances (ports 8529 and 8530)
-- Demonstrates complete instance-level isolation
-- Shows that db1 and db2 are on the same instance, shared is on a different instance
-
-**Expected responses:**
-```json
-["Instance 1 - db1"]
-["Instance 1 - db2"]
-["Instance 2 - shared"]
-```
-
-### Test 3: List all available databases
+### Test 2: List all available databases
 
 **Example prompt:**
 ```markdown
@@ -178,113 +272,41 @@ List all available databases configured for this MCP server.
 {
   "databases": [
     {
-      "key": "db1",
-      "url": "http://localhost:8529",
-      "database": "db1"
-    },
-    {
-      "key": "db2",
-      "url": "http://localhost:8529",
-      "database": "db2"
-    },
-    {
-      "key": "shared",
-      "url": "http://localhost:8530",
-      "database": "shared"
-    }
-  ],
-  "count": 3
-}
-```
-
-### Test 4: Test instance-specific operations
-
-**Example prompt:**
-```markdown
-Create a collection called "instance1_data" in db1 and insert a document with source "instance1" and port 8529.
-Then create a collection called "instance2_data" in shared database and insert a document with source "instance2" and port 8530.
-```
-
-**Expected behavior:**
-- MCP server creates collections on different ArangoDB instances
-- MCP server inserts instance-specific data
-- Demonstrates operations across multiple instances
-
-### Test 5: Verify complete isolation
-
-**Example prompt:**
-```markdown
-List collections in db1 (instance 1) and then list collections in shared database (instance 2).
-This should show that each instance has completely separate collections.
-```
-
-**Expected behavior:**
-- MCP server lists collections from each ArangoDB instance separately
-- Shows instance-level data isolation
-- Confirms that collections exist only on their respective instances
-
-**Expected responses:**
-```json
-// Instance 1 collections (db1)
-["instance1_data"]
-
-// Instance 2 collections (shared)
-["instance2_data"]
-```
-
-### Test 6: Database status across instances
-
-**Example prompt:**
-```markdown
-Show the status of all configured databases including their connection status and versions.
-```
-
-**Expected behavior:**
-- MCP server calls `arango_database_status` tool
-- Returns comprehensive status for all databases across both instances
-- Shows which databases are connected and their ArangoDB versions
-
-**Expected response:**
-```json
-{
-  "summary": {
-    "total": 3,
-    "connected": 3,
-    "failed": 0,
-    "focused_database": null
-  },
-  "databases": [
-    {
-      "key": "db1",
+      "key": "first_db",
       "url": "http://localhost:8529",
       "database": "db1",
-      "username": "root",
-      "is_focused": false,
-      "status": "connected",
-      "version": "3.11.0"
+      "username": "user1"
     },
     {
-      "key": "db2",
+      "key": "second_db",
       "url": "http://localhost:8529",
       "database": "db2",
-      "username": "root",
-      "is_focused": false,
-      "status": "connected",
-      "version": "3.11.0"
+      "username": "user1"
     },
     {
-      "key": "shared",
+      "key": "shared_db",
       "url": "http://localhost:8530",
       "database": "shared",
-      "username": "root",
-      "is_focused": false,
-      "status": "connected",
-      "version": "3.11.0"
+      "username": "user1"
     }
   ],
-  "session_id": "stdio"
+  "total_count": 3
 }
 ```
+
+### Test 3: Test instance-specific operations
+
+**Example prompt:**
+```markdown
+Create a collection called "methods" in shared database and insert a document "protocol_base" with field "description" set to "our baseline protocol".
+Then, update the experiment beta in db2 with a new field to reference the protocol_base document in the methods collection of the shared database.
+```
+
+**Expected behavior:**
+- MCP server might get focused on shared database or the database override parameter will be used.
+- MCP server creates a collection and inserts a document in the shared database
+- MCP server updates a document in db2 to reference the document in the shared database
+- Demonstrates operations across multiple instances and databases
 
 ## Checkpoint: Multiple Instances
 
@@ -300,10 +322,5 @@ Show the status of all configured databases including their connection status an
 - Environment variable management for multiple instances
 - Network-level separation of data
 
-**Next up:**
-- Implement user-based access control
-- Create restricted agent users
-- Demonstrate content protection patterns
-
 > **Previous:** [Scenario 2: Single Instance, Multiple Databases](02-single-instance-multiple-databases.md)  
-> **Next:** [Scenario 4: Agent-Based Access Control](04-agent-based-access-control.md)
+> **Next:** [Back to Overview](README.md)
