@@ -468,10 +468,12 @@ async def call_tool(name: str, arguments: Dict[str, Any]) -> List[types.Content]
             logger.debug(f"Got connection to database: {target_db_key}")
         except KeyError as e:
             logger.error(f"Database not configured: {target_db_key}")
+            configured_dbs = db_manager.get_configured_databases()
             return _json_content(
                 {
-                    "error": "Database not configured",
                     "database": target_db_key,
+                    "error": "Target database not configured.",
+                    "available databases": list(configured_dbs.keys()),
                     "tool": name,
                 }
             )

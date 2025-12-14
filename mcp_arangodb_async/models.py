@@ -522,8 +522,9 @@ class UnloadToolsArgs(BaseModel):
 # Multi-Tenancy Tools
 class SetFocusedDatabaseArgs(BaseModel):
     """Arguments for arango_set_focused_database."""
-    database: str = Field(
-        description="Database key to set as focused database for this session"
+    database: Optional[str] = Field(
+        default=None,
+        description="Database key to set as focused database for this session. Use None or empty string to unset the focused database."
     )
 
 

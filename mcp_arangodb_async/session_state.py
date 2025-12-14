@@ -48,12 +48,12 @@ class SessionState:
         """
         return session_id in self._focused_database
 
-    async def set_focused_database(self, session_id: str, database_key: str) -> None:
+    async def set_focused_database(self, session_id: str, database_key: Optional[str]) -> None:
         """Set focused database for session (async-safe).
-        
+
         Args:
             session_id: Unique session identifier
-            database_key: Database key to focus on
+            database_key: Database key to focus on, or None to unset the focused database
         """
         async with self._lock:
             self._focused_database[session_id] = database_key

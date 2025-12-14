@@ -2429,7 +2429,7 @@ def handle_unload_tools(
 @handle_errors
 @register_tool(
     name=ARANGO_SET_FOCUSED_DATABASE,
-    description="Set the focused database for the current session. All subsequent tool calls will use this database unless overridden with the database parameter.",
+    description="Set the focused database for the current session. All subsequent tool calls will use this database unless overridden with the database parameter. Pass None or empty string to unset the focused database and revert to default database resolution.",
     model=SetFocusedDatabaseArgs,
 )
 async def handle_set_focused_database(
@@ -2439,7 +2439,7 @@ async def handle_set_focused_database(
 
     Args:
         db: ArangoDB database instance (not used, but required for handler signature)
-        args: Validated SetFocusedDatabaseArgs with database key
+        args: Validated SetFocusedDatabaseArgs with database key (or None to unset)
 
     Returns:
         Dictionary with success status and focused database
@@ -2450,7 +2450,42 @@ async def handle_set_focused_database(
     session_id = session_ctx.get("session_id", "stdio")
     db_manager = session_ctx.get("db_manager")
 
-    database_key = args["database"]
+    database_key = args.get("database")
+
+    # Check if unsetting the focused database (None or empty string)
+    if database_key is None or database_key == "":
+        # Unset focused database in session state
+        if session_state:
+            await session_state.set_focused_database(session_id, None)
+
+            # Determine which database will be used after unsetting
+            from .db_resolver import resolve_database
+            config_loader = session_ctx.get("config_loader")
+            fallback_db = None
+            if config_loader:
+                fallback_db = resolve_database(
+                    tool_args={},
+                    session_state=session_state,
+                    session_id=session_id,
+                    config_loader=config_loader
+                )
+
+            message = "Focused database has been unset. Database resolution will fall back to default priority levels"
+            if fallback_db:
+                message += f" (will use '{fallback_db}')"
+
+            return {
+                "success": True,
+                "focused_database": None,
+                "session_id": session_id,
+                "message": message,
+                "fallback_database": fallback_db
+            }
+        else:
+            return {
+                "success": False,
+                "error": "Session state not available"
+            }
 
     # Validate database exists in configuration
     if db_manager:

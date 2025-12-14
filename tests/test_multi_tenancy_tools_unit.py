@@ -106,6 +106,52 @@ class TestMultiTenancyTools:
         assert result["success"] is False
         assert "Session state not available" in result["error"]
 
+    @pytest.mark.asyncio
+    async def test_set_focused_database_unset_with_none(self):
+        """Test unsetting focused database with None."""
+        # First set a focused database
+        await self.session_state.set_focused_database(self.session_id, "staging")
+        assert self.session_state.get_focused_database(self.session_id) == "staging"
+
+        # Now unset it with None
+        args = {
+            "database": None,
+            **self._create_session_context()
+        }
+
+        result = await handle_set_focused_database(self.mock_db, args)
+
+        assert result["success"] is True
+        assert result["focused_database"] is None
+        assert result["session_id"] == self.session_id
+        assert "unset" in result["message"].lower()
+        assert "production" in result["message"]  # Should mention fallback database
+        assert result["fallback_database"] == "production"  # Should return fallback database
+        assert self.session_state.get_focused_database(self.session_id) is None
+
+    @pytest.mark.asyncio
+    async def test_set_focused_database_unset_with_empty_string(self):
+        """Test unsetting focused database with empty string."""
+        # First set a focused database
+        await self.session_state.set_focused_database(self.session_id, "production")
+        assert self.session_state.get_focused_database(self.session_id) == "production"
+
+        # Now unset it with empty string
+        args = {
+            "database": "",
+            **self._create_session_context()
+        }
+
+        result = await handle_set_focused_database(self.mock_db, args)
+
+        assert result["success"] is True
+        assert result["focused_database"] is None
+        assert result["session_id"] == self.session_id
+        assert "unset" in result["message"].lower()
+        assert "production" in result["message"]  # Should mention fallback database
+        assert result["fallback_database"] == "production"  # Should return fallback database
+        assert self.session_state.get_focused_database(self.session_id) is None
+
     def test_get_focused_database_set(self):
         """Test getting focused database when it's set."""
         import asyncio
