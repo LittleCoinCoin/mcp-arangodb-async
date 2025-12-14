@@ -97,7 +97,7 @@ volumes:
 
 ### Step 2: Add the second root password to the environment file
 
-In the `arangodb-launch.env` [file](../../getting-started/install-arangodb.md#step-2-create-environment-file), add a second root password, as well as a port that will be used for the second ArangoDB instance:
+In the `.arangodb-launch.env` [file](../../getting-started/install-arangodb.md#step-2-create-environment-file), add a second root password, as well as a port that will be used for the second ArangoDB instance:
 
 ```dotenv
 ARANGO_INSTANCE2_ROOT_PASSWORD=instance2-password
