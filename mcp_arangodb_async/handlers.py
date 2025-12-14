@@ -2429,7 +2429,7 @@ def handle_unload_tools(
 @handle_errors
 @register_tool(
     name=ARANGO_SET_FOCUSED_DATABASE,
-    description="Set the focused database for the current session. All subsequent tool calls will use this database unless overridden with the database parameter.",
+    description="Set the focused database for the current session. All subsequent tool calls will use this database unless overridden with the database parameter. Pass None or empty string to unset the focused database and revert to default database resolution.",
     model=SetFocusedDatabaseArgs,
 )
 async def handle_set_focused_database(
@@ -2439,7 +2439,7 @@ async def handle_set_focused_database(
 
     Args:
         db: ArangoDB database instance (not used, but required for handler signature)
-        args: Validated SetFocusedDatabaseArgs with database key
+        args: Validated SetFocusedDatabaseArgs with database key (or None to unset)
 
     Returns:
         Dictionary with success status and focused database
@@ -2450,7 +2450,42 @@ async def handle_set_focused_database(
     session_id = session_ctx.get("session_id", "stdio")
     db_manager = session_ctx.get("db_manager")
 
-    database_key = args["database"]
+    database_key = args.get("database")
+
+    # Check if unsetting the focused database (None or empty string)
+    if database_key is None or database_key == "":
+        # Unset focused database in session state
+        if session_state:
+            await session_state.set_focused_database(session_id, None)
+
+            # Determine which database will be used after unsetting
+            from .db_resolver import resolve_database
+            config_loader = session_ctx.get("config_loader")
+            fallback_db = None
+            if config_loader:
+                fallback_db = resolve_database(
+                    tool_args={},
+                    session_state=session_state,
+                    session_id=session_id,
+                    config_loader=config_loader
+                )
+
+            message = "Focused database has been unset. Database resolution will fall back to default priority levels"
+            if fallback_db:
+                message += f" (will use '{fallback_db}')"
+
+            return {
+                "success": True,
+                "focused_database": None,
+                "session_id": session_id,
+                "message": message,
+                "fallback_database": fallback_db
+            }
+        else:
+            return {
+                "success": False,
+                "error": "Session state not available"
+            }
 
     # Validate database exists in configuration
     if db_manager:
@@ -2576,11 +2611,15 @@ def handle_get_database_resolution(
 ) -> Dict[str, Any]:
     """Show database resolution for current session.
 
+    Uses the centralized resolve_database() function to ensure consistency
+    with actual database resolution logic, then builds diagnostic information
+    around the resolved result.
+
     Displays the 6-level priority fallback mechanism:
     1. Per-tool override (tool_args["database"])
     2. Focused database (session_state.get_focused_database())
     3. Config default (config_loader.default_database)
-    4. Environment variable (MCP_DEFAULT_DATABASE)
+    4. Environment variable (ARANGO_DB)
     5. First configured database
     6. Hardcoded fallback ("_system")
 
@@ -2592,6 +2631,7 @@ def handle_get_database_resolution(
         Dictionary with database resolution details
     """
     import os
+    from .db_resolver import resolve_database
 
     # Extract session context
     if args is None:
@@ -2602,8 +2642,20 @@ def handle_get_database_resolution(
     db_manager = session_ctx.get("db_manager")
     config_loader = session_ctx.get("config_loader")
 
+    # Use centralized resolver for actual resolution (no tool override for diagnostic)
+    resolved_db = None
+    if session_state and config_loader:
+        resolved_db = resolve_database(
+            tool_args={},  # No tool override for diagnostic
+            session_state=session_state,
+            session_id=session_id,
+            config_loader=config_loader
+        )
+
+    # Build diagnostic information around the resolved result
     resolution = {
         "session_id": session_id,
+        "resolved_database": resolved_db,
         "levels": {}
     }
 
@@ -2628,10 +2680,10 @@ def handle_get_database_resolution(
     }
 
     # Level 4: Environment variable
-    env_default = os.getenv("MCP_DEFAULT_DATABASE")
+    env_default = os.getenv("ARANGO_DB")
     resolution["levels"]["4_env_variable"] = {
         "value": env_default,
-        "description": "MCP_DEFAULT_DATABASE environment variable"
+        "description": "ARANGO_DB environment variable"
     }
 
     # Level 5: First configured database
@@ -2651,16 +2703,13 @@ def handle_get_database_resolution(
         "description": "Hardcoded fallback database"
     }
 
-    # Determine which level would be used
-    resolved_db = None
+    # Determine which level was used by comparing with resolved result
     resolved_level = None
     for level_key in ["2_focused_database", "3_config_default", "4_env_variable", "5_first_configured", "6_hardcoded_fallback"]:
-        if resolution["levels"][level_key]["value"]:
-            resolved_db = resolution["levels"][level_key]["value"]
+        if resolution["levels"][level_key]["value"] == resolved_db:
             resolved_level = level_key
             break
 
-    resolution["resolved_database"] = resolved_db
     resolution["resolved_level"] = resolved_level
 
     # Add comprehensive configuration information

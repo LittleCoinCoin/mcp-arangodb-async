@@ -74,7 +74,6 @@ class CLIEnvVar(Enum):
     ARANGO_NEW_PASSWORD = ("ARANGO_NEW_PASSWORD", "New password for password change", None, "auth")
     
     # Configuration
-    MCP_DEFAULT_DATABASE = ("MCP_DEFAULT_DATABASE", "Default database for MCP operations", None, "config")
     LOG_LEVEL = ("LOG_LEVEL", "Logging level (DEBUG, INFO, WARNING, ERROR)", None, "config")
     
     def __init__(self, var_name: str, description: str, default: Optional[str], category: str):

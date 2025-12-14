@@ -224,8 +224,14 @@ async def server_lifespan(server: Server) -> AsyncIterator[Dict[str, Any]]:
     session_state = SessionState()
     logger.info("Session state initialized")
 
-    # For backward compatibility: also initialize single-database connection
-    cfg = load_config()
+    # Initialize default database connection using centralized resolver
+    session_state_init = SessionState()
+    session_state_init.initialize_session("init")
+    
+    # Use centralized resolver to determine initial database
+    resolved_db_key = resolve_database({}, session_state_init, "init", config_loader)
+    logger.info(f"Server initialization resolved database: {resolved_db_key}")
+    
     client = None
     db = None
     # Retry connection per env or defaults
@@ -233,17 +239,16 @@ async def server_lifespan(server: Server) -> AsyncIterator[Dict[str, Any]]:
     delay = float(os.getenv("ARANGO_CONNECT_DELAY_SEC", "1.0"))
     for attempt in range(1, max(1, retries) + 1):
         try:
-            client, db = get_client_and_db(cfg)
+            client, db = await db_manager.get_connection(resolved_db_key)
             logger.info(
-                "Connected to ArangoDB at %s db=%s (attempt %d)",
-                cfg.arango_url,
-                cfg.database,
+                "Server initialization connected to database '%s' (attempt %d)",
+                resolved_db_key,
                 attempt,
             )
             break
         except Exception:
             logger.warning(
-                "ArangoDB connection attempt %d failed", attempt, exc_info=True
+                "Server initialization connection attempt %d failed", attempt, exc_info=True
             )
             if attempt < retries:
                 try:
@@ -252,7 +257,8 @@ async def server_lifespan(server: Server) -> AsyncIterator[Dict[str, Any]]:
                     pass
             else:
                 logger.error(
-                    "Failed to connect to ArangoDB after %d attempts; starting server without DB",
+                    "Failed to connect to database '%s' after %d attempts; starting server without DB",
+                    resolved_db_key,
                     retries,
                 )
                 client = None
@@ -462,10 +468,12 @@ async def call_tool(name: str, arguments: Dict[str, Any]) -> List[types.Content]
             logger.debug(f"Got connection to database: {target_db_key}")
         except KeyError as e:
             logger.error(f"Database not configured: {target_db_key}")
+            configured_dbs = db_manager.get_configured_databases()
             return _json_content(
                 {
-                    "error": "Database not configured",
                     "database": target_db_key,
+                    "error": "Target database not configured.",
+                    "available databases": list(configured_dbs.keys()),
                     "tool": name,
                 }
             )
@@ -480,18 +488,27 @@ async def call_tool(name: str, arguments: Dict[str, Any]) -> List[types.Content]
                 }
             )
 
-    # If DB is unavailable, attempt a lazy one-shot connect (backward compatibility)
+    # If DB is unavailable, attempt a lazy one-shot connect using unified system
     if db is None:
         try:
-            cfg = load_config()
-            client, db_conn = get_client_and_db(cfg)
+            # Use the same resolver and connection manager as normal tool execution
+            if not session_state or not db_manager or not config_loader:
+                raise Exception("Multi-database components not available")
+            
+            # Resolve database using same logic as above
+            if target_db_key is None:
+                target_db_key = resolve_database(
+                    validated_args, session_state, session_id, config_loader
+                )
+            
+            client, db_conn = await db_manager.get_connection(target_db_key)
             # Cache for subsequent calls
             if ctx and ctx.lifespan_context is not None:
                 ctx.lifespan_context["db"] = db_conn
                 ctx.lifespan_context["client"] = client
             db = db_conn
             logger.info(
-                "Lazy DB connect succeeded during tool call: db=%s", cfg.database
+                "Lazy DB connect succeeded during tool call: database=%s", target_db_key
             )
         except Exception as e:
             logger.warning(

@@ -75,10 +75,10 @@ ARANGO_URL=http://coordinator1.cluster.local:8529
 
 ### ARANGO_DB
 
-**Description:** Database name to connect to
+**Description:** Default database selection (meaning depends on configuration mode)
 
-**Type:** String  
-**Required:** Yes  
+**Type:** String
+**Required:** Yes
 **Default:** `_system`
 
 **Examples:**
@@ -93,10 +93,30 @@ ARANGO_DB=production_db
 ARANGO_DB=_system
 ```
 
+**Dual Meaning (Important):**
+
+The `ARANGO_DB` variable has different meanings depending on your setup:
+
+1. **Without YAML Configuration** (single-database mode):
+   - `ARANGO_DB` is treated as a **database name** (e.g., `mcp_arangodb_test`)
+   - The server connects directly to this database
+   - Example: `ARANGO_DB=mydb` → connects to database named `mydb`
+
+2. **With YAML Configuration** (multi-tenancy mode):
+   - `ARANGO_DB` is treated as a **database key** (e.g., `first_db`, `production`)
+   - The server looks up this key in `config/databases.yaml` to find the actual database
+   - Example: `ARANGO_DB=first_db` → looks up `first_db` entry in YAML config
+
+**Migration Note:** If you're switching from single-database to multi-tenancy mode:
+- Old setup: `ARANGO_DB=mydb` (database name)
+- New setup: Add `mydb` as a key in YAML config, then set `ARANGO_DB=mydb` (now a key reference)
+- The value stays the same, but its meaning changes based on whether YAML config exists
+
 **Notes:**
 - Database must exist before connecting
 - Use `_system` for administrative operations
 - Recommended: Create dedicated database for MCP server
+- See [Multi-Tenancy Guide](../user-guide/multi-tenancy-guide.md) for multi-database setup
 
 ---
 
@@ -593,7 +613,7 @@ ARANGO_CONNECT_DELAY_SEC=1.0
 ## Related Documentation
 
 - [Transport Configuration](transport-configuration.md)
-- [Installation Guide](../getting-started/installation.md)
+- [Quickstart Guide](../getting-started/quickstart.md)
 - [Troubleshooting](../user-guide/troubleshooting.md)
 - [HTTP Transport](../developer-guide/http-transport.md)
 

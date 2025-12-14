@@ -22,7 +22,7 @@ def resolve_database(
     1. Per-tool override (tool_args["database"])
     2. Focused database (session_state.get_focused_database())
     3. Config default (config_loader.default_database)
-    4. Environment variable (MCP_DEFAULT_DATABASE)
+    4. Environment variable (ARANGO_DB)
     5. First configured database
     6. Hardcoded fallback ("_system")
     
@@ -49,7 +49,7 @@ def resolve_database(
         return config_loader.default_database
     
     # Level 4: Environment variable
-    env_default = os.getenv("MCP_DEFAULT_DATABASE")
+    env_default = os.getenv("ARANGO_DB")
     if env_default:
         return env_default
     

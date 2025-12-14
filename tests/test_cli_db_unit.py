@@ -545,7 +545,7 @@ class TestCLIStatus:
         assert "- staging" in captured.out
         assert "Resolution order:" in captured.out
 
-    @patch.dict(os.environ, {"MCP_DEFAULT_DATABASE": "staging"})
+    @patch.dict(os.environ, {"ARANGO_DB": "staging"})
     def test_status_with_env_var(self, capsys):
         """Test status command with environment variable set."""
         # Create configuration
@@ -569,7 +569,7 @@ class TestCLIStatus:
 
         assert result == 0
         captured = capsys.readouterr()
-        assert "Default database (from MCP_DEFAULT_DATABASE): staging" in captured.out
+        assert "Default database (from ARANGO_DB): staging" in captured.out
 
     def test_status_error_handling(self, capsys):
         """Test error handling when showing status fails."""

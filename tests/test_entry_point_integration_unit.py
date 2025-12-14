@@ -89,6 +89,31 @@ class TestEntryPointIntegration:
         # Focused database should remain unchanged
         assert self.session_state.get_focused_database(session_id) == "production"
 
+    def test_database_resolution_after_unset(self):
+        """Test database resolution falls back to config default after unsetting focused database."""
+        session_id = "test-session"
+        self.session_state.initialize_session(session_id)
+
+        # Set focused database
+        asyncio.run(self.session_state.set_focused_database(session_id, "staging"))
+        assert self.session_state.get_focused_database(session_id) == "staging"
+
+        # Verify it uses focused database
+        result = resolve_database(
+            {}, self.session_state, session_id, self.config_loader
+        )
+        assert result == "staging"
+
+        # Unset focused database
+        asyncio.run(self.session_state.set_focused_database(session_id, None))
+        assert self.session_state.get_focused_database(session_id) is None
+
+        # Verify it falls back to config default
+        result = resolve_database(
+            {}, self.session_state, session_id, self.config_loader
+        )
+        assert result == "production"  # config_loader.default_database
+
     def test_session_id_extraction_stdio(self):
         """Test session ID extraction for stdio transport."""
         request_context = SimpleNamespace(session=None)
