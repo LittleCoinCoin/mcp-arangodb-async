@@ -334,7 +334,7 @@ Database Resolution Status:
 Configuration file: config/databases.yaml
 
 Default database (from config): production
-Default database (from MCP_DEFAULT_DATABASE): Not set
+Default database (from ARANGO_DB): Not set
 
 Configured databases: 2
   - production
@@ -344,7 +344,7 @@ Resolution order:
   1. Tool argument (database parameter)
   2. Focused database (session state)
   3. Config default (from YAML)
-  4. Environment variable (MCP_DEFAULT_DATABASE)
+  4. Environment variable (ARANGO_DB)
   5. First configured database
   6. Fallback to '_system'
 ```

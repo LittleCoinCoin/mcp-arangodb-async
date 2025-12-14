@@ -211,7 +211,7 @@ Show the database resolution algorithm and current state. Explains which databas
 **Returns:**
 - `focused_database` (string|null) - Currently focused database
 - `config_default` (string|null) - Default from YAML configuration
-- `env_default` (string|null) - Default from MCP_DEFAULT_DATABASE environment variable
+- `env_default` (string|null) - Default from ARANGO_DB environment variable
 - `first_configured` (string|null) - First database in configuration
 - `fallback` (string) - Fallback database (_system)
 - `resolution_order` (array) - Ordered list of resolution steps
@@ -234,7 +234,7 @@ Show the database resolution algorithm and current state. Explains which databas
     "1. Tool argument (database parameter)",
     "2. Focused database (session state): staging",
     "3. Config default (from YAML): production",
-    "4. Environment variable (MCP_DEFAULT_DATABASE): Not set",
+    "4. Environment variable (ARANGO_DB): Not set",
     "5. First configured database: production",
     "6. Fallback to '_system'"
   ],
