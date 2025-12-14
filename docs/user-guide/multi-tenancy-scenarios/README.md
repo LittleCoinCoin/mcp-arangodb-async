@@ -37,11 +37,6 @@ Add a second database and practice database switching.
 
 Scale to multiple ArangoDB instances for complete isolation.
 
-### [Scenario 4: Agent-Based Access Control](04-agent-based-access-control.md)
-**Setup:** 1 MCP server + 1 ArangoDB instance + 2 databases + 2 users with different permissions
-
-Implement fine-grained access control for AI agents.
-
 ---
 
 ## Prerequisites
