@@ -69,6 +69,14 @@ Graph Management:
     - handle_validate_graph_integrity
     - handle_graph_statistics
 
+Multi-Tenancy:
+    - handle_set_focused_database
+    - handle_get_focused_database
+    - handle_list_available_databases
+    - handle_get_database_resolution
+    - handle_test_database_connection
+    - handle_get_multi_database_status
+
 All handlers are decorated with @handle_errors for consistent error handling.
 The MCP integration layer in entry.py uses _invoke_handler to accommodate both
 signature patterns seamlessly, enabling comprehensive testing and direct usage.
@@ -133,14 +141,19 @@ from .tools import (
     # Pattern 1: Progressive Tool Discovery
     ARANGO_SEARCH_TOOLS,
     ARANGO_LIST_TOOLS_BY_CATEGORY,
-    # Pattern 2: Context Switching
-    ARANGO_SWITCH_CONTEXT,
-    ARANGO_GET_ACTIVE_CONTEXT,
-    ARANGO_LIST_CONTEXTS,
+    # Pattern 2: Workflow Switching
+    ARANGO_SWITCH_WORKFLOW,
+    ARANGO_GET_ACTIVE_WORKFLOW,
+    ARANGO_LIST_WORKFLOWS,
     # Pattern 3: Tool Unloading
     ARANGO_ADVANCE_WORKFLOW_STAGE,
     ARANGO_GET_TOOL_USAGE_STATS,
     ARANGO_UNLOAD_TOOLS,
+    # Multi-Tenancy Tools
+    ARANGO_SET_FOCUSED_DATABASE,
+    ARANGO_GET_FOCUSED_DATABASE,
+    ARANGO_LIST_AVAILABLE_DATABASES,
+    ARANGO_GET_DATABASE_RESOLUTION,
 )
 
 # Configure logger for handlers
@@ -171,37 +184,59 @@ def handle_errors(func):
 
     The _invoke_handler function in entry.py provides additional signature detection
     for test compatibility, but this decorator handles the core dual signature support.
+    
+    Supports both synchronous and asynchronous handlers.
     """
+    import asyncio
+    from functools import wraps
 
-    def wrapper(
-        db: StandardDatabase, args: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
-        try:
-            # Handle parameter-less operations (e.g., list_collections)
-            # These handlers accept Optional[Dict[str, Any]] = None in their signature
-            if args is None:
-                return func(db)
-            else:
-                # Handle standard operations that require args parameter
-                # These handlers expect Dict[str, Any] (non-optional)
-                return func(db, args)
-        except KeyError as e:
-            logger.error(f"Missing required parameter in {func.__name__}: {e}")
+    # Common error handling logic
+    def handle_exception(e: Exception, func_name: str) -> Dict[str, Any]:
+        if isinstance(e, KeyError):
+            logger.error(f"Missing required parameter in {func_name}: {e}")
             return {
                 "error": f"Missing required parameter: {str(e)}",
                 "type": "KeyError",
             }
-        except ArangoError as e:
-            logger.error(f"ArangoDB error in {func.__name__}: {e}")
+        elif isinstance(e, ArangoError):
+            logger.error(f"ArangoDB error in {func_name}: {e}")
             return {
                 "error": f"Database operation failed: {str(e)}",
                 "type": "ArangoError",
             }
-        except Exception as e:
-            logger.exception(f"Unexpected error in {func.__name__}")
+        else:
+            logger.exception(f"Unexpected error in {func_name}")
             return {"error": f"Operation failed: {str(e)}", "type": type(e).__name__}
 
-    return wrapper
+    # Check if the function is async
+    if asyncio.iscoroutinefunction(func):
+        @wraps(func)
+        async def async_wrapper(
+            db: StandardDatabase, args: Optional[Dict[str, Any]] = None
+        ) -> Dict[str, Any]:
+            try:
+                if args is None:
+                    return await func(db)
+                else:
+                    return await func(db, args)
+            except Exception as e:
+                return handle_exception(e, func.__name__)
+        
+        return async_wrapper
+    else:
+        @wraps(func)
+        def sync_wrapper(
+            db: StandardDatabase, args: Optional[Dict[str, Any]] = None
+        ) -> Dict[str, Any]:
+            try:
+                if args is None:
+                    return func(db)
+                else:
+                    return func(db, args)
+            except Exception as e:
+                return handle_exception(e, func.__name__)
+        
+        return sync_wrapper
 
 
 @contextmanager
@@ -253,14 +288,19 @@ from .models import (
     # Pattern 1: Progressive Tool Discovery
     SearchToolsArgs,
     ListToolsByCategoryArgs,
-    # Pattern 2: Context Switching
-    SwitchContextArgs,
-    GetActiveContextArgs,
-    ListContextsArgs,
+    # Pattern 2: Workflow Switching
+    SwitchWorkflowArgs,
+    GetActiveWorkflowArgs,
+    ListWorkflowsArgs,
     # Pattern 3: Tool Unloading
     AdvanceWorkflowStageArgs,
     GetToolUsageStatsArgs,
     UnloadToolsArgs,
+    # Multi-Tenancy Tools
+    SetFocusedDatabaseArgs,
+    GetFocusedDatabaseArgs,
+    ListAvailableDatabasesArgs,
+    GetDatabaseResolutionArgs,
 )
 
 
@@ -1747,71 +1787,96 @@ def handle_graph_statistics(
 
 @register_tool(
     name=ARANGO_DATABASE_STATUS,
-    description="Check database connection status and return diagnostic information.",
+    description="Get connection status for all configured databases, showing which databases are accessible, their versions, and which database is currently focused.",
     model=ArangoDatabaseStatusArgs,
 )
 @handle_errors
-def handle_arango_database_status(
+async def handle_arango_database_status(
     db: StandardDatabase, args: Optional[Dict[str, Any]] = None
 ) -> Dict[str, Any]:
-    """Check database connection status and return diagnostic information.
+    """Get status of all configured databases with summary.
 
-    This tool provides visibility into the database connection state, which is
-    especially useful when the database is unavailable at startup or during
-    operation. It complements MCP protocol logging by providing a proactive
-    way for users to check connection status.
+    This tool provides comprehensive visibility into the multi-database connection
+    state, showing all configured databases, their connectivity status, versions,
+    and which database is currently focused for the session.
 
     Operator model:
       Preconditions:
-        - None (works even when database is unavailable)
+        - None (works even when databases are unavailable)
       Effects:
-        - Returns connection status (connected: true/false)
-        - If connected: returns server version and database name
-        - If not connected: returns diagnostic information
+        - Returns connection status for all configured databases
+        - Shows which database is focused for current session
+        - Provides summary counts (total, connected, failed)
         - No database mutations
+
+    Args:
+        db: ArangoDB database instance (not used, but required for handler signature)
+        args: Optional arguments (may contain session context)
+
+    Returns:
+        Dictionary with summary and detailed status of all databases
     """
-    # Check if database connection is available
-    if db is None:
-        import os
+    # Extract session context
+    if args is None:
+        args = {}
+    session_ctx = args.pop("_session_context", {})
+    db_manager = session_ctx.get("db_manager")
+    session_state = session_ctx.get("session_state")
+    session_id = session_ctx.get("session_id", "stdio")
 
+    if not db_manager:
         return {
-            "connected": False,
-            "message": "Database connection is not available",
-            "config": {
-                "url": os.getenv("ARANGO_URL", "http://localhost:8529"),
-                "database": os.getenv("ARANGO_DB", "_system"),
+            "summary": {
+                "total": 0,
+                "connected": 0,
+                "failed": 0,
+                "focused_database": None
             },
-            "suggestion": "Please ensure ArangoDB is running and accessible. Check ARANGO_URL and ARANGO_DB environment variables.",
+            "databases": [],
+            "session_id": session_id,
+            "error": "Database manager not available"
         }
 
-    # Database is connected - get server info
-    try:
-        version_info = db.version()
-        server_version = (
-            version_info
-            if isinstance(version_info, str)
-            else version_info.get("version", "unknown")
-        )
+    configured_dbs = db_manager.get_configured_databases()
+    focused_db = session_state.get_focused_database(session_id) if session_state else None
 
-        return {
-            "connected": True,
-            "database": db.name,
-            "server_version": server_version,
-            "message": "Database connection is active",
-        }
-    except Exception as e:
-        # Connection exists but query failed
-        import os
+    databases = []
+    connected_count = 0
+    failed_count = 0
 
-        return {
-            "connected": False,
-            "message": f"Database connection exists but query failed: {str(e)}",
-            "config": {
-                "url": os.getenv("ARANGO_URL", "http://localhost:8529"),
-                "database": os.getenv("ARANGO_DB", "_system"),
-            },
-            "suggestion": "Database connection may be stale or server may be unresponsive.",
+    for db_key, db_config in configured_dbs.items():
+        db_status = {
+            "key": db_key,
+            "url": db_config.url,
+            "database": db_config.database,
+            "username": db_config.username,
+            "is_focused": db_key == focused_db
         }
+
+        # Test connection
+        try:
+            client, test_db = await db_manager.get_connection(db_key)
+            version = test_db.version()
+            db_status["status"] = "connected"
+            db_status["version"] = version
+            connected_count += 1
+        except Exception as e:
+            db_status["status"] = "error"
+            db_status["error"] = str(e)
+            failed_count += 1
+
+        databases.append(db_status)
+
+    return {
+        "summary": {
+            "total": len(databases),
+            "connected": connected_count,
+            "failed": failed_count,
+            "focused_database": focused_db
+        },
+        "databases": databases,
+        "session_id": session_id
+    }
 
 
 # ============================================================================
@@ -1966,7 +2031,7 @@ def handle_list_tools_by_category(
         return result
 
 
-# Pattern 2: Context Switching
+# Pattern 2: Workflow Switching
 # Define workflow contexts
 WORKFLOW_CONTEXTS = {
     "baseline": {
@@ -2014,35 +2079,54 @@ WORKFLOW_CONTEXTS = {
     }
 }
 
-# Global state for active context (in production, this would be per-session)
-_ACTIVE_CONTEXT = "baseline"
+def _get_session_context(args: Dict[str, Any]) -> tuple:
+    """Extract session context from args if available.
+
+    Args:
+        args: Handler arguments dictionary
+
+    Returns:
+        Tuple of (session_state, session_id) - session_state may be None
+    """
+    session_ctx = args.pop("_session_context", {})
+    session_state = session_ctx.get("session_state")
+    session_id = session_ctx.get("session_id", "stdio")
+    return session_state, session_id
 
 
 @handle_errors
 @register_tool(
-    name=ARANGO_SWITCH_CONTEXT,
-    description="Switch to a different workflow context with a predefined set of tools. Enables Context Switching pattern for workflow-specific tool sets.",
-    model=SwitchContextArgs,
+    name=ARANGO_SWITCH_WORKFLOW,
+    description="Switch to a different workflow context with a predefined set of tools. Enables Workflow Switching pattern for workflow-specific tool sets.",
+    model=SwitchWorkflowArgs,
 )
-def handle_switch_context(
+async def handle_switch_workflow(
     db: StandardDatabase, args: Dict[str, Any]
 ) -> Dict[str, Any]:
     """Switch to a different workflow context.
 
-    This tool enables the Context Switching pattern by allowing AI agents to
+    This tool enables the Workflow Switching pattern by allowing AI agents to
     switch between predefined tool sets optimized for specific workflows.
+
+    Uses per-session state via SessionState for multi-tenancy support.
 
     Args:
         db: ArangoDB database instance (not used, but required for handler signature)
-        args: Validated SwitchContextArgs containing target context
+        args: Validated SwitchWorkflowArgs containing target context
 
     Returns:
         Dictionary with context switch details
     """
-    global _ACTIVE_CONTEXT
+    # Extract session context for per-session state
+    session_state, session_id = _get_session_context(args)
 
     new_context = args["context"]
-    old_context = _ACTIVE_CONTEXT
+
+    # Get old context from session state or default
+    if session_state:
+        old_context = session_state.get_active_workflow(session_id) or "baseline"
+    else:
+        old_context = "baseline"
 
     if new_context not in WORKFLOW_CONTEXTS:
         return {
@@ -2056,7 +2140,9 @@ def handle_switch_context(
     tools_added = list(new_tools - old_tools)
     tools_removed = list(old_tools - new_tools)
 
-    _ACTIVE_CONTEXT = new_context
+    # Update session state if available
+    if session_state:
+        await session_state.set_active_workflow(session_id, new_context)
 
     return {
         "from_context": old_context,
@@ -2071,28 +2157,39 @@ def handle_switch_context(
 
 @handle_errors
 @register_tool(
-    name=ARANGO_GET_ACTIVE_CONTEXT,
+    name=ARANGO_GET_ACTIVE_WORKFLOW,
     description="Get the currently active workflow context and its tool set.",
-    model=GetActiveContextArgs,
+    model=GetActiveWorkflowArgs,
 )
-def handle_get_active_context(
+def handle_get_active_workflow(
     db: StandardDatabase, args: Optional[Dict[str, Any]] = None
 ) -> Dict[str, Any]:
     """Get the currently active workflow context.
 
+    Uses per-session state via SessionState for multi-tenancy support.
+
     Args:
         db: ArangoDB database instance (not used, but required for handler signature)
-        args: No arguments required
+        args: Optional arguments (may contain session context)
 
     Returns:
         Dictionary with active context details
     """
-    global _ACTIVE_CONTEXT
+    # Extract session context for per-session state
+    if args is None:
+        args = {}
+    session_state, session_id = _get_session_context(args)
 
-    context_info = WORKFLOW_CONTEXTS[_ACTIVE_CONTEXT]
+    # Get active workflow from session state or default
+    if session_state:
+        active_context = session_state.get_active_workflow(session_id) or "baseline"
+    else:
+        active_context = "baseline"
+
+    context_info = WORKFLOW_CONTEXTS[active_context]
 
     return {
-        "active_context": _ACTIVE_CONTEXT,
+        "active_context": active_context,
         "description": context_info["description"],
         "tools": context_info["tools"],
         "tool_count": len(context_info["tools"])
@@ -2101,22 +2198,27 @@ def handle_get_active_context(
 
 @handle_errors
 @register_tool(
-    name=ARANGO_LIST_CONTEXTS,
+    name=ARANGO_LIST_WORKFLOWS,
     description="List all available workflow contexts with their descriptions and optional tool lists.",
-    model=ListContextsArgs,
+    model=ListWorkflowsArgs,
 )
-def handle_list_contexts(
+def handle_list_workflows(
     db: StandardDatabase, args: Dict[str, Any]
 ) -> Dict[str, Any]:
     """List all available workflow contexts.
 
+    Uses per-session state via SessionState for multi-tenancy support.
+
     Args:
         db: ArangoDB database instance (not used, but required for handler signature)
-        args: Validated ListContextsArgs with include_tools flag
+        args: Validated ListWorkflowsArgs with include_tools flag
 
     Returns:
         Dictionary with all available contexts
     """
+    # Extract session context for per-session state
+    session_state, session_id = _get_session_context(args)
+
     include_tools = args.get("include_tools", False)
 
     contexts = {}
@@ -2129,10 +2231,16 @@ def handle_list_contexts(
         if include_tools:
             contexts[context_name]["tools"] = context_info["tools"]
 
+    # Get active workflow from session state or default
+    if session_state:
+        active_context = session_state.get_active_workflow(session_id) or "baseline"
+    else:
+        active_context = "baseline"
+
     return {
         "contexts": contexts,
         "total_contexts": len(contexts),
-        "active_context": _ACTIVE_CONTEXT
+        "active_context": active_context
     }
 
 
@@ -2169,24 +2277,6 @@ WORKFLOW_STAGES = {
     }
 }
 
-# Global state for tool usage tracking (in production, this would be per-session)
-_CURRENT_STAGE = "setup"
-_TOOL_USAGE_STATS = {}
-
-
-def _track_tool_usage(tool_name: str):
-    """Track tool usage for unloading decisions."""
-    if tool_name not in _TOOL_USAGE_STATS:
-        _TOOL_USAGE_STATS[tool_name] = {
-            "first_used": datetime.now().isoformat(),
-            "last_used": datetime.now().isoformat(),
-            "use_count": 0,
-            "stage": _CURRENT_STAGE
-        }
-
-    _TOOL_USAGE_STATS[tool_name]["last_used"] = datetime.now().isoformat()
-    _TOOL_USAGE_STATS[tool_name]["use_count"] += 1
-
 
 @handle_errors
 @register_tool(
@@ -2194,13 +2284,15 @@ def _track_tool_usage(tool_name: str):
     description="Advance to the next workflow stage, automatically unloading tools from previous stage and loading tools for new stage. Enables Tool Unloading pattern.",
     model=AdvanceWorkflowStageArgs,
 )
-def handle_advance_workflow_stage(
+async def handle_advance_workflow_stage(
     db: StandardDatabase, args: Dict[str, Any]
 ) -> Dict[str, Any]:
     """Advance to a new workflow stage with automatic tool unloading.
 
     This tool enables the Tool Unloading pattern by automatically removing
     tools from completed stages and loading tools for the new stage.
+
+    Uses per-session state via SessionState for multi-tenancy support.
 
     Args:
         db: ArangoDB database instance (not used, but required for handler signature)
@@ -2209,10 +2301,16 @@ def handle_advance_workflow_stage(
     Returns:
         Dictionary with stage transition details
     """
-    global _CURRENT_STAGE
+    # Extract session context for per-session state
+    session_state, session_id = _get_session_context(args)
 
     new_stage = args["stage"]
-    old_stage = _CURRENT_STAGE
+
+    # Get old stage from session state or default
+    if session_state:
+        old_stage = session_state.get_tool_lifecycle_stage(session_id) or "setup"
+    else:
+        old_stage = "setup"
 
     if new_stage not in WORKFLOW_STAGES:
         return {
@@ -2226,7 +2324,9 @@ def handle_advance_workflow_stage(
     tools_unloaded = list(old_tools - new_tools)
     tools_loaded = list(new_tools - old_tools)
 
-    _CURRENT_STAGE = new_stage
+    # Update session state if available
+    if session_state:
+        await session_state.set_tool_lifecycle_stage(session_id, new_stage)
 
     return {
         "from_stage": old_stage,
@@ -2250,20 +2350,34 @@ def handle_get_tool_usage_stats(
 ) -> Dict[str, Any]:
     """Get tool usage statistics.
 
+    Uses per-session state via SessionState for multi-tenancy support.
+    Returns session-specific tool usage statistics when SessionState is available.
+
     Args:
         db: ArangoDB database instance (not used, but required for handler signature)
-        args: No arguments required
+        args: Optional arguments (may contain session context)
 
     Returns:
         Dictionary with tool usage statistics
     """
-    global _TOOL_USAGE_STATS, _CURRENT_STAGE
+    # Extract session context for per-session state
+    if args is None:
+        args = {}
+    session_state, session_id = _get_session_context(args)
+
+    # Get stats from session state or default
+    if session_state:
+        tool_usage = session_state.get_tool_usage_stats(session_id)
+        current_stage = session_state.get_tool_lifecycle_stage(session_id) or "setup"
+    else:
+        tool_usage = {}
+        current_stage = "setup"
 
     return {
-        "current_stage": _CURRENT_STAGE,
-        "tool_usage": _TOOL_USAGE_STATS,
-        "total_tools_used": len(_TOOL_USAGE_STATS),
-        "active_stage_tools": WORKFLOW_STAGES[_CURRENT_STAGE]["tools"]
+        "current_stage": current_stage,
+        "tool_usage": tool_usage,
+        "total_tools_used": len(tool_usage),
+        "active_stage_tools": WORKFLOW_STAGES[current_stage]["tools"]
     }
 
 
@@ -2278,6 +2392,9 @@ def handle_unload_tools(
 ) -> Dict[str, Any]:
     """Manually unload specific tools.
 
+    Extracts session context for consistency with other pattern handlers,
+    though this handler doesn't currently use session state.
+
     Args:
         db: ArangoDB database instance (not used, but required for handler signature)
         args: Validated UnloadToolsArgs containing tool names to unload
@@ -2285,6 +2402,9 @@ def handle_unload_tools(
     Returns:
         Dictionary with unload results
     """
+    # Extract session context (not used currently, but prepared for future use)
+    _session_state, _session_id = _get_session_context(args)
+
     tool_names = args["tool_names"]
 
     # In a real implementation, this would remove tools from the active context
@@ -2303,6 +2423,323 @@ def handle_unload_tools(
         "not_found": not_found,
         "total_unloaded": len(unloaded)
     }
+
+
+# Multi-Tenancy Tools
+@handle_errors
+@register_tool(
+    name=ARANGO_SET_FOCUSED_DATABASE,
+    description="Set the focused database for the current session. All subsequent tool calls will use this database unless overridden with the database parameter. Pass None or empty string to unset the focused database and revert to default database resolution.",
+    model=SetFocusedDatabaseArgs,
+)
+async def handle_set_focused_database(
+    db: StandardDatabase, args: Dict[str, Any]
+) -> Dict[str, Any]:
+    """Set focused database for the current session.
+
+    Args:
+        db: ArangoDB database instance (not used, but required for handler signature)
+        args: Validated SetFocusedDatabaseArgs with database key (or None to unset)
+
+    Returns:
+        Dictionary with success status and focused database
+    """
+    # Extract session context
+    session_ctx = args.pop("_session_context", {})
+    session_state = session_ctx.get("session_state")
+    session_id = session_ctx.get("session_id", "stdio")
+    db_manager = session_ctx.get("db_manager")
+
+    database_key = args.get("database")
+
+    # Check if unsetting the focused database (None or empty string)
+    if database_key is None or database_key == "":
+        # Unset focused database in session state
+        if session_state:
+            await session_state.set_focused_database(session_id, None)
+
+            # Determine which database will be used after unsetting
+            from .db_resolver import resolve_database
+            config_loader = session_ctx.get("config_loader")
+            fallback_db = None
+            if config_loader:
+                fallback_db = resolve_database(
+                    tool_args={},
+                    session_state=session_state,
+                    session_id=session_id,
+                    config_loader=config_loader
+                )
+
+            message = "Focused database has been unset. Database resolution will fall back to default priority levels"
+            if fallback_db:
+                message += f" (will use '{fallback_db}')"
+
+            return {
+                "success": True,
+                "focused_database": None,
+                "session_id": session_id,
+                "message": message,
+                "fallback_database": fallback_db
+            }
+        else:
+            return {
+                "success": False,
+                "error": "Session state not available"
+            }
+
+    # Validate database exists in configuration
+    if db_manager:
+        configured_dbs = db_manager.get_configured_databases()
+        if database_key not in configured_dbs:
+            return {
+                "success": False,
+                "error": f"Database '{database_key}' not configured",
+                "available_databases": list(configured_dbs.keys())
+            }
+
+    # Set focused database in session state
+    if session_state:
+        await session_state.set_focused_database(session_id, database_key)
+        return {
+            "success": True,
+            "focused_database": database_key,
+            "session_id": session_id
+        }
+    else:
+        return {
+            "success": False,
+            "error": "Session state not available"
+        }
+
+
+@handle_errors
+@register_tool(
+    name=ARANGO_GET_FOCUSED_DATABASE,
+    description="Get the currently focused database for the current session.",
+    model=GetFocusedDatabaseArgs,
+)
+def handle_get_focused_database(
+    db: StandardDatabase, args: Optional[Dict[str, Any]] = None
+) -> Dict[str, Any]:
+    """Get currently focused database for the current session.
+
+    Args:
+        db: ArangoDB database instance (not used, but required for handler signature)
+        args: Optional arguments (may contain session context)
+
+    Returns:
+        Dictionary with focused database information
+    """
+    # Extract session context
+    if args is None:
+        args = {}
+    session_ctx = args.pop("_session_context", {})
+    session_state = session_ctx.get("session_state")
+    session_id = session_ctx.get("session_id", "stdio")
+
+    if session_state:
+        focused_db = session_state.get_focused_database(session_id)
+        return {
+            "focused_database": focused_db,
+            "session_id": session_id,
+            "is_set": focused_db is not None
+        }
+    else:
+        return {
+            "focused_database": None,
+            "session_id": session_id,
+            "is_set": False,
+            "error": "Session state not available"
+        }
+
+
+@handle_errors
+@register_tool(
+    name=ARANGO_LIST_AVAILABLE_DATABASES,
+    description="List all configured databases available for multi-tenancy operations.",
+    model=ListAvailableDatabasesArgs,
+)
+def handle_list_available_databases(
+    db: StandardDatabase, args: Optional[Dict[str, Any]] = None
+) -> Dict[str, Any]:
+    """List all configured databases.
+
+    Args:
+        db: ArangoDB database instance (not used, but required for handler signature)
+        args: Optional arguments (may contain session context)
+
+    Returns:
+        Dictionary with list of available databases
+    """
+    # Extract session context
+    if args is None:
+        args = {}
+    session_ctx = args.pop("_session_context", {})
+    db_manager = session_ctx.get("db_manager")
+
+    if db_manager:
+        configured_dbs = db_manager.get_configured_databases()
+        databases = []
+        for db_key, db_config in configured_dbs.items():
+            databases.append({
+                "key": db_key,
+                "url": db_config.url,
+                "database": db_config.database,
+                "username": db_config.username
+            })
+
+        return {
+            "databases": databases,
+            "total_count": len(databases)
+        }
+    else:
+        return {
+            "databases": [],
+            "total_count": 0,
+            "error": "Database manager not available"
+        }
+
+
+@handle_errors
+@register_tool(
+    name=ARANGO_GET_DATABASE_RESOLUTION,
+    description="Show the database resolution algorithm result for the current session, displaying which database would be used based on the 6-level priority fallback.",
+    model=GetDatabaseResolutionArgs,
+)
+def handle_get_database_resolution(
+    db: StandardDatabase, args: Optional[Dict[str, Any]] = None
+) -> Dict[str, Any]:
+    """Show database resolution for current session.
+
+    Uses the centralized resolve_database() function to ensure consistency
+    with actual database resolution logic, then builds diagnostic information
+    around the resolved result.
+
+    Displays the 6-level priority fallback mechanism:
+    1. Per-tool override (tool_args["database"])
+    2. Focused database (session_state.get_focused_database())
+    3. Config default (config_loader.default_database)
+    4. Environment variable (ARANGO_DB)
+    5. First configured database
+    6. Hardcoded fallback ("_system")
+
+    Args:
+        db: ArangoDB database instance (not used, but required for handler signature)
+        args: Optional arguments (may contain session context)
+
+    Returns:
+        Dictionary with database resolution details
+    """
+    import os
+    from .db_resolver import resolve_database
+
+    # Extract session context
+    if args is None:
+        args = {}
+    session_ctx = args.pop("_session_context", {})
+    session_state = session_ctx.get("session_state")
+    session_id = session_ctx.get("session_id", "stdio")
+    db_manager = session_ctx.get("db_manager")
+    config_loader = session_ctx.get("config_loader")
+
+    # Use centralized resolver for actual resolution (no tool override for diagnostic)
+    resolved_db = None
+    if session_state and config_loader:
+        resolved_db = resolve_database(
+            tool_args={},  # No tool override for diagnostic
+            session_state=session_state,
+            session_id=session_id,
+            config_loader=config_loader
+        )
+
+    # Build diagnostic information around the resolved result
+    resolution = {
+        "session_id": session_id,
+        "resolved_database": resolved_db,
+        "levels": {}
+    }
+
+    # Level 1: Per-tool override (not applicable for this tool)
+    resolution["levels"]["1_per_tool_override"] = {
+        "value": None,
+        "description": "Per-tool database parameter (not applicable for this query)"
+    }
+
+    # Level 2: Focused database
+    focused_db = session_state.get_focused_database(session_id) if session_state else None
+    resolution["levels"]["2_focused_database"] = {
+        "value": focused_db,
+        "description": "Session-scoped focused database"
+    }
+
+    # Level 3: Config default
+    config_default = config_loader.default_database if config_loader else None
+    resolution["levels"]["3_config_default"] = {
+        "value": config_default,
+        "description": "Default database from configuration file"
+    }
+
+    # Level 4: Environment variable
+    env_default = os.getenv("ARANGO_DB")
+    resolution["levels"]["4_env_variable"] = {
+        "value": env_default,
+        "description": "ARANGO_DB environment variable"
+    }
+
+    # Level 5: First configured database
+    first_configured = None
+    if db_manager:
+        configured_dbs = db_manager.get_configured_databases()
+        if configured_dbs:
+            first_configured = list(configured_dbs.keys())[0]
+    resolution["levels"]["5_first_configured"] = {
+        "value": first_configured,
+        "description": "First database in configuration"
+    }
+
+    # Level 6: Hardcoded fallback
+    resolution["levels"]["6_hardcoded_fallback"] = {
+        "value": "_system",
+        "description": "Hardcoded fallback database"
+    }
+
+    # Determine which level was used by comparing with resolved result
+    resolved_level = None
+    for level_key in ["2_focused_database", "3_config_default", "4_env_variable", "5_first_configured", "6_hardcoded_fallback"]:
+        if resolution["levels"][level_key]["value"] == resolved_db:
+            resolved_level = level_key
+            break
+
+    resolution["resolved_level"] = resolved_level
+
+    # Add comprehensive configuration information
+    if config_loader:
+        resolution["configuration"] = {
+            "source": "yaml_file" if getattr(config_loader, "loaded_from_yaml", False) else "environment_variables",
+            "config_path": getattr(config_loader, "config_path", None) if getattr(config_loader, "loaded_from_yaml", False) else None,
+            "default_database": getattr(config_loader, "default_database", None),
+            "total_databases": len(config_loader.get_configured_databases()),
+            "database_keys": list(config_loader.get_configured_databases().keys())
+        }
+        
+        # Add details for each configured database
+        resolution["databases"] = {}
+        for db_key, db_config in config_loader.get_configured_databases().items():
+            resolution["databases"][db_key] = {
+                "url": getattr(db_config, "url", None),
+                "database": getattr(db_config, "database", None),
+                "username": getattr(db_config, "username", None),
+                "timeout": getattr(db_config, "timeout", None)
+            }
+    else:
+        resolution["configuration"] = {
+            "error": "config_loader not available"
+        }
+
+    return resolution
+
+
+
 
 
 # Register aliases for backward compatibility

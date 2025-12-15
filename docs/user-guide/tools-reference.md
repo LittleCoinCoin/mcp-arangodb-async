@@ -1,6 +1,6 @@
 # Tools Reference
 
-Complete documentation for all 43 MCP tools provided by the mcp-arangodb-async server.
+Complete documentation for all 46 MCP tools provided by the mcp-arangodb-async server.
 
 **Audience:** End Users and Developers
 **Prerequisites:** Server installed and configured
@@ -11,32 +11,44 @@ Complete documentation for all 43 MCP tools provided by the mcp-arangodb-async s
 ## Table of Contents
 
 1. [Overview](#overview)
-2. [Core Data Operations (7)](#core-data-operations-7)
-3. [Indexing & Query Analysis (4)](#indexing--query-analysis-4)
-4. [Validation & Bulk Operations (4)](#validation--bulk-operations-4)
-5. [Schema Management (2)](#schema-management-2)
-6. [Enhanced Query Tools (2)](#enhanced-query-tools-2)
-7. [Basic Graph Operations (7)](#basic-graph-operations-7)
-8. [Advanced Graph Management (5)](#advanced-graph-management-5)
-9. [Tool Aliases (2)](#tool-aliases-2)
-10. [Health & Status (1)](#health--status-1)
-11. [MCP Design Pattern Tools (9)](#mcp-design-pattern-tools-9)
-12. [Toolset Configuration](#toolset-configuration)
+2. [Multi-Tenancy Tools (4)](#multi-tenancy-tools-4)
+3. [Core Data Operations (7)](#core-data-operations-7)
+4. [Indexing & Query Analysis (4)](#indexing--query-analysis-4)
+5. [Validation & Bulk Operations (4)](#validation--bulk-operations-4)
+6. [Schema Management (2)](#schema-management-2)
+7. [Enhanced Query Tools (2)](#enhanced-query-tools-2)
+8. [Basic Graph Operations (7)](#basic-graph-operations-7)
+9. [Advanced Graph Management (5)](#advanced-graph-management-5)
+10. [Tool Aliases (2)](#tool-aliases-2)
+11. [Health & Status (1)](#health--status-1)
+12. [MCP Design Pattern Tools (8)](#mcp-design-pattern-tools-8)
+13. [Toolset Configuration](#toolset-configuration)
 
 ---
 
 ## Overview
 
-The mcp-arangodb-async server provides **43 comprehensive tools** organized into logical categories. Each tool:
+The mcp-arangodb-async server provides **46 comprehensive tools** organized into logical categories. Each tool:
 - Uses **strict Pydantic validation** for arguments
 - Provides **consistent error handling** with detailed messages
 - Returns **JSON-serializable results** for easy integration
 - Follows **standard handler signature**: `(db: StandardDatabase, args: Dict[str, Any]) -> Dict[str, Any]`
 
+### Multi-Tenancy Support
+
+**32 data operation tools** support an optional `database` parameter for per-tool database override. This enables:
+- Working with multiple databases in a single session
+- Cross-database comparisons and migrations
+- Environment switching (dev, staging, production)
+- Tenant isolation
+
+See the [Multi-Tenancy Guide](multi-tenancy-guide.md) for complete documentation.
+
 ### Tool Categories
 
 | Category | Tools | Use Cases |
 |----------|-------|-----------|
+| **Multi-Tenancy Tools** | 4 | Database management, connection testing, resolution |
 | **Core Data Operations** | 7 | Basic CRUD, queries, backups |
 | **Indexing & Query Analysis** | 4 | Performance optimization, query profiling |
 | **Validation & Bulk Operations** | 4 | Data integrity, batch processing |
@@ -46,11 +58,281 @@ The mcp-arangodb-async server provides **43 comprehensive tools** organized into
 | **Advanced Graph Management** | 5 | Graph backup/restore, integrity validation, analytics |
 | **Tool Aliases** | 2 | Convenience aliases for common operations |
 | **Health & Status** | 1 | Server health checks |
-| **MCP Design Pattern Tools** | 9 | Progressive discovery, context switching, tool unloading |
+| **MCP Design Pattern Tools** | 8 | Progressive discovery, context switching, tool unloading |
+
+---
+
+## Multi-Tenancy Tools (4)
+
+Tools for managing multiple databases, switching contexts, and testing connections. See the [Multi-Tenancy Guide](multi-tenancy-guide.md) for complete usage patterns.
+
+### arango_set_focused_database
+
+Set the focused database for the current session. All subsequent tool calls will use this database unless overridden by the `database` parameter. You can also unset the focused database to revert to default database resolution.
+
+**Parameters:**
+- `database` (string, optional) - Database key from configuration. Pass `null` or empty string (`""`) to unset the focused database.
+
+**Returns:**
+- `success` (boolean) - Whether the operation succeeded
+- `focused_database` (string|null) - The focused database key (or `null` if unset)
+- `session_id` (string) - Session identifier
+- `message` (string) - Success message
+- `fallback_database` (string|null) - Database that will be used after unsetting (only present when unsetting)
+
+**Example 1: Setting a focused database**
+```json
+{
+  "database": "staging"
+}
+```
+
+**Result:**
+```json
+{
+  "success": true,
+  "focused_database": "staging",
+  "session_id": "stdio",
+  "message": "Focused database set to 'staging'"
+}
+```
+
+**Example 2: Unsetting the focused database**
+```json
+{
+  "database": null
+}
+```
+
+**Result:**
+```json
+{
+  "success": true,
+  "focused_database": null,
+  "session_id": "stdio",
+  "message": "Focused database has been unset. Database resolution will fall back to default priority levels (will use 'production')",
+  "fallback_database": "production"
+}
+```
+
+**Use Cases:**
+- Switch between development, staging, and production environments
+- Set database context at the start of a workflow
+- Avoid repeating database parameter in multiple tool calls
+- Unset focused database to revert to default resolution (e.g., after completing a workflow)
+
+---
+
+### arango_get_focused_database
+
+Get the currently focused database for the session.
+
+**Parameters:** None
+
+**Returns:**
+- `focused_database` (string|null) - Currently focused database key
+- `is_set` (boolean) - Whether a focused database is set
+
+**Example:**
+```json
+{}
+```
+
+**Result:**
+```json
+{
+  "focused_database": "staging",
+  "is_set": true
+}
+```
+
+**Use Cases:**
+- Verify which database will be used for operations
+- Check session state before critical operations
+- Debugging database resolution issues
+
+---
+
+### arango_list_available_databases
+
+List all configured databases from the YAML configuration.
+
+**Parameters:** None
+
+**Returns:**
+- `databases` (array) - List of database configurations
+- `count` (number) - Number of configured databases
+- `default_database` (string|null) - Default database from configuration
+
+**Example:**
+```json
+{}
+```
+
+**Result:**
+```json
+{
+  "databases": [
+    {
+      "key": "production",
+      "url": "http://localhost:8529",
+      "database": "myapp_prod",
+      "username": "admin",
+      "timeout": 60.0,
+      "description": "Production database"
+    },
+    {
+      "key": "staging",
+      "url": "http://staging:8529",
+      "database": "myapp_staging",
+      "username": "admin",
+      "timeout": 30.0,
+      "description": "Staging database"
+    }
+  ],
+  "count": 2,
+  "default_database": "production"
+}
+```
+
+**Use Cases:**
+- Discover available databases
+- Verify configuration before operations
+- Display database options to users
+
+---
+
+### arango_get_database_resolution
+
+Show the database resolution algorithm and current state. Explains which database will be used based on the 6-level resolution order.
+
+**Parameters:** None
+
+**Returns:**
+- `focused_database` (string|null) - Currently focused database
+- `config_default` (string|null) - Default from YAML configuration
+- `env_default` (string|null) - Default from ARANGO_DB environment variable
+- `first_configured` (string|null) - First database in configuration
+- `fallback` (string) - Fallback database (_system)
+- `resolution_order` (array) - Ordered list of resolution steps
+- `current_database` (string) - Database that will be used
+
+**Example:**
+```json
+{}
+```
+
+**Result:**
+```json
+{
+  "focused_database": "staging",
+  "config_default": "production",
+  "env_default": null,
+  "first_configured": "production",
+  "fallback": "_system",
+  "resolution_order": [
+    "1. Tool argument (database parameter)",
+    "2. Focused database (session state): staging",
+    "3. Config default (from YAML): production",
+    "4. Environment variable (ARANGO_DB): Not set",
+    "5. First configured database: production",
+    "6. Fallback to '_system'"
+  ],
+  "current_database": "staging"
+}
+```
+
+**Use Cases:**
+- Understand which database will be used
+- Debug unexpected database selection
+- Verify resolution logic before critical operations
+- Educational tool for understanding multi-tenancy
+
+---
+
+### arango_database_status
+
+Get comprehensive connection status for all configured databases, showing which databases are accessible, their versions, and which database is currently focused.
+
+**Parameters:** None
+
+**Returns:**
+- `summary` (object) - Quick overview of database status
+  - `total` (number) - Total number of configured databases
+  - `connected` (number) - Number of successfully connected databases
+  - `failed` (number) - Number of failed connections
+  - `focused_database` (string | null) - Currently focused database key
+- `databases` (array) - Detailed status for each database
+  - `key` (string) - Database configuration key
+  - `url` (string) - Database URL
+  - `database` (string) - Database name
+  - `username` (string) - Username for connection
+  - `is_focused` (boolean) - Whether this is the focused database
+  - `status` (string) - Connection status ("connected" or "error")
+  - `version` (string, optional) - ArangoDB version if connected
+  - `error` (string, optional) - Error message if connection failed
+- `session_id` (string) - Current session identifier
+
+**Example:**
+```json
+{}
+```
+
+**Result:**
+```json
+{
+  "summary": {
+    "total": 3,
+    "connected": 2,
+    "failed": 1,
+    "focused_database": "production"
+  },
+  "databases": [
+    {
+      "key": "production",
+      "url": "http://localhost:8529",
+      "database": "prod_db",
+      "username": "admin",
+      "is_focused": true,
+      "status": "connected",
+      "version": "3.11.0"
+    },
+    {
+      "key": "staging",
+      "url": "http://localhost:8530",
+      "database": "staging_db",
+      "username": "admin",
+      "is_focused": false,
+      "status": "connected",
+      "version": "3.10.5"
+    },
+    {
+      "key": "development",
+      "url": "http://localhost:8531",
+      "database": "dev_db",
+      "username": "admin",
+      "is_focused": false,
+      "status": "error",
+      "error": "Connection refused"
+    }
+  ],
+  "session_id": "stdio"
+}
+```
+
+**Use Cases:**
+- Get comprehensive overview of all database connections
+- Verify which databases are accessible
+- Check which database is currently focused
+- Troubleshoot connection issues across multiple databases
+- Health checks for multi-database deployments
+- Monitor database availability
 
 ---
 
 ## Core Data Operations (7)
+
+**Note:** All tools in this category support the optional `database` parameter for per-tool database override. See [Multi-Tenancy Guide](multi-tenancy-guide.md) for details.
 
 ### arango_query
 
@@ -59,6 +341,7 @@ Execute AQL (ArangoDB Query Language) queries with optional bind variables.
 **Parameters:**
 - `query` (string, required) - AQL query string
 - `bind_vars` (object, optional) - Bind variables for parameterized queries
+- `database` (string, optional) - Database override (see [Multi-Tenancy Guide](multi-tenancy-guide.md))
 
 **Returns:**
 - Array of result documents
@@ -98,7 +381,7 @@ Execute AQL (ArangoDB Query Language) queries with optional bind variables.
 List all non-system collections in the database.
 
 **Parameters:**
-- None (empty object or omitted)
+- `database` (string, optional) - Database override (see [Multi-Tenancy Guide](multi-tenancy-guide.md))
 
 **Returns:**
 - Array of collection names (strings)
@@ -129,6 +412,7 @@ Insert a document into a collection.
 - `collection` (string, required) - Collection name
 - `document` (object, required) - Document to insert
 - `return_new` (boolean, optional, default: true) - Return inserted document
+- `database` (string, optional) - Database override (see [Multi-Tenancy Guide](multi-tenancy-guide.md))
 
 **Returns:**
 - Inserted document with `_key`, `_id`, `_rev` fields
@@ -175,6 +459,7 @@ Update an existing document by key.
 - `key` (string, required) - Document key
 - `document` (object, required) - Fields to update (partial update)
 - `return_new` (boolean, optional, default: true) - Return updated document
+- `database` (string, optional) - Database override (see [Multi-Tenancy Guide](multi-tenancy-guide.md))
 
 **Returns:**
 - Updated document with new `_rev`
@@ -221,6 +506,7 @@ Remove a document by key from a collection.
 **Parameters:**
 - `collection` (string, required) - Collection name
 - `key` (string, required) - Document key to remove
+- `database` (string, optional) - Database override (see [Multi-Tenancy Guide](multi-tenancy-guide.md))
 
 **Returns:**
 - Confirmation object with removed document metadata
@@ -263,6 +549,7 @@ Create a new collection or return properties of existing collection.
 - `name` (string, required) - Collection name
 - `type` (string, optional, default: "document") - Collection type: "document" or "edge"
 - `wait_for_sync` (boolean, optional, default: false) - Synchronous writes
+- `database` (string, optional) - Database override (see [Multi-Tenancy Guide](multi-tenancy-guide.md))
 
 **Returns:**
 - Collection properties object
@@ -298,7 +585,59 @@ Create a new collection or return properties of existing collection.
 
 ---
 
+### arango_backup
+
+Export database collections and documents to JSON files.
+
+**Parameters:**
+- `output_dir` (string, optional) - Directory for backup files (auto-generated if not provided)
+- `collections` (array of strings, optional) - Specific collections to backup (all if not provided)
+- `include_system` (boolean, optional, default: false) - Include system collections
+- `doc_limit` (integer, optional) - Limit documents per collection
+- `database` (string, optional) - Database override (see [Multi-Tenancy Guide](multi-tenancy-guide.md))
+
+**Returns:**
+- Backup report with file paths and document counts
+
+**Example:**
+```json
+{
+  "output_dir": "/tmp/db_backup",
+  "collections": ["users", "products"],
+  "include_system": false
+}
+```
+
+**Result:**
+```json
+{
+  "output_dir": "/tmp/db_backup",
+  "collections_backed_up": 2,
+  "total_documents": 1500,
+  "files": [
+    {"collection": "users", "count": 1000, "file": "users.json"},
+    {"collection": "products", "count": 500, "file": "products.json"}
+  ]
+}
+```
+
+**Use Cases:**
+- Database backups before major changes
+- Data migration between environments
+- Creating test datasets
+- Disaster recovery preparation
+
+**Best Practices:**
+- Use `doc_limit` for large collections to avoid memory issues
+- Exclude system collections unless specifically needed
+- Verify backup integrity before relying on it
+- Store backups in secure, accessible locations
+
+---
+
 ## Indexing & Query Analysis (4)
+
+**Note:** All tools in this category support the optional `database` parameter for per-tool database override. See [Multi-Tenancy Guide](multi-tenancy-guide.md) for details.
 
 ### arango_list_indexes
 
@@ -306,6 +645,7 @@ List all indexes for a collection.
 
 **Parameters:**
 - `collection` (string, required) - Collection name
+- `database` (string, optional) - Database override (see [Multi-Tenancy Guide](multi-tenancy-guide.md))
 
 **Returns:**
 - Array of index objects with type, fields, and properties
@@ -335,6 +675,7 @@ Create an index on a collection.
 - `fields` (array of strings, required) - Fields to index
 - `unique` (boolean, optional, default: false) - Unique constraint
 - `sparse` (boolean, optional, default: false) - Sparse index (skip null values)
+- `database` (string, optional) - Database override (see [Multi-Tenancy Guide](multi-tenancy-guide.md))
 
 **Returns:**
 - Created index object
@@ -365,6 +706,7 @@ Delete an index by ID or name.
 - `collection` (string, required) - Collection name
 - `index_id` (string, optional) - Index ID (e.g., "users/123")
 - `index_name` (string, optional) - Index name
+- `database` (string, optional) - Database override (see [Multi-Tenancy Guide](multi-tenancy-guide.md))
 
 **Returns:**
 - Confirmation object
@@ -378,6 +720,7 @@ Explain AQL query execution plan.
 **Parameters:**
 - `query` (string, required) - AQL query
 - `bind_vars` (object, optional) - Bind variables
+- `database` (string, optional) - Database override (see [Multi-Tenancy Guide](multi-tenancy-guide.md))
 
 **Returns:**
 - Query execution plan, warnings, and statistics
@@ -391,6 +734,8 @@ Explain AQL query execution plan.
 
 ## Validation & Bulk Operations (4)
 
+**Note:** All tools in this category support the optional `database` parameter for per-tool database override. See [Multi-Tenancy Guide](multi-tenancy-guide.md) for details.
+
 ### arango_validate_references
 
 Validate that reference fields point to existing documents.
@@ -400,6 +745,7 @@ Validate that reference fields point to existing documents.
 - `reference_fields` (array of objects, required) - Reference field definitions
   - `field` (string) - Field name
   - `target_collection` (string) - Target collection
+- `database` (string, optional) - Database override (see [Multi-Tenancy Guide](multi-tenancy-guide.md))
 
 **Returns:**
 - Validation report with invalid references
@@ -425,6 +771,7 @@ Insert document after validating references.
 - `collection` (string, required) - Collection name
 - `document` (object, required) - Document to insert
 - `reference_fields` (array of objects, required) - Reference field definitions
+- `database` (string, optional) - Database override (see [Multi-Tenancy Guide](multi-tenancy-guide.md))
 
 **Returns:**
 - Inserted document or validation error
@@ -438,6 +785,7 @@ Batch insert multiple documents.
 **Parameters:**
 - `collection` (string, required) - Collection name
 - `documents` (array of objects, required) - Documents to insert
+- `database` (string, optional) - Database override (see [Multi-Tenancy Guide](multi-tenancy-guide.md))
 
 **Returns:**
 - Insertion report with success/error counts
@@ -474,6 +822,7 @@ Batch update multiple documents by key.
 - `updates` (array of objects, required) - Update operations
   - `key` (string) - Document key
   - `document` (object) - Fields to update
+- `database` (string, optional) - Database override (see [Multi-Tenancy Guide](multi-tenancy-guide.md))
 
 **Returns:**
 - Update report with success/error counts
@@ -482,6 +831,8 @@ Batch update multiple documents by key.
 
 ## Schema Management (2)
 
+**Note:** All tools in this category support the optional `database` parameter for per-tool database override. See [Multi-Tenancy Guide](multi-tenancy-guide.md) for details.
+
 ### arango_create_schema
 
 Create or update a named JSON Schema.
@@ -489,6 +840,7 @@ Create or update a named JSON Schema.
 **Parameters:**
 - `schema_name` (string, required) - Schema identifier
 - `schema` (object, required) - JSON Schema definition
+- `database` (string, optional) - Database override (see [Multi-Tenancy Guide](multi-tenancy-guide.md))
 
 **Returns:**
 - Confirmation with schema name
@@ -518,6 +870,7 @@ Validate a document against a stored or inline schema.
 - `document` (object, required) - Document to validate
 - `schema_name` (string, optional) - Stored schema name
 - `schema` (object, optional) - Inline JSON Schema
+- `database` (string, optional) - Database override (see [Multi-Tenancy Guide](multi-tenancy-guide.md))
 
 **Returns:**
 - Validation result with errors (if any)
@@ -525,6 +878,8 @@ Validate a document against a stored or inline schema.
 ---
 
 ## Enhanced Query Tools (2)
+
+**Note:** All tools in this category support the optional `database` parameter for per-tool database override. See [Multi-Tenancy Guide](multi-tenancy-guide.md) for details.
 
 ### arango_query_builder
 
@@ -535,6 +890,7 @@ Build and execute simple AQL queries from structured filters.
 - `filters` (object, optional) - Field filters
 - `sort` (object, optional) - Sort specification
 - `limit` (integer, optional) - Result limit
+- `database` (string, optional) - Database override (see [Multi-Tenancy Guide](multi-tenancy-guide.md))
 
 **Example:**
 ```json
@@ -555,6 +911,7 @@ Profile query execution with detailed statistics.
 **Parameters:**
 - `query` (string, required) - AQL query
 - `bind_vars` (object, optional) - Bind variables
+- `database` (string, optional) - Database override (see [Multi-Tenancy Guide](multi-tenancy-guide.md))
 
 **Returns:**
 - Execution plan, statistics, and optimization suggestions
@@ -562,6 +919,8 @@ Profile query execution with detailed statistics.
 ---
 
 ## Basic Graph Operations (7)
+
+**Note:** All tools in this category support the optional `database` parameter for per-tool database override. See [Multi-Tenancy Guide](multi-tenancy-guide.md) for details.
 
 ### arango_create_graph
 
@@ -574,6 +933,7 @@ Create a named graph with edge definitions.
   - `from` (array of strings) - Source vertex collections
   - `to` (array of strings) - Target vertex collections
 - `orphan_collections` (array of strings, optional) - Vertex collections without edges
+- `database` (string, optional) - Database override (see [Multi-Tenancy Guide](multi-tenancy-guide.md))
 
 **Returns:**
 - Graph object with name and edge definitions
@@ -609,6 +969,7 @@ Insert an edge between two vertices.
 - `from` (string, required) - Source vertex ID (e.g., "users/123")
 - `to` (string, required) - Target vertex ID (e.g., "users/456")
 - `attributes` (object, optional) - Additional edge attributes
+- `database` (string, optional) - Database override (see [Multi-Tenancy Guide](multi-tenancy-guide.md))
 
 **Returns:**
 - Inserted edge with `_key`, `_id`, `_rev`, `_from`, `_to`
@@ -636,6 +997,7 @@ Traverse a graph from a start vertex.
 - `direction` (string, optional, default: "outbound") - "outbound", "inbound", or "any"
 - `min_depth` (integer, optional, default: 1) - Minimum traversal depth
 - `max_depth` (integer, optional, default: 1) - Maximum traversal depth
+- `database` (string, optional) - Database override (see [Multi-Tenancy Guide](multi-tenancy-guide.md))
 
 **Returns:**
 - Array of visited vertices and edges
@@ -668,6 +1030,7 @@ Compute shortest path between two vertices.
 - `graph_name` (string, optional) - Named graph
 - `edge_collection` (string, optional) - Edge collection (if not using named graph)
 - `direction` (string, optional, default: "outbound") - Traversal direction
+- `database` (string, optional) - Database override (see [Multi-Tenancy Guide](multi-tenancy-guide.md))
 
 **Returns:**
 - Path object with vertices and edges
@@ -704,7 +1067,7 @@ Compute shortest path between two vertices.
 List all named graphs in the database.
 
 **Parameters:**
-- None
+- `database` (string, optional) - Database override (see [Multi-Tenancy Guide](multi-tenancy-guide.md))
 
 **Returns:**
 - Array of graph names
@@ -728,6 +1091,7 @@ Add a vertex collection to an existing graph.
 **Parameters:**
 - `graph_name` (string, required) - Graph name
 - `collection` (string, required) - Vertex collection to add
+- `database` (string, optional) - Database override (see [Multi-Tenancy Guide](multi-tenancy-guide.md))
 
 **Returns:**
 - Updated graph object
@@ -744,6 +1108,7 @@ Add an edge definition to an existing graph.
   - `collection` (string) - Edge collection name
   - `from` (array of strings) - Source vertex collections
   - `to` (array of strings) - Target vertex collections
+- `database` (string, optional) - Database override (see [Multi-Tenancy Guide](multi-tenancy-guide.md))
 
 **Returns:**
 - Updated graph object
@@ -751,6 +1116,8 @@ Add an edge definition to an existing graph.
 ---
 
 ## Advanced Graph Management (5)
+
+**Note:** All tools in this category support the optional `database` parameter for per-tool database override. See [Multi-Tenancy Guide](multi-tenancy-guide.md) for details.
 
 ### arango_backup_graph
 
@@ -761,6 +1128,7 @@ Export complete graph structure including vertices, edges, and metadata.
 - `output_dir` (string, optional) - Directory for backup files (auto-generated if not provided)
 - `include_metadata` (boolean, optional, default: true) - Include graph metadata
 - `doc_limit` (integer, optional) - Limit documents per collection
+- `database` (string, optional) - Database override (see [Multi-Tenancy Guide](multi-tenancy-guide.md))
 
 **Returns:**
 - Backup report with file paths and counts
@@ -799,6 +1167,7 @@ Import graph data with referential integrity validation.
 - `graph_name` (string, optional) - Name for restored graph (uses original if not provided)
 - `conflict_resolution` (string, optional, default: "error") - "skip", "overwrite", or "error"
 - `validate_integrity` (boolean, optional, default: true) - Validate referential integrity
+- `database` (string, optional) - Database override (see [Multi-Tenancy Guide](multi-tenancy-guide.md))
 
 **Returns:**
 - Restore report with success/error counts
@@ -812,6 +1181,7 @@ Backup graph definitions from _graphs system collection.
 **Parameters:**
 - `output_file` (string, optional) - Output JSON file path
 - `graph_names` (array of strings, optional) - Specific graphs to backup
+- `database` (string, optional) - Database override (see [Multi-Tenancy Guide](multi-tenancy-guide.md))
 
 **Returns:**
 - Backup report with file path and graph count
@@ -827,6 +1197,7 @@ Verify graph consistency and find orphaned edges.
 - `check_orphaned_edges` (boolean, optional, default: true) - Check for edges with missing vertices
 - `check_constraints` (boolean, optional, default: true) - Validate graph constraints
 - `return_details` (boolean, optional, default: false) - Return detailed violation information
+- `database` (string, optional) - Database override (see [Multi-Tenancy Guide](multi-tenancy-guide.md))
 
 **Returns:**
 - Validation report with orphaned edges and constraint violations
@@ -868,6 +1239,7 @@ Generate comprehensive graph analytics.
 - `include_degree_distribution` (boolean, optional, default: true) - Calculate degree distribution
 - `include_connectivity` (boolean, optional, default: true) - Calculate connectivity metrics
 - `sample_size` (integer, optional, minimum: 100) - Sample size for connectivity analysis
+- `database` (string, optional) - Database override (see [Multi-Tenancy Guide](multi-tenancy-guide.md))
 
 **Returns:**
 - Graph statistics including vertex/edge counts, degree distribution, connectivity metrics
@@ -912,7 +1284,7 @@ Generate comprehensive graph analytics.
 
 Alias for `arango_traverse`. Provides the same functionality with an alternative name for clarity in graph workflows.
 
-**Parameters:** Same as `arango_traverse`
+**Parameters:** Same as `arango_traverse` (including `database` parameter)
 
 ---
 
@@ -920,18 +1292,20 @@ Alias for `arango_traverse`. Provides the same functionality with an alternative
 
 Alias for `arango_insert`. Provides semantic clarity when inserting vertices in graph workflows.
 
-**Parameters:** Same as `arango_insert`
+**Parameters:** Same as `arango_insert` (including `database` parameter)
 
 ---
 
 ## Health & Status (1)
+
+**Note:** This tool supports the optional `database` parameter for per-tool database override. See [Multi-Tenancy Guide](multi-tenancy-guide.md) for details.
 
 ### arango_database_status
 
 Check database connectivity and return server information.
 
 **Parameters:**
-- None
+- `database` (string, optional) - Database override (see [Multi-Tenancy Guide](multi-tenancy-guide.md))
 
 **Returns:**
 - Database status object with connection info
@@ -953,7 +1327,7 @@ Check database connectivity and return server information.
 
 ---
 
-## MCP Design Pattern Tools (9)
+## MCP Design Pattern Tools (8)
 
 Tools for efficient MCP tool management through progressive discovery, context switching, and tool unloading patterns. These tools enable AI agents to reduce context window consumption by up to 98.7% when working with large tool sets.
 
@@ -1068,9 +1442,9 @@ List all MCP tools organized by category. Useful for understanding tool organiza
 
 ---
 
-### Pattern 2: Context Switching (3 tools)
+### Pattern 2: Workflow Switching (3 tools)
 
-#### arango_switch_context
+#### arango_switch_workflow
 
 Switch to a different workflow context with a predefined set of tools. Enables workflow-specific tool sets for different use cases.
 
@@ -1139,13 +1513,13 @@ Switch to a different workflow context with a predefined set of tools. Enables w
 
 **Best Practices:**
 - Match context to workflow stage
-- Minimize context switches (group related operations)
-- Verify context before operations with `arango_get_active_context`
+- Minimize workflow switches (group related operations)
+- Verify workflow before operations with `arango_get_active_workflow`
 - Use `full` context only when truly needed
 
 ---
 
-#### arango_get_active_context
+#### arango_get_active_workflow
 
 Get the currently active workflow context and its tool set.
 
@@ -1185,14 +1559,14 @@ Get the currently active workflow context and its tool set.
 ```
 
 **Use Cases:**
-- Verify current context before operations
+- Verify current workflow before operations
 - Debug workflow issues
-- Log context state for audit trails
-- Confirm successful context switches
+- Log workflow state for audit trails
+- Confirm successful workflow switches
 
 ---
 
-#### arango_list_contexts
+#### arango_list_workflows
 
 List all available workflow contexts with their descriptions and optional tool lists.
 
@@ -1470,7 +1844,7 @@ Control available tools using the `MCP_COMPAT_TOOLSET` environment variable:
 
 **Value:** `MCP_COMPAT_TOOLSET=full` (or unset)
 
-**Includes:** All 43 tools across all categories
+**Includes:** All 46 tools across all categories
 
 **Use Cases:**
 - Production deployments
@@ -1483,6 +1857,5 @@ Control available tools using the `MCP_COMPAT_TOOLSET` environment variable:
 ## Related Documentation
 - [MCP Design Patterns Guide](./mcp-design-patterns.md) - Comprehensive guide to progressive discovery, context switching, and tool unloading
 - [First Interaction Guide](../getting-started/first-interaction.md)
-- [Graph Operations Guide](graph-operations.md)
-- [Codebase Analysis Example](../examples/codebase-analysis.md)
+- [Codebase Analysis Example](../examples/codebase-analysis.md) - Advanced graph modeling patterns
 - [Troubleshooting](troubleshooting.md)

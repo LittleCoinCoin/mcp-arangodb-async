@@ -145,8 +145,8 @@ Provide step-by-step transition instructions.
 - ❌ **Incorrect:** `TransportConfiguration.md`, `transport_configuration.md`
 
 **Use Descriptive Names**
-- ✅ **Correct:** `quickstart-stdio.md` (specific)
-- ❌ **Incorrect:** `quickstart.md` (ambiguous)
+- ✅ **Correct:** `install-arangodb.md` (specific purpose)
+- ❌ **Incorrect:** `setup.md` (ambiguous)
 
 **Special Files Use UPPERCASE**
 - `README.md`, `STYLE_GUIDE.md`, `CHANGELOG.md`
@@ -602,8 +602,8 @@ docker compose up -d
 ### Links
 
 **Use Descriptive Link Text:**
-- ✅ **Correct:** "See the [Installation Guide](installation.md) for setup instructions"
-- ❌ **Incorrect:** "Click [here](installation.md) for setup"
+- ✅ **Correct:** "See the [Quickstart Guide](quickstart.md) for setup instructions"
+- ❌ **Incorrect:** "Click [here](quickstart.md) for setup"
 
 **External Links Include Domain:**
 - ✅ **Correct:** "[ArangoDB Documentation](https://docs.arangodb.com/)"
@@ -666,11 +666,11 @@ docker compose up -d
 ✅ CORRECT (works on both GitHub and PyPI):
 [Transport Configuration](https://github.com/PCfVW/mcp-arangodb-async/blob/master/docs/configuration/transport-configuration.md)
 
-[Installation Guide](https://github.com/PCfVW/mcp-arangodb-async/blob/master/docs/getting-started/installation.md)
+[Quickstart Guide](https://github.com/PCfVW/mcp-arangodb-async/blob/master/docs/getting-started/quickstart.md)
 
 ❌ WRONG (broken on PyPI):
 [Transport Configuration](docs/configuration/transport-configuration.md)
-[Installation Guide](docs/getting-started/installation.md)
+[Quickstart Guide](docs/getting-started/quickstart.md)
 ```
 
 **URL Template:**
@@ -686,8 +686,8 @@ https://github.com/PCfVW/mcp-arangodb-async/blob/master/docs/[subdirectory]/[fil
 **Examples:**
 ```markdown
 # Getting Started Links
-[Installation Guide](https://github.com/PCfVW/mcp-arangodb-async/blob/master/docs/getting-started/installation.md)
-[Quickstart (stdio)](https://github.com/PCfVW/mcp-arangodb-async/blob/master/docs/getting-started/quickstart-stdio.md)
+[Quickstart Guide](https://github.com/PCfVW/mcp-arangodb-async/blob/master/docs/getting-started/quickstart.md)
+[ArangoDB Installation](https://github.com/PCfVW/mcp-arangodb-async/blob/master/docs/getting-started/install-arangodb.md)
 
 # Configuration Links
 [Transport Configuration](https://github.com/PCfVW/mcp-arangodb-async/blob/master/docs/configuration/transport-configuration.md)
@@ -716,7 +716,7 @@ https://github.com/PCfVW/mcp-arangodb-async/blob/master/docs/[subdirectory]/[fil
 
 **Use Relative Paths:**
 ```markdown
-✅ Correct (from docs/getting-started/installation.md):
+✅ Correct (from docs/getting-started/quickstart.md):
 See [Transport Configuration](../configuration/transport-configuration.md)
 
 ❌ Incorrect (absolute path):
@@ -758,7 +758,7 @@ See [Transport Configuration](/docs/configuration/transport-configuration.md)
 **Every Document Ends With Related Documentation:**
 ```markdown
 ## Related Documentation
-- [Installation Guide](../getting-started/installation.md)
+- [Quickstart Guide](../getting-started/quickstart.md)
 - [Transport Configuration](../configuration/transport-configuration.md)
 - [Architecture Overview](architecture.md)
 ```
@@ -781,7 +781,7 @@ See [Transport Configuration](/docs/configuration/transport-configuration.md)
 ## Next Steps
 - [Configure Environment Variables](../configuration/environment-variables.md)
 - [Run Your First Query](first-interaction.md)
-- [Explore Graph Operations](../user-guide/graph-operations.md)
+- [Explore Codebase Analysis Example](../examples/codebase-analysis.md)
 ```
 
 ### Link Validation
@@ -1085,8 +1085,8 @@ python -m mcp_arangodb_async --health
 ✅ **Good:** "Install ArangoDB 3.11"
 
 ### Mistake 9: Ambiguous Links
-❌ **Bad:** "Click [here](installation.md)"
-✅ **Good:** "See the [Installation Guide](installation.md)"
+❌ **Bad:** "Click [here](quickstart.md)"
+✅ **Good:** "See the [Quickstart Guide](quickstart.md)"
 
 ### Mistake 10: No Trade-off Discussion
 ❌ **Bad:** "Use FastMCP for better performance"
@@ -1095,22 +1095,22 @@ python -m mcp_arangodb_async --health
 ### Mistake 11: Relative Links in Root README.md
 ❌ **Bad (broken on PyPI):**
 ```markdown
-[Installation Guide](docs/getting-started/installation.md)
+[Quickstart Guide](docs/getting-started/quickstart.md)
 ```
 ✅ **Good (works on PyPI):**
 ```markdown
-[Installation Guide](https://github.com/PCfVW/mcp-arangodb-async/blob/master/docs/getting-started/installation.md)
+[Quickstart Guide](https://github.com/PCfVW/mcp-arangodb-async/blob/master/docs/getting-started/quickstart.md)
 ```
 
 ### Mistake 12: Absolute Links in docs/ Files
 ❌ **Bad (hard to maintain):**
 ```markdown
-# In docs/getting-started/installation.md
+# In docs/getting-started/quickstart.md
 [Transport Configuration](https://github.com/PCfVW/mcp-arangodb-async/blob/master/docs/configuration/transport-configuration.md)
 ```
 ✅ **Good (maintainable):**
 ```markdown
-# In docs/getting-started/installation.md
+# In docs/getting-started/quickstart.md
 [Transport Configuration](../configuration/transport-configuration.md)
 ```
 

@@ -9,6 +9,7 @@ __pycache__/
 .venv/
 venv/
 .env/
+.env-*
 
 # --- Build / packaging ---
 build/
@@ -52,6 +53,10 @@ Thumbs.db
 *.swp
 *.swo
 ~$*
+
+# --- IDE ---
+.kiro/
+.vscode/
 
 # --- Project-specific ---
 # Exclude all PDFs from the repository

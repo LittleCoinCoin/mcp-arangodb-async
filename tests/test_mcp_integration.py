@@ -9,9 +9,9 @@ from mcp_arangodb_async.models import QueryArgs, InsertArgs, BackupArgs
 from mcp_arangodb_async.tools import (
     ARANGO_SEARCH_TOOLS,
     ARANGO_LIST_TOOLS_BY_CATEGORY,
-    ARANGO_SWITCH_CONTEXT,
-    ARANGO_GET_ACTIVE_CONTEXT,
-    ARANGO_LIST_CONTEXTS,
+    ARANGO_SWITCH_WORKFLOW,
+    ARANGO_GET_ACTIVE_WORKFLOW,
+    ARANGO_LIST_WORKFLOWS,
     ARANGO_ADVANCE_WORKFLOW_STAGE,
     ARANGO_GET_TOOL_USAGE_STATS,
     ARANGO_UNLOAD_TOOLS,
@@ -313,9 +313,16 @@ class TestServerLifespan:
     @pytest.mark.asyncio
     @patch('mcp_arangodb_async.entry.load_config')
     @patch('mcp_arangodb_async.entry.get_client_and_db')
-    async def test_server_lifespan_success(self, mock_get_client, mock_load_config):
+    @patch('mcp_arangodb_async.entry.ConfigFileLoader')
+    async def test_server_lifespan_success(self, mock_config_loader_class, mock_get_client, mock_load_config):
         """Test successful server lifespan initialization."""
         from mcp_arangodb_async.entry import server_lifespan
+        
+        # Setup ConfigFileLoader mock
+        mock_config_loader = Mock()
+        mock_config_loader.get_configured_databases.return_value = {"default": Mock()}
+        mock_config_loader.config_path = "config/databases.yaml"
+        mock_config_loader_class.return_value = mock_config_loader
         
         # Setup mocks
         mock_config = Mock()
@@ -328,6 +335,7 @@ class TestServerLifespan:
         async with server_lifespan(server) as context:
             assert context["db"] == mock_db
             assert context["client"] == mock_client
+            assert context["config_loader"] == mock_config_loader
         
         # Verify cleanup
         mock_client.close.assert_called_once()
@@ -335,9 +343,16 @@ class TestServerLifespan:
     @pytest.mark.asyncio
     @patch('mcp_arangodb_async.entry.load_config')
     @patch('mcp_arangodb_async.entry.get_client_and_db')
-    async def test_server_lifespan_connection_failure(self, mock_get_client, mock_load_config):
+    @patch('mcp_arangodb_async.entry.ConfigFileLoader')
+    async def test_server_lifespan_connection_failure(self, mock_config_loader_class, mock_get_client, mock_load_config):
         """Test server lifespan with connection failure."""
         from mcp_arangodb_async.entry import server_lifespan
+        
+        # Setup ConfigFileLoader mock
+        mock_config_loader = Mock()
+        mock_config_loader.get_configured_databases.return_value = {"default": Mock()}
+        mock_config_loader.config_path = "config/databases.yaml"
+        mock_config_loader_class.return_value = mock_config_loader
         
         # Setup mocks
         mock_config = Mock()
@@ -352,9 +367,16 @@ class TestServerLifespan:
     @pytest.mark.asyncio
     @patch('mcp_arangodb_async.entry.load_config')
     @patch('mcp_arangodb_async.entry.get_client_and_db')
-    async def test_server_lifespan_retry_logic(self, mock_get_client, mock_load_config):
+    @patch('mcp_arangodb_async.entry.ConfigFileLoader')
+    async def test_server_lifespan_retry_logic(self, mock_config_loader_class, mock_get_client, mock_load_config):
         """Test server lifespan retry logic."""
         from mcp_arangodb_async.entry import server_lifespan
+        
+        # Setup ConfigFileLoader mock
+        mock_config_loader = Mock()
+        mock_config_loader.get_configured_databases.return_value = {"default": Mock()}
+        mock_config_loader.config_path = "config/databases.yaml"
+        mock_config_loader_class.return_value = mock_config_loader
         
         # Setup mocks
         mock_config = Mock()
@@ -522,13 +544,13 @@ class TestMCPDesignPatternToolsIntegration:
     # ========================================================================
 
     @pytest.mark.asyncio
-    async def test_list_contexts(self):
-        """Test arango_list_contexts through MCP server."""
+    async def test_list_workflows(self):
+        """Test arango_list_workflows through MCP server."""
         with patch.object(server, 'request_context') as mock_ctx:
             mock_ctx.lifespan_context = {"db": self.mock_db, "client": self.mock_client}
 
             result = await server._handlers["call_tool"](
-                ARANGO_LIST_CONTEXTS,
+                ARANGO_LIST_WORKFLOWS,
                 {"include_tools": False}
             )
 
@@ -541,13 +563,13 @@ class TestMCPDesignPatternToolsIntegration:
             assert len(response_data["contexts"]) == 6  # 6 workflow contexts
 
     @pytest.mark.asyncio
-    async def test_list_contexts_with_tools(self):
-        """Test arango_list_contexts with tool details."""
+    async def test_list_workflows_with_tools(self):
+        """Test arango_list_workflows with tool details."""
         with patch.object(server, 'request_context') as mock_ctx:
             mock_ctx.lifespan_context = {"db": self.mock_db, "client": self.mock_client}
 
             result = await server._handlers["call_tool"](
-                ARANGO_LIST_CONTEXTS,
+                ARANGO_LIST_WORKFLOWS,
                 {"include_tools": True}
             )
 
@@ -562,13 +584,13 @@ class TestMCPDesignPatternToolsIntegration:
                 assert "tools" in context_info
 
     @pytest.mark.asyncio
-    async def test_switch_context_valid(self):
-        """Test arango_switch_context with valid context."""
+    async def test_switch_workflow_valid(self):
+        """Test arango_switch_workflow with valid context."""
         with patch.object(server, 'request_context') as mock_ctx:
             mock_ctx.lifespan_context = {"db": self.mock_db, "client": self.mock_client}
 
             result = await server._handlers["call_tool"](
-                ARANGO_SWITCH_CONTEXT,
+                ARANGO_SWITCH_WORKFLOW,
                 {"context": "graph_modeling"}
             )
 
@@ -584,13 +606,13 @@ class TestMCPDesignPatternToolsIntegration:
             assert "active_tools" in response_data
 
     @pytest.mark.asyncio
-    async def test_switch_context_invalid(self):
-        """Test arango_switch_context with invalid context."""
+    async def test_switch_workflow_invalid(self):
+        """Test arango_switch_workflow with invalid context."""
         with patch.object(server, 'request_context') as mock_ctx:
             mock_ctx.lifespan_context = {"db": self.mock_db, "client": self.mock_client}
 
             result = await server._handlers["call_tool"](
-                ARANGO_SWITCH_CONTEXT,
+                ARANGO_SWITCH_WORKFLOW,
                 {"context": "invalid_context"}
             )
 
@@ -602,20 +624,27 @@ class TestMCPDesignPatternToolsIntegration:
             assert response_data["error"] == "ValidationError"
 
     @pytest.mark.asyncio
-    async def test_get_active_context(self):
-        """Test arango_get_active_context through MCP server."""
+    async def test_get_active_workflow(self):
+        """Test arango_get_active_workflow through MCP server."""
+        from mcp_arangodb_async.session_state import SessionState
+
+        session_state = SessionState()
         with patch.object(server, 'request_context') as mock_ctx:
-            mock_ctx.lifespan_context = {"db": self.mock_db, "client": self.mock_client}
+            mock_ctx.lifespan_context = {
+                "db": self.mock_db,
+                "client": self.mock_client,
+                "session_state": session_state
+            }
 
             # First switch to a known context
             await server._handlers["call_tool"](
-                ARANGO_SWITCH_CONTEXT,
+                ARANGO_SWITCH_WORKFLOW,
                 {"context": "bulk_operations"}
             )
 
-            # Now get active context
+            # Now get active workflow
             result = await server._handlers["call_tool"](
-                ARANGO_GET_ACTIVE_CONTEXT,
+                ARANGO_GET_ACTIVE_WORKFLOW,
                 {}
             )
 
@@ -629,14 +658,21 @@ class TestMCPDesignPatternToolsIntegration:
             assert "tool_count" in response_data
 
     @pytest.mark.asyncio
-    async def test_context_switching_workflow(self):
-        """Test complete context switching workflow."""
+    async def test_workflow_switching_workflow(self):
+        """Test complete workflow switching workflow."""
+        from mcp_arangodb_async.session_state import SessionState
+
+        session_state = SessionState()
         with patch.object(server, 'request_context') as mock_ctx:
-            mock_ctx.lifespan_context = {"db": self.mock_db, "client": self.mock_client}
+            mock_ctx.lifespan_context = {
+                "db": self.mock_db,
+                "client": self.mock_client,
+                "session_state": session_state
+            }
 
             # Switch to data_analysis
             result1 = await server._handlers["call_tool"](
-                ARANGO_SWITCH_CONTEXT,
+                ARANGO_SWITCH_WORKFLOW,
                 {"context": "data_analysis"}
             )
             data1 = json.loads(result1[0].text)
@@ -644,16 +680,16 @@ class TestMCPDesignPatternToolsIntegration:
 
             # Switch to graph_modeling
             result2 = await server._handlers["call_tool"](
-                ARANGO_SWITCH_CONTEXT,
+                ARANGO_SWITCH_WORKFLOW,
                 {"context": "graph_modeling"}
             )
             data2 = json.loads(result2[0].text)
             assert data2["from_context"] == "data_analysis"
             assert data2["to_context"] == "graph_modeling"
 
-            # Verify active context
+            # Verify active workflow
             result3 = await server._handlers["call_tool"](
-                ARANGO_GET_ACTIVE_CONTEXT,
+                ARANGO_GET_ACTIVE_WORKFLOW,
                 {}
             )
             data3 = json.loads(result3[0].text)
@@ -706,8 +742,15 @@ class TestMCPDesignPatternToolsIntegration:
     @pytest.mark.asyncio
     async def test_workflow_stage_progression(self):
         """Test complete workflow stage progression."""
+        from mcp_arangodb_async.session_state import SessionState
+
+        session_state = SessionState()
         with patch.object(server, 'request_context') as mock_ctx:
-            mock_ctx.lifespan_context = {"db": self.mock_db, "client": self.mock_client}
+            mock_ctx.lifespan_context = {
+                "db": self.mock_db,
+                "client": self.mock_client,
+                "session_state": session_state
+            }
 
             # Reset to setup stage
             await server._handlers["call_tool"](
@@ -793,8 +836,15 @@ class TestMCPDesignPatternToolsIntegration:
     @pytest.mark.asyncio
     async def test_complete_mcp_design_pattern_workflow(self):
         """Test realistic workflow combining all three patterns."""
+        from mcp_arangodb_async.session_state import SessionState
+
+        session_state = SessionState()
         with patch.object(server, 'request_context') as mock_ctx:
-            mock_ctx.lifespan_context = {"db": self.mock_db, "client": self.mock_client}
+            mock_ctx.lifespan_context = {
+                "db": self.mock_db,
+                "client": self.mock_client,
+                "session_state": session_state
+            }
 
             # Step 1: Search for tools (Pattern 1)
             search_result = await server._handlers["call_tool"](
@@ -808,9 +858,9 @@ class TestMCPDesignPatternToolsIntegration:
             search_data = json.loads(search_result[0].text)
             assert search_data["total_matches"] > 0
 
-            # Step 2: Switch to graph_modeling context (Pattern 2)
+            # Step 2: Switch to graph_modeling workflow (Pattern 2)
             switch_result = await server._handlers["call_tool"](
-                ARANGO_SWITCH_CONTEXT,
+                ARANGO_SWITCH_WORKFLOW,
                 {"context": "graph_modeling"}
             )
             switch_data = json.loads(switch_result[0].text)
@@ -824,13 +874,13 @@ class TestMCPDesignPatternToolsIntegration:
             stage_data = json.loads(stage_result[0].text)
             assert stage_data["to_stage"] == "setup"
 
-            # Step 4: Verify active context
-            context_result = await server._handlers["call_tool"](
-                ARANGO_GET_ACTIVE_CONTEXT,
+            # Step 4: Verify active workflow
+            workflow_result = await server._handlers["call_tool"](
+                ARANGO_GET_ACTIVE_WORKFLOW,
                 {}
             )
-            context_data = json.loads(context_result[0].text)
-            assert context_data["active_context"] == "graph_modeling"
+            workflow_data = json.loads(workflow_result[0].text)
+            assert workflow_data["active_context"] == "graph_modeling"
 
             # Step 5: Get tool usage stats
             stats_result = await server._handlers["call_tool"](
@@ -851,9 +901,9 @@ class TestMCPDesignPatternToolsIntegration:
             expected_tools = [
                 ARANGO_SEARCH_TOOLS,
                 ARANGO_LIST_TOOLS_BY_CATEGORY,
-                ARANGO_SWITCH_CONTEXT,
-                ARANGO_GET_ACTIVE_CONTEXT,
-                ARANGO_LIST_CONTEXTS,
+                ARANGO_SWITCH_WORKFLOW,
+                ARANGO_GET_ACTIVE_WORKFLOW,
+                ARANGO_LIST_WORKFLOWS,
                 ARANGO_ADVANCE_WORKFLOW_STAGE,
                 ARANGO_GET_TOOL_USAGE_STATS,
                 ARANGO_UNLOAD_TOOLS,

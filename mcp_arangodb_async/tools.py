@@ -51,6 +51,12 @@ Schema & Enhanced Query Tools:
     - ARANGO_VALIDATE_DOCUMENT
     - ARANGO_QUERY_BUILDER
     - ARANGO_QUERY_PROFILE
+
+Multi-Tenancy Tools:
+    - ARANGO_SET_FOCUSED_DATABASE
+    - ARANGO_GET_FOCUSED_DATABASE
+    - ARANGO_LIST_AVAILABLE_DATABASES
+    - ARANGO_GET_DATABASE_RESOLUTION
 """
 
 # Tool name constants (to match the TS implementation semantics)
@@ -109,12 +115,18 @@ ARANGO_DATABASE_STATUS = "arango_database_status"
 ARANGO_SEARCH_TOOLS = "arango_search_tools"
 ARANGO_LIST_TOOLS_BY_CATEGORY = "arango_list_tools_by_category"
 
-# Pattern 2: Context Switching
-ARANGO_SWITCH_CONTEXT = "arango_switch_context"
-ARANGO_GET_ACTIVE_CONTEXT = "arango_get_active_context"
-ARANGO_LIST_CONTEXTS = "arango_list_contexts"
+# Pattern 2: Workflow Switching
+ARANGO_SWITCH_WORKFLOW = "arango_switch_workflow"
+ARANGO_GET_ACTIVE_WORKFLOW = "arango_get_active_workflow"
+ARANGO_LIST_WORKFLOWS = "arango_list_workflows"
 
 # Pattern 3: Tool Unloading
 ARANGO_ADVANCE_WORKFLOW_STAGE = "arango_advance_workflow_stage"
 ARANGO_GET_TOOL_USAGE_STATS = "arango_get_tool_usage_stats"
 ARANGO_UNLOAD_TOOLS = "arango_unload_tools"
+
+# Multi-Tenancy Tools
+ARANGO_SET_FOCUSED_DATABASE = "arango_set_focused_database"
+ARANGO_GET_FOCUSED_DATABASE = "arango_get_focused_database"
+ARANGO_LIST_AVAILABLE_DATABASES = "arango_list_available_databases"
+ARANGO_GET_DATABASE_RESOLUTION = "arango_get_database_resolution"

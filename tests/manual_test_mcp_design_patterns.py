@@ -3,10 +3,13 @@ Manual validation test script for MCP Design Pattern tools.
 
 This script tests all three design patterns through the actual MCP server:
 1. Progressive Tool Discovery
-2. Context Switching
+2. Workflow Switching
 3. Tool Unloading (Workflow Stage Progression)
 
 Run this script to validate that all pattern workflows execute correctly.
+
+Note: This script requires a running ArangoDB instance and proper configuration
+      via environment variables or .env file.
 """
 
 import asyncio
@@ -21,11 +24,20 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from mcp_arangodb_async.entry import server
 from mcp_arangodb_async.config import load_config
 from mcp_arangodb_async.db import get_client_and_db
+from mcp_arangodb_async.session_state import SessionState
 from unittest.mock import Mock, patch
 
 
 async def setup_server():
-    """Initialize the MCP server with database connection."""
+    """Initialize the MCP server with database connection and session state.
+    
+    Creates a mock request context that includes:
+    - Database connection (db, client)
+    - SessionState instance for per-session state management
+    - Test session ID for state isolation
+    
+    This mirrors the production lifespan_context setup in entry.py.
+    """
     print("=" * 80)
     print("Setting up MCP server connection...")
     print("=" * 80)
@@ -38,9 +50,20 @@ async def setup_server():
     client, db = get_client_and_db(config)
     print(f"✓ Connected to ArangoDB at {config.arango_url}")
     
-    # Create mock context with database
+    # Create SessionState for per-session state management (multi-tenancy support)
+    session_state = SessionState()
+    test_session_id = "manual_test_session"
+    session_state.initialize_session(test_session_id)
+    print(f"✓ SessionState initialized with session: {test_session_id}")
+    
+    # Create mock context with database AND session state
+    # This mirrors production lifespan_context structure
     mock_ctx = Mock()
-    mock_ctx.lifespan_context = {"db": db, "client": client}
+    mock_ctx.lifespan_context = {
+        "db": db,
+        "client": client,
+        "session_state": session_state
+    }
     
     return mock_ctx, db, client
 
@@ -112,105 +135,105 @@ async def test_pattern_1_progressive_tool_discovery(mock_ctx):
     print("\n✅ Pattern 1: Progressive Tool Discovery - ALL TESTS PASSED")
 
 
-async def test_pattern_2_context_switching(mock_ctx):
-    """Test Pattern 2: Context Switching."""
+async def test_pattern_2_workflow_switching(mock_ctx):
+    """Test Pattern 2: Workflow Switching."""
     print("\n" + "=" * 80)
-    print("PATTERN 2: CONTEXT SWITCHING")
+    print("PATTERN 2: WORKFLOW SWITCHING")
     print("=" * 80)
     
-    # Test 2.1: List all contexts
-    print("\n[Test 2.1] List all available contexts...")
+    # Test 2.1: List all workflows
+    print("\n[Test 2.1] List all available workflows...")
     with patch.object(server, 'request_context', mock_ctx):
         result = await server._handlers["call_tool"](
-            "arango_list_contexts",
+            "arango_list_workflows",
             {"include_tools": False}
         )
         response = json.loads(result[0].text)
         contexts = response.get('contexts', {})
-        print(f"✓ Found {len(contexts)} contexts")
+        print(f"✓ Found {len(contexts)} workflows")
         for ctx_name in contexts.keys():
             print(f"  - {ctx_name}")
-    
-    # Test 2.2: Get initial active context
-    print("\n[Test 2.2] Get initial active context...")
+
+    # Test 2.2: Get initial active workflow
+    print("\n[Test 2.2] Get initial active workflow...")
     with patch.object(server, 'request_context', mock_ctx):
         result = await server._handlers["call_tool"](
-            "arango_get_active_context",
+            "arango_get_active_workflow",
             {}
         )
         response = json.loads(result[0].text)
         initial_context = response.get('active_context')
-        print(f"✓ Initial context: {initial_context}")
+        print(f"✓ Initial workflow: {initial_context}")
         print(f"  Tool count: {response.get('tool_count', 0)}")
-    
-    # Test 2.3: Switch to graph_modeling context
-    print("\n[Test 2.3] Switch to 'graph_modeling' context...")
+
+    # Test 2.3: Switch to graph_modeling workflow
+    print("\n[Test 2.3] Switch to 'graph_modeling' workflow...")
     with patch.object(server, 'request_context', mock_ctx):
         result = await server._handlers["call_tool"](
-            "arango_switch_context",
+            "arango_switch_workflow",
             {"context": "graph_modeling"}
         )
         response = json.loads(result[0].text)
         print(f"✓ Switched to: {response.get('to_context')}")
-        print(f"  Previous context: {response.get('from_context')}")
+        print(f"  Previous workflow: {response.get('from_context')}")
         print(f"  Active tools: {response.get('total_tools', 0)}")
-    
-    # Test 2.4: Verify context changed
-    print("\n[Test 2.4] Verify context changed...")
+
+    # Test 2.4: Verify workflow changed
+    print("\n[Test 2.4] Verify workflow changed...")
     with patch.object(server, 'request_context', mock_ctx):
         result = await server._handlers["call_tool"](
-            "arango_get_active_context",
+            "arango_get_active_workflow",
             {}
         )
         response = json.loads(result[0].text)
         current_context = response.get('active_context')
         assert current_context == "graph_modeling", f"Expected 'graph_modeling', got '{current_context}'"
-        print(f"✓ Context verified: {current_context}")
-    
-    # Test 2.5: Switch to data_analysis context
-    print("\n[Test 2.5] Switch to 'data_analysis' context...")
+        print(f"✓ Workflow verified: {current_context}")
+
+    # Test 2.5: Switch to data_analysis workflow
+    print("\n[Test 2.5] Switch to 'data_analysis' workflow...")
     with patch.object(server, 'request_context', mock_ctx):
         result = await server._handlers["call_tool"](
-            "arango_switch_context",
+            "arango_switch_workflow",
             {"context": "data_analysis"}
         )
         response = json.loads(result[0].text)
         print(f"✓ Switched to: {response.get('to_context')}")
-    
-    # Test 2.6: Test invalid context name
-    print("\n[Test 2.6] Test invalid context name (should fail gracefully)...")
+
+    # Test 2.6: Test invalid workflow name
+    print("\n[Test 2.6] Test invalid workflow name (should fail gracefully)...")
     with patch.object(server, 'request_context', mock_ctx):
         result = await server._handlers["call_tool"](
-            "arango_switch_context",
+            "arango_switch_workflow",
             {"context": "invalid_context_name"}
         )
         response = json.loads(result[0].text)
         has_error = 'error' in response or 'success' in response and not response['success']
-        print(f"✓ Invalid context handled correctly: {has_error}")
-    
-    # Test 2.7: List contexts with tools
-    print("\n[Test 2.7] List contexts with tool details...")
+        print(f"✓ Invalid workflow handled correctly: {has_error}")
+
+    # Test 2.7: List workflows with tools
+    print("\n[Test 2.7] List workflows with tool details...")
     with patch.object(server, 'request_context', mock_ctx):
         result = await server._handlers["call_tool"](
-            "arango_list_contexts",
+            "arango_list_workflows",
             {"include_tools": True}
         )
         response = json.loads(result[0].text)
         contexts = response.get('contexts', {})
         baseline_tools = contexts.get('baseline', {}).get('tools', [])
-        print(f"✓ Baseline context has {len(baseline_tools)} tools")
-    
+        print(f"✓ Baseline workflow has {len(baseline_tools)} tools")
+
     # Test 2.8: Switch back to baseline
-    print("\n[Test 2.8] Switch back to 'baseline' context...")
+    print("\n[Test 2.8] Switch back to 'baseline' workflow...")
     with patch.object(server, 'request_context', mock_ctx):
         result = await server._handlers["call_tool"](
-            "arango_switch_context",
+            "arango_switch_workflow",
             {"context": "baseline"}
         )
         response = json.loads(result[0].text)
         print(f"✓ Switched back to: {response.get('to_context')}")
-    
-    print("\n✅ Pattern 2: Context Switching - ALL TESTS PASSED")
+
+    print("\n✅ Pattern 2: Workflow Switching - ALL TESTS PASSED")
 
 
 async def test_pattern_3_tool_unloading(mock_ctx):
@@ -337,7 +360,7 @@ async def main():
         
         # Run all pattern tests
         await test_pattern_1_progressive_tool_discovery(mock_ctx)
-        await test_pattern_2_context_switching(mock_ctx)
+        await test_pattern_2_workflow_switching(mock_ctx)
         await test_pattern_3_tool_unloading(mock_ctx)
         
         # Final summary

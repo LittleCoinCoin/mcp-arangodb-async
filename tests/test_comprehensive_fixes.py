@@ -222,9 +222,9 @@ class TestCodeQualityPolish:
         # Verify the model schema doesn't have duplicates
         schema = DeleteIndexArgs.model_json_schema()
         properties = schema["properties"]
-        
-        # Should only have collection and id_or_name
-        assert set(properties.keys()) == {"collection", "id_or_name"}
+
+        # Should have collection, id_or_name, and database (added in Milestone 4.1)
+        assert set(properties.keys()) == {"collection", "id_or_name", "database"}
 
     def test_create_index_supports_all_types(self):
         """Test that create_index function supports all index types mentioned in the report."""

@@ -24,9 +24,9 @@ from mcp_arangodb_async.handlers import (
     # MCP Design Pattern handlers
     handle_search_tools,
     handle_list_tools_by_category,
-    handle_switch_context,
-    handle_get_active_context,
-    handle_list_contexts,
+    handle_switch_workflow,
+    handle_get_active_workflow,
+    handle_list_workflows,
     handle_advance_workflow_stage,
     handle_get_tool_usage_stats,
     handle_unload_tools,
@@ -726,14 +726,15 @@ class TestMCPDesignPatternHandlers:
         assert "invalid_category" in result["error"]
 
     # ========================================================================
-    # Pattern 2: Context Switching
+    # Pattern 2: Workflow Switching
     # ========================================================================
 
-    def test_handle_switch_context_valid(self):
+    @pytest.mark.asyncio
+    async def test_handle_switch_workflow_valid(self):
         """Test switching to a valid workflow context."""
         args = {"context": "graph_modeling"}
 
-        result = handle_switch_context(self.mock_db, args)
+        result = await handle_switch_workflow(self.mock_db, args)
 
         assert "from_context" in result
         assert "to_context" in result
@@ -745,25 +746,40 @@ class TestMCPDesignPatternHandlers:
         assert "active_tools" in result
         assert isinstance(result["active_tools"], list)
 
-    def test_handle_switch_context_invalid(self):
+    @pytest.mark.asyncio
+    async def test_handle_switch_workflow_invalid(self):
         """Test switching to invalid context returns error."""
         args = {"context": "invalid_context"}
 
-        result = handle_switch_context(self.mock_db, args)
+        result = await handle_switch_workflow(self.mock_db, args)
 
         assert "error" in result
         assert "available_contexts" in result
         assert "invalid_context" in result["error"]
 
-    def test_handle_switch_context_tracks_changes(self):
-        """Test context switching tracks tool additions and removals."""
+    @pytest.mark.asyncio
+    async def test_handle_switch_workflow_tracks_changes(self):
+        """Test workflow switching tracks tool additions and removals."""
+        from mcp_arangodb_async.session_state import SessionState
+
+        session_state = SessionState()
+        session_id = "test_session_tracks"
+        session_state.initialize_session(session_id)
+
+        session_ctx = {
+            "_session_context": {
+                "session_state": session_state,
+                "session_id": session_id
+            }
+        }
+
         # First switch to data_analysis
-        args1 = {"context": "data_analysis"}
-        result1 = handle_switch_context(self.mock_db, args1)
+        args1 = {"context": "data_analysis", **session_ctx}
+        result1 = await handle_switch_workflow(self.mock_db, args1)
 
         # Then switch to graph_modeling
-        args2 = {"context": "graph_modeling"}
-        result2 = handle_switch_context(self.mock_db, args2)
+        args2 = {"context": "graph_modeling", **session_ctx}
+        result2 = await handle_switch_workflow(self.mock_db, args2)
 
         assert result2["from_context"] == "data_analysis"
         assert result2["to_context"] == "graph_modeling"
@@ -771,14 +787,28 @@ class TestMCPDesignPatternHandlers:
         assert isinstance(result2["tools_added"], list)
         assert isinstance(result2["tools_removed"], list)
 
-    def test_handle_get_active_context(self):
-        """Test getting the currently active context."""
-        # Switch to a known context first
-        switch_args = {"context": "bulk_operations"}
-        handle_switch_context(self.mock_db, switch_args)
+    @pytest.mark.asyncio
+    async def test_handle_get_active_workflow(self):
+        """Test getting the currently active workflow."""
+        from mcp_arangodb_async.session_state import SessionState
 
-        # Now get active context
-        result = handle_get_active_context(self.mock_db, None)
+        session_state = SessionState()
+        session_id = "test_session_get_active"
+        session_state.initialize_session(session_id)
+
+        session_ctx = {
+            "_session_context": {
+                "session_state": session_state,
+                "session_id": session_id
+            }
+        }
+
+        # Switch to a known context first using async handler
+        switch_args = {"context": "bulk_operations", **session_ctx}
+        await handle_switch_workflow(self.mock_db, switch_args)
+
+        # Now get active workflow with session context
+        result = handle_get_active_workflow(self.mock_db, session_ctx)
 
         assert "active_context" in result
         assert result["active_context"] == "bulk_operations"
@@ -788,11 +818,11 @@ class TestMCPDesignPatternHandlers:
         assert isinstance(result["tools"], list)
         assert result["tool_count"] == len(result["tools"])
 
-    def test_handle_list_contexts_without_tools(self):
-        """Test listing all contexts without tool details."""
+    def test_handle_list_workflows_without_tools(self):
+        """Test listing all workflows without tool details."""
         args = {"include_tools": False}
 
-        result = handle_list_contexts(self.mock_db, args)
+        result = handle_list_workflows(self.mock_db, args)
 
         assert "contexts" in result
         assert "total_contexts" in result
@@ -805,11 +835,11 @@ class TestMCPDesignPatternHandlers:
             assert "tool_count" in context_info
             assert "tools" not in context_info
 
-    def test_handle_list_contexts_with_tools(self):
-        """Test listing all contexts with tool details."""
+    def test_handle_list_workflows_with_tools(self):
+        """Test listing all workflows with tool details."""
         args = {"include_tools": True}
 
-        result = handle_list_contexts(self.mock_db, args)
+        result = handle_list_workflows(self.mock_db, args)
 
         assert "contexts" in result
         assert len(result["contexts"]) == 6
@@ -822,14 +852,119 @@ class TestMCPDesignPatternHandlers:
             assert isinstance(context_info["tools"], list)
 
     # ========================================================================
+    # Pattern 2.1: Workflow Tools with SessionState (Per-Session Isolation)
+    # ========================================================================
+
+    @pytest.mark.asyncio
+    async def test_handle_switch_workflow_with_session_state(self):
+        """Test workflow switching with SessionState for per-session isolation."""
+        from mcp_arangodb_async.session_state import SessionState
+
+        session_state = SessionState()
+        session_id = "test_session_1"
+        session_state.initialize_session(session_id)
+
+        args = {
+            "context": "graph_modeling",
+            "_session_context": {
+                "session_state": session_state,
+                "session_id": session_id
+            }
+        }
+
+        result = await handle_switch_workflow(self.mock_db, args)
+
+        assert result["to_context"] == "graph_modeling"
+        assert session_state.get_active_workflow(session_id) == "graph_modeling"
+
+    @pytest.mark.asyncio
+    async def test_handle_switch_workflow_session_isolation(self):
+        """Test that workflow state is isolated between sessions."""
+        from mcp_arangodb_async.session_state import SessionState
+
+        session_state = SessionState()
+        session_1 = "session_1"
+        session_2 = "session_2"
+        session_state.initialize_session(session_1)
+        session_state.initialize_session(session_2)
+
+        # Switch session 1 to graph_modeling
+        args1 = {
+            "context": "graph_modeling",
+            "_session_context": {
+                "session_state": session_state,
+                "session_id": session_1
+            }
+        }
+        await handle_switch_workflow(self.mock_db, args1)
+
+        # Switch session 2 to data_analysis
+        args2 = {
+            "context": "data_analysis",
+            "_session_context": {
+                "session_state": session_state,
+                "session_id": session_2
+            }
+        }
+        await handle_switch_workflow(self.mock_db, args2)
+
+        # Verify isolation
+        assert session_state.get_active_workflow(session_1) == "graph_modeling"
+        assert session_state.get_active_workflow(session_2) == "data_analysis"
+
+    def test_handle_get_active_workflow_with_session_state(self):
+        """Test get active workflow with SessionState."""
+        from mcp_arangodb_async.session_state import SessionState
+        import asyncio
+
+        session_state = SessionState()
+        session_id = "test_session_1"
+        session_state.initialize_session(session_id)
+        asyncio.run(session_state.set_active_workflow(session_id, "bulk_operations"))
+
+        args = {
+            "_session_context": {
+                "session_state": session_state,
+                "session_id": session_id
+            }
+        }
+
+        result = handle_get_active_workflow(self.mock_db, args)
+
+        assert result["active_context"] == "bulk_operations"
+
+    def test_handle_list_workflows_with_session_state(self):
+        """Test list workflows with SessionState shows correct active context."""
+        from mcp_arangodb_async.session_state import SessionState
+        import asyncio
+
+        session_state = SessionState()
+        session_id = "test_session_1"
+        session_state.initialize_session(session_id)
+        asyncio.run(session_state.set_active_workflow(session_id, "data_analysis"))
+
+        args = {
+            "include_tools": False,
+            "_session_context": {
+                "session_state": session_state,
+                "session_id": session_id
+            }
+        }
+
+        result = handle_list_workflows(self.mock_db, args)
+
+        assert result["active_context"] == "data_analysis"
+
+    # ========================================================================
     # Pattern 3: Tool Unloading
     # ========================================================================
 
-    def test_handle_advance_workflow_stage_valid(self):
+    @pytest.mark.asyncio
+    async def test_handle_advance_workflow_stage_valid(self):
         """Test advancing to a valid workflow stage."""
         args = {"stage": "data_loading"}
 
-        result = handle_advance_workflow_stage(self.mock_db, args)
+        result = await handle_advance_workflow_stage(self.mock_db, args)
 
         assert "from_stage" in result
         assert "to_stage" in result
@@ -842,37 +977,113 @@ class TestMCPDesignPatternHandlers:
         assert isinstance(result["active_tools"], list)
         assert result["total_active_tools"] == len(result["active_tools"])
 
-    def test_handle_advance_workflow_stage_invalid(self):
+    @pytest.mark.asyncio
+    async def test_handle_advance_workflow_stage_invalid(self):
         """Test advancing to invalid stage returns error."""
         args = {"stage": "invalid_stage"}
 
-        result = handle_advance_workflow_stage(self.mock_db, args)
+        result = await handle_advance_workflow_stage(self.mock_db, args)
 
         assert "error" in result
         assert "available_stages" in result
         assert "invalid_stage" in result["error"]
 
-    def test_handle_advance_workflow_stage_progression(self):
+    @pytest.mark.asyncio
+    async def test_handle_advance_workflow_stage_progression(self):
         """Test stage progression tracks tool lifecycle."""
+        from mcp_arangodb_async.session_state import SessionState
+
+        session_state = SessionState()
+        session_id = "test_session_progression"
+        session_state.initialize_session(session_id)
+
+        session_ctx = {
+            "_session_context": {
+                "session_state": session_state,
+                "session_id": session_id
+            }
+        }
+
         # First, reset to setup stage
-        reset_args = {"stage": "setup"}
-        handle_advance_workflow_stage(self.mock_db, reset_args)
+        reset_args = {"stage": "setup", **session_ctx}
+        await handle_advance_workflow_stage(self.mock_db, reset_args)
 
         # Advance from setup to data_loading
-        args1 = {"stage": "data_loading"}
-        result1 = handle_advance_workflow_stage(self.mock_db, args1)
+        args1 = {"stage": "data_loading", **session_ctx}
+        result1 = await handle_advance_workflow_stage(self.mock_db, args1)
 
         assert result1["from_stage"] == "setup"
         assert result1["to_stage"] == "data_loading"
 
         # Advance to analysis
-        args2 = {"stage": "analysis"}
-        result2 = handle_advance_workflow_stage(self.mock_db, args2)
+        args2 = {"stage": "analysis", **session_ctx}
+        result2 = await handle_advance_workflow_stage(self.mock_db, args2)
 
         assert result2["from_stage"] == "data_loading"
         assert result2["to_stage"] == "analysis"
         assert isinstance(result2["tools_unloaded"], list)
         assert isinstance(result2["tools_loaded"], list)
+
+    # ========================================================================
+    # Pattern 3.1: Lifecycle Tools with SessionState (Per-Session Isolation)
+    # ========================================================================
+
+    @pytest.mark.asyncio
+    async def test_handle_advance_workflow_stage_with_session_state(self):
+        """Test advancing workflow stage with SessionState for per-session isolation."""
+        from mcp_arangodb_async.session_state import SessionState
+
+        session_state = SessionState()
+        session_id = "test_session_1"
+        session_state.initialize_session(session_id)
+
+        args = {
+            "stage": "data_loading",
+            "_session_context": {
+                "session_state": session_state,
+                "session_id": session_id
+            }
+        }
+
+        result = await handle_advance_workflow_stage(self.mock_db, args)
+
+        assert result["to_stage"] == "data_loading"
+        assert session_state.get_tool_lifecycle_stage(session_id) == "data_loading"
+
+    @pytest.mark.asyncio
+    async def test_handle_advance_workflow_stage_session_isolation(self):
+        """Test that lifecycle stage is isolated between sessions."""
+        from mcp_arangodb_async.session_state import SessionState
+
+        session_state = SessionState()
+        session_1 = "session_1"
+        session_2 = "session_2"
+        session_state.initialize_session(session_1)
+        session_state.initialize_session(session_2)
+
+        # Advance session 1 to data_loading
+        args1 = {
+            "stage": "data_loading",
+            "_session_context": {
+                "session_state": session_state,
+                "session_id": session_1
+            }
+        }
+        await handle_advance_workflow_stage(self.mock_db, args1)
+
+        # Advance session 2 to analysis
+        args2 = {
+            "stage": "analysis",
+            "_session_context": {
+                "session_state": session_state,
+                "session_id": session_2
+            }
+        }
+        await handle_advance_workflow_stage(self.mock_db, args2)
+
+        # Verify isolation
+        assert session_state.get_tool_lifecycle_stage(session_1) == "data_loading"
+        assert session_state.get_tool_lifecycle_stage(session_2) == "analysis"
 
     def test_handle_get_tool_usage_stats(self):
         """Test getting tool usage statistics."""
@@ -884,6 +1095,85 @@ class TestMCPDesignPatternHandlers:
         assert "active_stage_tools" in result
         assert isinstance(result["tool_usage"], dict)
         assert isinstance(result["active_stage_tools"], list)
+
+    # ========================================================================
+    # Pattern 3.2: Usage Stats with SessionState (Per-Session Isolation)
+    # ========================================================================
+
+    def test_handle_get_tool_usage_stats_with_session_state(self):
+        """Test getting tool usage stats with SessionState."""
+        from mcp_arangodb_async.session_state import SessionState
+        import asyncio
+
+        session_state = SessionState()
+        session_id = "test_session_1"
+        session_state.initialize_session(session_id)
+
+        # Track some tool usage
+        session_state.track_tool_usage(session_id, "arango_query")
+        session_state.track_tool_usage(session_id, "arango_query")
+        session_state.track_tool_usage(session_id, "arango_insert")
+
+        # Set lifecycle stage
+        asyncio.run(session_state.set_tool_lifecycle_stage(session_id, "analysis"))
+
+        args = {
+            "_session_context": {
+                "session_state": session_state,
+                "session_id": session_id
+            }
+        }
+
+        result = handle_get_tool_usage_stats(self.mock_db, args)
+
+        assert result["current_stage"] == "analysis"
+        assert result["total_tools_used"] == 2
+        assert "arango_query" in result["tool_usage"]
+        assert "arango_insert" in result["tool_usage"]
+        assert result["tool_usage"]["arango_query"]["use_count"] == 2
+        assert result["tool_usage"]["arango_insert"]["use_count"] == 1
+
+    def test_handle_get_tool_usage_stats_session_isolation(self):
+        """Test that tool usage stats are isolated between sessions."""
+        from mcp_arangodb_async.session_state import SessionState
+
+        session_state = SessionState()
+        session_1 = "session_1"
+        session_2 = "session_2"
+        session_state.initialize_session(session_1)
+        session_state.initialize_session(session_2)
+
+        # Track different tool usage for each session
+        session_state.track_tool_usage(session_1, "arango_query")
+        session_state.track_tool_usage(session_1, "arango_query")
+        session_state.track_tool_usage(session_2, "arango_insert")
+
+        # Get stats for session 1
+        args1 = {
+            "_session_context": {
+                "session_state": session_state,
+                "session_id": session_1
+            }
+        }
+        result1 = handle_get_tool_usage_stats(self.mock_db, args1)
+
+        # Get stats for session 2
+        args2 = {
+            "_session_context": {
+                "session_state": session_state,
+                "session_id": session_2
+            }
+        }
+        result2 = handle_get_tool_usage_stats(self.mock_db, args2)
+
+        # Verify isolation
+        assert result1["total_tools_used"] == 1
+        assert "arango_query" in result1["tool_usage"]
+        assert "arango_insert" not in result1["tool_usage"]
+
+        assert result2["total_tools_used"] == 1
+        assert "arango_insert" in result2["tool_usage"]
+        assert "arango_query" not in result2["tool_usage"]
 
     def test_handle_unload_tools_valid(self):
         """Test manually unloading valid tools."""

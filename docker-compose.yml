@@ -9,16 +9,22 @@
 #
 # - both: Run both stdio and HTTP servers simultaneously (for testing)
 #   Usage: docker compose --profile stdio --profile http up -d
+#
+# MULTI-INSTANCE USAGE:
+#   ARANGO_PORT=8530 docker compose up -d
+#   ARANGO_PORT=8531 docker compose up -d
 
 services:
   # ArangoDB Database (shared by all profiles)
   arangodb:
     image: arangodb:3.11
-    container_name: mcp_arangodb_test
     environment:
       ARANGO_ROOT_PASSWORD: ${ARANGO_ROOT_PASSWORD:-changeme}
     ports:
-      - "8529:8529"
+      - "${ARANGO_PORT:-8529}:8529"
+    volumes:
+      - arangodb_data:/var/lib/arangodb3
+      - arangodb_apps:/var/lib/arangodb3-apps
     healthcheck:
       test: arangosh --server.username root --server.password "$ARANGO_ROOT_PASSWORD" --javascript.execute-string "require('@arangodb').db._version()" > /dev/null 2>&1 || exit 1
       interval: 5s
@@ -38,7 +44,7 @@ services:
       dockerfile: Dockerfile
     container_name: mcp_server_stdio
     environment:
-      ARANGO_URL: http://arangodb:8529
+      ARANGO_URL: ${ARANGO_URL:-http://arangodb:${ARANGO_PORT:-8529}}
       ARANGO_DB: ${ARANGO_DB:-_system}
       ARANGO_USERNAME: ${ARANGO_USERNAME:-root}
       ARANGO_PASSWORD: ${ARANGO_PASSWORD:-changeme}
@@ -63,7 +69,7 @@ services:
       dockerfile: Dockerfile
     container_name: mcp_server_http
     environment:
-      ARANGO_URL: http://arangodb:8529
+      ARANGO_URL: ${ARANGO_URL:-http://arangodb:${ARANGO_PORT:-8529}}
       ARANGO_DB: ${ARANGO_DB:-_system}
       ARANGO_USERNAME: ${ARANGO_USERNAME:-root}
       ARANGO_PASSWORD: ${ARANGO_PASSWORD:-changeme}
@@ -91,3 +97,9 @@ services:
 networks:
   mcp-network:
     driver: bridge
+
+volumes:
+  arangodb_data:
+    driver: local
+  arangodb_apps:
+    driver: local
