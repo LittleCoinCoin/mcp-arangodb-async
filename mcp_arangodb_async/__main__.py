@@ -158,9 +158,14 @@ def main() -> int:
         help="Optional description",
     )
     config_add_parser.add_argument(
+        "--config-file",
         "--config-path",
+        "--cfgf",
+        "--cfgp",
+        "-C",
+        dest="config_path",
         default="config/databases.yaml",
-        help="Path to configuration file (default: config/databases.yaml)",
+        help="Path to configuration file. Aliases: --config-path, --cfgf, --cfgp, -C",
     )
     config_add_parser.add_argument("--dry-run", action="store_true", help="Preview changes without executing")
     config_add_parser.add_argument("--yes", "-y", action="store_true", help="Skip confirmation prompt")
@@ -169,9 +174,14 @@ def main() -> int:
     config_remove_parser = db_config_subparsers.add_parser("remove", aliases=["rm"], help="Remove a database configuration")
     config_remove_parser.add_argument("key", help="Database key to remove")
     config_remove_parser.add_argument(
+        "--config-file",
         "--config-path",
+        "--cfgf",
+        "--cfgp",
+        "-C",
+        dest="config_path",
         default="config/databases.yaml",
-        help="Path to configuration file (default: config/databases.yaml)",
+        help="Path to configuration file. Aliases: --config-path, --cfgf, --cfgp, -C",
     )
     config_remove_parser.add_argument("--dry-run", action="store_true", help="Preview changes without executing")
     config_remove_parser.add_argument("--yes", "-y", action="store_true", help="Skip confirmation prompt")
@@ -179,27 +189,42 @@ def main() -> int:
     # db config list subcommand
     config_list_parser = db_config_subparsers.add_parser("list", aliases=["ls"], help="List all configured databases")
     config_list_parser.add_argument(
+        "--config-file",
         "--config-path",
+        "--cfgf",
+        "--cfgp",
+        "-C",
+        dest="config_path",
         default="config/databases.yaml",
-        help="Path to configuration file (default: config/databases.yaml)",
+        help="Path to configuration file. Aliases: --config-path, --cfgf, --cfgp, -C",
     )
 
     # db config test subcommand
     config_test_parser = db_config_subparsers.add_parser("test", help="Test database connection")
     config_test_parser.add_argument("key", help="Database key to test")
     config_test_parser.add_argument(
+        "--config-file",
         "--config-path",
+        "--cfgf",
+        "--cfgp",
+        "-C",
+        dest="config_path",
         default="config/databases.yaml",
-        help="Path to configuration file (default: config/databases.yaml)",
+        help="Path to configuration file. Aliases: --config-path, --cfgf, --cfgp, -C",
     )
     config_test_parser.add_argument("--env-file", help="Path to .env file")
 
     # db config status subcommand
     config_status_parser = db_config_subparsers.add_parser("status", help="Show database resolution status")
     config_status_parser.add_argument(
+        "--config-file",
         "--config-path",
+        "--cfgf",
+        "--cfgp",
+        "-C",
+        dest="config_path",
         default="config/databases.yaml",
-        help="Path to configuration file (default: config/databases.yaml)",
+        help="Path to configuration file. Aliases: --config-path, --cfgf, --cfgp, -C",
     )
 
     # db add subcommand (ArangoDB database creation)
