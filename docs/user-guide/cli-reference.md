@@ -98,16 +98,18 @@ maa server \
   [--host <host>] \
   [--port <port>] \
   [--stateless] \
-  [--<config-file|cfgf> <path>]
+  [--config-file <path>]
 ```
 
-**Parameters:**
+**Arguments:**
 
-- `--transport` - Transport type: `stdio` or `http` (default: `stdio`, or from `MCP_TRANSPORT` env var)
-- `--host` - HTTP host address (default: `0.0.0.0`, or from `MCP_HTTP_HOST` env var). Only applies to HTTP transport.
-- `--port` - HTTP port number (default: `8000`, or from `MCP_HTTP_PORT` env var). Only applies to HTTP transport.
-- `--stateless` - Enable stateless mode for HTTP transport. In stateless mode, each request is independent.
-- `--config-file` or `-cfgf` - Path to database configuration YAML file (default: `ARANGO_DATABASES_CONFIG_FILE` env var, or `config/databases.yaml`)
+| Argument | Aliases | Description |
+|----------|---------|-------------|
+| `--config-file` | `--config-path`, `--cfgf`, `--cfgp`, `-C` | Path to database configuration YAML file (default: `ARANGO_DATABASES_CONFIG_FILE` env var, or `config/databases.yaml`) |
+| `--transport` | - | Transport type: `stdio` or `http` (default: `stdio`, or from `MCP_TRANSPORT` env var) |
+| `--host` | - | HTTP host address (default: `0.0.0.0`, or from `MCP_HTTP_HOST` env var). Only applies to HTTP transport |
+| `--port` | - | HTTP port number (default: `8000`, or from `MCP_HTTP_PORT` env var). Only applies to HTTP transport |
+| `--stateless` | - | Enable stateless mode for HTTP transport. In stateless mode, each request is independent |
 
 **Transport Types:**
 
