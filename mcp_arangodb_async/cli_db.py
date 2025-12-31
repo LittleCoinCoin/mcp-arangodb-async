@@ -71,7 +71,7 @@ def handle_add(args: Namespace) -> int:
             url=args.url,
             database=args.database,
             username=args.username,
-            password_env=args.password_env,
+            password_env=args.arango_password_env,
             timeout=args.timeout,
             description=args.description
         )

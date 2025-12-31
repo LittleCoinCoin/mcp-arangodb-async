@@ -146,7 +146,7 @@ def main() -> int:
         "--password-env",
         "--pw-env",
         "-P",
-        dest="password_env",
+        dest="arango_password_env",
         required=True,
         help="Environment variable name containing password. Aliases: --password-env, --pw-env, -P",
     )
