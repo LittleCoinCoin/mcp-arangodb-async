@@ -145,8 +145,20 @@ def main() -> int:
         required=True,
         help="ArangoDB server URL. Alias: -u",
     )
-    config_add_parser.add_argument("--database", required=True, help="Database name")
-    config_add_parser.add_argument("--username", required=True, help="Username")
+    config_add_parser.add_argument(
+        "--database",
+        "-d",
+        dest="database",
+        required=True,
+        help="Database name. Alias: -d",
+    )
+    config_add_parser.add_argument(
+        "--username",
+        "-U",
+        dest="username",
+        required=True,
+        help="Username. Alias: -U",
+    )
     config_add_parser.add_argument(
         "--arango-password-env",
         "--password-env",
