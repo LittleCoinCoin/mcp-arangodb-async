@@ -152,7 +152,7 @@ class TestDBConfig:
             url="http://localhost:8529",
             database="test",
             username="testuser",
-            arango_password_env="TEST_PASSWORD",
+            password_env="TEST_PASSWORD",
             timeout=30.0,
             description="Test database",
             config_file=str(config_path),
@@ -178,7 +178,7 @@ class TestDBConfig:
             url="http://localhost:8529",
             database="test",
             username="testuser",
-            arango_password_env="TEST_PASSWORD",
+            password_env="TEST_PASSWORD",
             timeout=30.0,
             description="Test database",
             config_file=str(config_path),
@@ -193,7 +193,7 @@ class TestDBConfig:
             url="http://localhost:8529",
             database="test2",
             username="testuser2",
-            arango_password_env="TEST_PASSWORD2",
+            password_env="TEST_PASSWORD2",
             timeout=30.0,
             description="Duplicate",
             config_file=str(config_path),
@@ -215,7 +215,7 @@ class TestDBConfig:
             url="http://localhost:8529",
             database="test",
             username="testuser",
-            arango_password_env="TEST_PASSWORD",
+            password_env="TEST_PASSWORD",
             timeout=30.0,
             description="Test database",
             config_file=str(config_path),
@@ -247,7 +247,7 @@ class TestDBConfig:
                 url="http://localhost:8529",
                 database=f"test{i}",
                 username="testuser",
-                arango_password_env="TEST_PASSWORD",
+                password_env="TEST_PASSWORD",
                 timeout=30.0,
                 description=f"Database {i}",
                 config_file=str(config_path),
@@ -278,7 +278,7 @@ class TestDBConfig:
             url="http://localhost:8529",
             database="test",
             username="testuser",
-            arango_password_env="TEST_PASSWORD",
+            password_env="TEST_PASSWORD",
             timeout=30.0,
             description="Test database",
             config_file=str(config_path),
@@ -325,7 +325,7 @@ class TestDBConfig:
             url="http://localhost:8529",
             database="test",
             username="testuser",
-            arango_password_env="TEST_PASSWORD",
+            password_env="TEST_PASSWORD",
             timeout=30.0,
             description="Test database",
             config_file=str(config_path),
@@ -363,7 +363,7 @@ class TestDBConfig:
             url="http://localhost:8529",
             database="test",
             username="testuser",
-            arango_password_env="TEST_PASSWORD",
+            password_env="TEST_PASSWORD",
             timeout=30.0,
             description="Test database",
             config_file=str(config_path),
@@ -376,6 +376,45 @@ class TestDBConfig:
         args_status = Namespace(config_file=str(config_path))
         result = cli_db.handle_status(args_status)
         assert result == EXIT_SUCCESS
+
+    def test_config_add_password_env_backward_compat(self, temp_config_dir):
+        """Verify --password-env backward compatibility in db config add."""
+        import subprocess
+        import yaml
+
+        config_path = Path(temp_config_dir) / "databases.yaml"
+
+        # Test using OLD argument name (--password-env) via CLI
+        result = subprocess.run(
+            [
+                "maa",
+                "db",
+                "config",
+                "add",
+                "testdb",
+                "--url",
+                "http://localhost:8529",
+                "--database",
+                "test",
+                "--username",
+                "testuser",
+                "--password-env",  # OLD name (backward compat)
+                "TEST_PASSWORD",
+                "--config-file",
+                str(config_path),
+                "--yes",
+            ],
+            capture_output=True,
+            text=True,
+        )
+
+        assert result.returncode == 0
+
+        # Verify config was created correctly
+        assert config_path.exists()
+        with open(config_path) as f:
+            config = yaml.safe_load(f)
+        assert config["databases"]["testdb"]["password_env"] == "TEST_PASSWORD"
 
 
 # ============================================================================
