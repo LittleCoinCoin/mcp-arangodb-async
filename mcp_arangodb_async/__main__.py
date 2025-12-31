@@ -326,7 +326,15 @@ def main() -> int:
     user_password_parser.add_argument("--url", help="ArangoDB server URL (default: ARANGO_URL env or http://localhost:8529)")
     user_password_parser.add_argument("--env-file", help="Path to .env file")
     user_password_parser.add_argument("--arango-password-env", help="Current password env var (default: ARANGO_PASSWORD)")
-    user_password_parser.add_argument("--new-password-env", default="ARANGO_NEW_PASSWORD", help="New password env var (default: ARANGO_NEW_PASSWORD)")
+    user_password_parser.add_argument(
+        "--arango-new-password-env",
+        "--new-password-env",
+        "--new-pw-env",
+        "-N",
+        dest="new_password_env",
+        default="ARANGO_NEW_PASSWORD",
+        help="New password env var (default: ARANGO_NEW_PASSWORD). Aliases: --new-password-env, --new-pw-env, -N",
+    )
     user_password_parser.add_argument("--dry-run", action="store_true", help="Preview changes without executing")
     user_password_parser.add_argument("--yes", "-y", action="store_true", help="Skip confirmation prompt")
 
