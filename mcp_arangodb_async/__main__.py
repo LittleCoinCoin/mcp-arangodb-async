@@ -242,7 +242,15 @@ def main() -> int:
     db_add_parser = db_subparsers.add_parser("add", help="Create ArangoDB database")
     db_add_parser.add_argument("name", help="Database name")
     db_add_parser.add_argument("--with-user", help="Grant access to user (creates user if not exists)")
-    db_add_parser.add_argument("--permission", choices=["rw", "ro", "none"], default="rw", help="Permission level (default: rw)")
+    db_add_parser.add_argument(
+        "--permission",
+        "--perm",
+        "-p",
+        dest="permission",
+        choices=["rw", "ro", "none"],
+        default="rw",
+        help="Permission level (default: rw). Aliases: --perm, -p",
+    )
     db_add_parser.add_argument("--url", help="ArangoDB server URL (default: ARANGO_URL env or http://localhost:8529)")
     db_add_parser.add_argument(
         "--environment-file",
@@ -394,7 +402,15 @@ def main() -> int:
     user_grant_parser = user_subparsers.add_parser("grant", help="Grant database permissions")
     user_grant_parser.add_argument("username", help="Username")
     user_grant_parser.add_argument("database", help="Database name")
-    user_grant_parser.add_argument("--permission", choices=["rw", "ro", "none"], default="rw", help="Permission level (default: rw)")
+    user_grant_parser.add_argument(
+        "--permission",
+        "--perm",
+        "-p",
+        dest="permission",
+        choices=["rw", "ro", "none"],
+        default="rw",
+        help="Permission level (default: rw). Aliases: --perm, -p",
+    )
     user_grant_parser.add_argument("--url", help="ArangoDB server URL (default: ARANGO_URL env or http://localhost:8529)")
     user_grant_parser.add_argument(
         "--environment-file",
