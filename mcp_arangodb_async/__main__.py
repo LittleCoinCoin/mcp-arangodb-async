@@ -100,10 +100,13 @@ def main() -> int:
     )
     server_parser.add_argument(
         "--config-file",
+        "--config-path",
         "--cfgf",
+        "--cfgp",
+        "-C",
         dest="config_file",
         default=None,
-        help="Path to database configuration YAML file (default: from ARANGO_DATABASES_CONFIG_FILE env var, or config/databases.yaml)",
+        help="Path to database configuration YAML file. Aliases: --config-path, --cfgf, --cfgp, -C",
     )
 
     # Health subcommand
