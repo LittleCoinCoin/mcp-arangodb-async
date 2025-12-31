@@ -142,9 +142,13 @@ def main() -> int:
     config_add_parser.add_argument("--database", required=True, help="Database name")
     config_add_parser.add_argument("--username", required=True, help="Username")
     config_add_parser.add_argument(
+        "--arango-password-env",
         "--password-env",
+        "--pw-env",
+        "-P",
+        dest="password_env",
         required=True,
-        help="Environment variable name containing password",
+        help="Environment variable name containing password. Aliases: --password-env, --pw-env, -P",
     )
     config_add_parser.add_argument(
         "--timeout",
