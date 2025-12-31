@@ -1104,79 +1104,177 @@ grep -E "(Aliases|Argument)" docs/user-guide/cli-reference.md | wc -l
 
 ---
 
-### M5.T2: Add Alias Quick Reference Section
+### M5.T2: Add Collapsible Alias Sections to Tutorials
 
-**Estimated Effort:** 1 hour
+**Estimated Effort:** 2 hours
 
 **Pre-conditions:**
-- M5.T1 complete (all commands documented)
+- M5.T1 complete (CLI reference documented)
 
 **Success Criteria:**
-- Quick reference table added
-- Progressive disclosure examples added
+- Collapsible sections added to multi-tenancy guides
+- Collapsible sections added to multi-tenancy scenarios
+- Collapsible sections added to troubleshooting guide
+- Educational clarity preserved (verbose examples remain primary)
 
-#### M5.T2.S1: Add alias quick reference table
+#### M5.T2.S1: Add collapsible sections to multi-tenancy guide
 
-**Commit Message:** `docs: add CLI alias quick reference table with progressive examples`
+**Commit Message:** `docs: add collapsible alias sections to multi-tenancy guide`
 
-**File:** `docs/user-guide/cli-reference.md`
+**File:** `docs/user-guide/multi-tenancy-guide.md`
 
 **Changes:**
 ```markdown
-# Add new section after command tree
+# After the "Quick Start" section (around line 50), add collapsible section:
 
-## Alias Quick Reference
+<details>
+<summary>💡 Advanced: Using shorthand aliases</summary>
 
-All CLI arguments support multiple forms for flexibility.
-
-### Password & Credential Arguments
-
-| Primary Argument | Medium Aliases | Short | Backward Compat | Commands |
-|------------------|----------------|-------|-----------------|----------|
-| `--arango-root-password-env` | `--root-pw-env` | `-R` | - | db add/rm/ls, user * |
-| `--arango-password-env` | `--pw-env` | `-P` | `--password-env`* | db config add, user * |
-| `--arango-new-password-env` | `--new-pw-env` | `-N` | `--new-password-env` | user password |
-
-### File & Path Arguments
-
-| Primary Argument | Medium Aliases | Short | Backward Compat | Commands |
-|------------------|----------------|-------|-----------------|----------|
-| `--config-file` | `--cfgf`, `--cfgp` | `-C` | `--config-path` | server, db config * |
-| `--environment-file` | `--envf` | `-E` | `--env-file` | All commands with credentials |
-| `--permission` | `--perm` | `-p` | - | db add, user grant |
-
-### Common Arguments
-
-| Primary Argument | Short | Commands |
-|------------------|-------|----------|
-| `--url` | `-u` | All db/user commands |
-| `--database` | `-d` | db config add |
-| `--username` | `-U` | db config add |
-
-### Progressive Disclosure Examples
-
-**Beginner (Documentation Default):**
+**Quick configuration with short aliases:**
 ```bash
-maa db add myapp_prod \
-  --with-user myapp_user \
-  --permission rw \
-  --arango-root-password-env ARANGO_ROOT_PASSWORD \
-  --arango-password-env ARANGO_PASSWORD
+maa db config add mydb -u http://localhost:8529 -d mydb -U admin -P ARANGO_PASSWORD
 ```
 
-**Advanced (Short Aliases):**
+**Server startup with config alias:**
 ```bash
-maa db add myapp_prod --with-user myapp_user -p rw -R ARANGO_ROOT_PASSWORD -P ARANGO_PASSWORD
+maa server -C config/databases.yaml
 ```
+
+**Alias reference:**
+- `-u` = `--url`
+- `-d` = `--database`
+- `-U` = `--username`
+- `-P` = `--arango-password-env` / `--pw-env`
+- `-C` = `--config-file` / `--config-path`
+
+See [CLI Reference](cli-reference.md#alias-quick-reference) for complete list.
+</details>
 ```
 
 **Verification:**
 ```bash
-grep -A 50 "## Alias Quick Reference" docs/user-guide/cli-reference.md
+grep -A 20 "Advanced: Using shorthand aliases" docs/user-guide/multi-tenancy-guide.md
 ```
 
 **Files Modified:**
-- `docs/user-guide/cli-reference.md` (new section)
+- `docs/user-guide/multi-tenancy-guide.md`
+
+---
+
+#### M5.T2.S2: Add collapsible sections to multi-tenancy scenarios
+
+**Commit Message:** `docs: add collapsible alias sections to multi-tenancy scenarios`
+
+**Files:**
+- `docs/user-guide/multi-tenancy-scenarios/01-single-instance-single-database.md`
+- `docs/user-guide/multi-tenancy-scenarios/02-single-instance-multiple-databases.md`
+- `docs/user-guide/multi-tenancy-scenarios/03-multiple-instances-multiple-databases.md`
+
+**Changes:**
+```markdown
+# Add at the end of each scenario (before "Next Steps" or conclusion)
+
+## Advanced: Using Shorthand Aliases
+
+<details>
+<summary>💡 Complete scenario workflow with shorthand aliases</summary>
+
+**Scenario 1 - Single Instance, Single Database:**
+```bash
+# Create database with user (using short aliases)
+maa db add db1 --with-user user1 -E .user1.env
+
+# List databases
+maa db list -E .user1.env
+
+# Configure for MCP
+maa db config add db1 -u http://localhost:8529 -d db1 -U user1 -P ARANGO_PASSWORD
+
+# Test connection
+maa db config test db1
+```
+
+**Scenario 2 - Single Instance, Multiple Databases:**
+```bash
+# Create databases with users
+maa db add db1 --with-user user1 -E .user1.env
+maa db add db2 --with-user user2 -E .user2.env
+
+# Configure both
+maa db config add db1 -u http://localhost:8529 -d db1 -U user1 -P USER1_PASSWORD
+maa db config add db2 -u http://localhost:8529 -d db2 -U user2 -P USER2_PASSWORD
+```
+
+**Scenario 3 - Multiple Instances, Multiple Databases:**
+```bash
+# Instance 1
+maa db add prod_db --with-user prod_user -u http://prod:8529 -E .prod.env
+maa db config add prod -u http://prod:8529 -d prod_db -U prod_user -P PROD_PASSWORD
+
+# Instance 2
+maa db add dev_db --with-user dev_user -u http://dev:8529 -E .dev.env
+maa db config add dev -u http://dev:8529 -d dev_db -U dev_user -P DEV_PASSWORD
+```
+
+**Alias reference:**
+- `-u` = `--url`
+- `-d` = `--database`
+- `-U` = `--username`
+- `-E` = `--environment-file` / `--env-file`
+- `-P` = `--arango-password-env` / `--pw-env`
+- `-R` = `--arango-root-password-env` / `--root-pw-env`
+
+See [CLI Reference](../cli-reference.md#alias-quick-reference) for complete list.
+</details>
+```
+
+**Verification:**
+```bash
+grep -c "Advanced: Using Shorthand Aliases" docs/user-guide/multi-tenancy-scenarios/*.md
+# Should return 3
+```
+
+**Files Modified:**
+- `docs/user-guide/multi-tenancy-scenarios/01-single-instance-single-database.md`
+- `docs/user-guide/multi-tenancy-scenarios/02-single-instance-multiple-databases.md`
+- `docs/user-guide/multi-tenancy-scenarios/03-multiple-instances-multiple-databases.md`
+
+---
+
+#### M5.T2.S3: Add collapsible sections to troubleshooting guide
+
+**Commit Message:** `docs: add collapsible alias sections to troubleshooting guide`
+
+**File:** `docs/user-guide/troubleshooting.md`
+
+**Changes:**
+```markdown
+# Add collapsible sections inline with each command example
+
+# Example 1 (around line 123):
+```bash
+maa db add mcp_arangodb_test --url http://localhost:8529 --database mcp_arangodb_test --username root --password-env ARANGO_ROOT_PASSWORD
+```
+
+<details>
+<summary>💡 Using shorthand aliases</summary>
+
+```bash
+maa db add mcp_arangodb_test -u http://localhost:8529 -d mcp_arangodb_test -U root -P ARANGO_ROOT_PASSWORD
+```
+</details>
+
+# Repeat for other command examples (lines 166, 632)
+```
+
+**Verification:**
+```bash
+grep -c "Using shorthand aliases" docs/user-guide/troubleshooting.md
+# Should return 3
+```
+
+**Files Modified:**
+- `docs/user-guide/troubleshooting.md`
 
 ---
 
@@ -1185,13 +1283,13 @@ grep -A 50 "## Alias Quick Reference" docs/user-guide/cli-reference.md
 **Estimated Effort:** 1 hour
 
 **Pre-conditions:**
-- M5.T2 complete (documentation updated)
+- M5.T2 complete (collapsible sections added)
 
 **Success Criteria:**
-- README mentions aliases
-- Changelog entry added for v0.5.1
+- README mentions aliases (optional - keep minimal)
+- Changelog entry added for v0.6.0
 
-#### M5.T3.S1: Update README with alias mention
+#### M5.T3.S1: Update README with alias mention (optional)
 
 **Commit Message:** `docs: update README with CLI alias feature mention`
 
@@ -1199,7 +1297,8 @@ grep -A 50 "## Alias Quick Reference" docs/user-guide/cli-reference.md
 
 **Changes:**
 ```markdown
-# Add note in CLI section
+# Optional: Add brief note in CLI section if desired
+# Keep README minimal - main documentation is in docs/
 
 ### Command-Line Interface
 
@@ -1207,17 +1306,17 @@ The `maa` command provides comprehensive database and user management:
 
 ```bash
 # Database configuration (YAML file management)
-maa db config add production --url http://localhost:8529 --database myapp -U admin -P PROD_PASSWORD
+maa db config add production --url http://localhost:8529 --database myapp --username admin --arango-password-env PROD_PASSWORD
 
 # Database operations (ArangoDB management)
-maa db add myapp_prod --with-user myapp_user -p rw -R ARANGO_ROOT_PASSWORD -P ARANGO_PASSWORD
+maa db add myapp_prod --with-user myapp_user --permission rw --arango-root-password-env ARANGO_ROOT_PASSWORD --arango-password-env ARANGO_PASSWORD
 
 # User management
-maa user add alice -R ARANGO_ROOT_PASSWORD -P ARANGO_PASSWORD
-maa user grant alice myapp_prod -p rw -R ARANGO_ROOT_PASSWORD
+maa user add alice --arango-root-password-env ARANGO_ROOT_PASSWORD --arango-password-env ARANGO_PASSWORD
+maa user grant alice myapp_prod --permission rw --arango-root-password-env ARANGO_ROOT_PASSWORD
 ```
 
-**New in 0.5.1:** All CLI arguments now support short aliases for improved ergonomics. See [CLI Reference](docs/user-guide/cli-reference.md#alias-quick-reference) for complete alias documentation.
+**Note:** All CLI arguments support short aliases (e.g., `-R`, `-P`, `-u`) for improved ergonomics. See [CLI Reference](docs/user-guide/cli-reference.md) for details.
 ```
 
 **Verification:**
@@ -1226,13 +1325,13 @@ grep -A 10 "Command-Line Interface" README.md
 ```
 
 **Files Modified:**
-- `README.md` (CLI section)
+- `README.md` (CLI section) - OPTIONAL
 
 ---
 
-#### M5.T3.S2: Add changelog entry for 0.5.1
+#### M5.T3.S2: Add changelog entry for 0.6.0
 
-**Commit Message:** `docs: add changelog entry for v0.5.1 CLI enhancement`
+**Commit Message:** `docs: add changelog entry for v0.6.0 CLI enhancement`
 
 **File:** `docs/developer-guide/changelog.md`
 
@@ -1240,7 +1339,7 @@ grep -A 10 "Command-Line Interface" README.md
 ```markdown
 # Add new section at top (after line 44)
 
-## [0.5.1] - 2025-01-XX
+## [0.6.0] - 2025-01-XX
 
 ### Added
 
@@ -1256,10 +1355,16 @@ grep -A 10 "Command-Line Interface" README.md
   - `--config-path` → `--config-file` (everywhere)
   - `--env-file` → `--environment-file` (everywhere)
 
+- **Documentation Enhancements**:
+  - CLI reference updated with comprehensive alias tables
+  - Collapsible alias sections added to multi-tenancy guides and scenarios
+  - Progressive disclosure examples in troubleshooting guide
+  - Preserves educational clarity while providing power-user shortcuts
+
 ### Changed
 
 - **Help Text**: All commands now document available aliases
-- **Documentation**: CLI reference updated with comprehensive alias tables and progressive disclosure examples
+- **Documentation**: Tutorial and reference docs enhanced with collapsible alias sections
 
 ### Technical Details
 
@@ -1271,14 +1376,14 @@ grep -A 10 "Command-Line Interface" README.md
 **Examples:**
 
 ```bash
-# Before (verbose)
+# Verbose (documentation default - educational clarity)
 maa db add myapp_prod \
   --with-user myapp_user \
   --permission rw \
   --arango-root-password-env ARANGO_ROOT_PASSWORD \
   --arango-password-env ARANGO_PASSWORD
 
-# After (with short aliases)
+# Short aliases (power users - improved ergonomics)
 maa db add myapp_prod --with-user myapp_user -p rw -R ARANGO_ROOT_PASSWORD -P ARANGO_PASSWORD
 ```
 
@@ -1287,7 +1392,7 @@ maa db add myapp_prod --with-user myapp_user -p rw -R ARANGO_ROOT_PASSWORD -P AR
 
 **Verification:**
 ```bash
-head -100 docs/developer-guide/changelog.md | grep -A 30 "0.5.1"
+head -100 docs/developer-guide/changelog.md | grep -A 30 "0.6.0"
 ```
 
 **Files Modified:**
@@ -1306,7 +1411,7 @@ head -100 docs/developer-guide/changelog.md | grep -A 30 "0.5.1"
 **Success Gate:**
 - ✅ Full test suite passes
 - ✅ Help text validation passes
-- ✅ Version bumped to 0.5.1
+- ✅ Version bumped to 0.6.0
 - ✅ Ready for merge to master
 
 ---
@@ -1364,20 +1469,20 @@ maa db config add --help | grep -E "Aliases:"
 - M6.T1 complete (all tests passing)
 
 **Success Criteria:**
-- Version bumped to 0.5.1
+- Version bumped to 0.6.0
 - Changelog finalized
 
-#### M6.T2.S1: Bump version to 0.5.1
+#### M6.T2.S1: Bump version to 0.6.0
 
-**Commit Message:** `chore: bump version to 0.5.1 for CLI enhancement release`
+**Commit Message:** `chore: bump version to 0.6.0 for CLI enhancement release`
 
 **Commands:**
 ```bash
 # Bump version
-python scripts/bvn.py --version "0.5.1" --pypi false
+python scripts/bvn.py --version "0.6.0" --pypi false
 
 # Verify version updated
-grep 'version = "0.5.1"' pyproject.toml
+grep 'version = "0.6.0"' pyproject.toml
 ```
 
 **Verification:**
@@ -1393,19 +1498,19 @@ cat pyproject.toml | grep -A 2 "version ="
 
 #### M6.T2.S2: Finalize changelog with release date
 
-**Commit Message:** `docs: finalize changelog for v0.5.1 release`
+**Commit Message:** `docs: finalize changelog for v0.6.0 release`
 
 **File:** `docs/developer-guide/changelog.md`
 
 **Changes:**
 ```markdown
 # Update release date (line 45)
-## [0.5.1] - 2025-01-XX  # Replace XX with actual date
+## [0.6.0] - 2025-01-XX  # Replace XX with actual date
 ```
 
 **Verification:**
 ```bash
-head -50 docs/developer-guide/changelog.md | grep "0.5.1"
+head -50 docs/developer-guide/changelog.md | grep "0.6.0"
 ```
 
 **Files Modified:**
@@ -1436,7 +1541,7 @@ git push origin enhance/cli-consistency
 
 # Create PR (via GitHub CLI or web interface)
 gh pr create \
-  --title "feat: CLI consistency enhancement with 3-tier alias system (v0.5.1)" \
+  --title "feat: CLI consistency enhancement with 3-tier alias system (v0.6.0)" \
   --body "$(cat <<EOF
 ## Summary
 
@@ -1457,9 +1562,9 @@ Implements comprehensive CLI consistency enhancement with 3-tier alias system (p
 
 ### Documentation (Phase 4)
 - ✅ CLI reference updated with alias tables
-- ✅ Quick reference section added
-- ✅ Progressive disclosure examples
-- ✅ Changelog entry for v0.5.1
+- ✅ Collapsible alias sections added to multi-tenancy guides and scenarios
+- ✅ Progressive disclosure examples in troubleshooting guide
+- ✅ Changelog entry for v0.6.0
 
 ## Testing
 
@@ -1479,12 +1584,14 @@ Implements comprehensive CLI consistency enhancement with 3-tier alias system (p
 - **Character Savings**: 40-50% reduction for common operations
 - **User Experience**: Improved ergonomics for power users
 - **Documentation**: Clear progressive disclosure (beginner → advanced)
-- **Version**: 0.5.1 (PATCH - usability improvement)
+- **Educational Clarity**: Verbose examples remain primary, aliases in collapsible sections
+- **Version**: 0.6.0 (MINOR - new feature with backward compatibility)
 
 ## Related Reports
 
-- Architecture Analysis: \`__reports__/enhance_cli_consistency/00-architecture_analysis_v1.md\`
-- Test Definition: \`__reports__/enhance_cli_consistency/01-test_definition_v1.md\`
+- Architecture Analysis: \`__reports__/cli-consistency/00-architecture_analysis_v1.md\`
+- Test Definition: \`__reports__/cli-consistency/01-test_definition_v1.md\`
+- Documentation Locations: \`__reports__/cli-consistency/03-alias-documentation-locations_v1.md\`
 - Implementation Roadmap: \`__design__/cli-consistency-enhancement-roadmap.md\`
 
 ## Checklist
@@ -1492,7 +1599,7 @@ Implements comprehensive CLI consistency enhancement with 3-tier alias system (p
 - [x] All tests passing
 - [x] Documentation updated
 - [x] Changelog entry added
-- [x] Version bumped to 0.5.1
+- [x] Version bumped to 0.6.0
 - [x] Backward compatibility maintained
 - [x] Help text shows aliases
 EOF
@@ -1557,9 +1664,10 @@ gh pr view enhance/cli-consistency
 
 **Documentation:**
 - [ ] CLI reference updated with alias tables
-- [ ] Alias quick reference section added
-- [ ] Progressive disclosure examples added
-- [ ] README updated
+- [ ] Collapsible alias sections added to multi-tenancy guide
+- [ ] Collapsible alias sections added to multi-tenancy scenarios (3 files)
+- [ ] Collapsible alias sections added to troubleshooting guide
+- [ ] README updated (optional)
 - [ ] Changelog entry for v0.6.0 added
 
 **Release:**
