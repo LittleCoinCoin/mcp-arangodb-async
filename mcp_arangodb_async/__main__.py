@@ -259,7 +259,13 @@ def main() -> int:
         dest="arango_root_password_env",
         help="Root password env var (default: ARANGO_ROOT_PASSWORD). Aliases: --root-pw-env, -R",
     )
-    db_add_parser.add_argument("--arango-password-env", help="User password env var (default: ARANGO_PASSWORD)")
+    db_add_parser.add_argument(
+        "--arango-password-env",
+        "--pw-env",
+        "-P",
+        dest="arango_password_env",
+        help="User password env var (default: ARANGO_PASSWORD). Aliases: --pw-env, -P",
+    )
     db_add_parser.add_argument("--dry-run", action="store_true", help="Preview changes without executing")
     db_add_parser.add_argument("--yes", "-y", action="store_true", help="Skip confirmation prompt")
 
@@ -332,7 +338,13 @@ def main() -> int:
         dest="arango_root_password_env",
         help="Root password env var (default: ARANGO_ROOT_PASSWORD). Aliases: --root-pw-env, -R",
     )
-    user_add_parser.add_argument("--arango-password-env", help="User password env var (default: ARANGO_PASSWORD)")
+    user_add_parser.add_argument(
+        "--arango-password-env",
+        "--pw-env",
+        "-P",
+        dest="arango_password_env",
+        help="User password env var (default: ARANGO_PASSWORD). Aliases: --pw-env, -P",
+    )
     user_add_parser.add_argument("--dry-run", action="store_true", help="Preview changes without executing")
     user_add_parser.add_argument("--yes", "-y", action="store_true", help="Skip confirmation prompt")
 
@@ -436,7 +448,13 @@ def main() -> int:
         dest="env_file",
         help="Path to .env file for credentials. Aliases: --env-file, --envf, -E",
     )
-    user_databases_parser.add_argument("--arango-password-env", help="User password env var (default: ARANGO_PASSWORD)")
+    user_databases_parser.add_argument(
+        "--arango-password-env",
+        "--pw-env",
+        "-P",
+        dest="arango_password_env",
+        help="User password env var (default: ARANGO_PASSWORD). Aliases: --pw-env, -P",
+    )
     user_databases_parser.add_argument("--json", action="store_true", help="Output as JSON")
 
     # user password subcommand (self-service)
@@ -450,7 +468,13 @@ def main() -> int:
         dest="env_file",
         help="Path to .env file for credentials. Aliases: --env-file, --envf, -E",
     )
-    user_password_parser.add_argument("--arango-password-env", help="Current password env var (default: ARANGO_PASSWORD)")
+    user_password_parser.add_argument(
+        "--arango-password-env",
+        "--pw-env",
+        "-P",
+        dest="arango_password_env",
+        help="Current password env var (default: ARANGO_PASSWORD). Aliases: --pw-env, -P",
+    )
     user_password_parser.add_argument(
         "--arango-new-password-env",
         "--new-password-env",
