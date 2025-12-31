@@ -15,8 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Table of Contents
 
-1. [Version 0.5.0 (Current)](#version-050---2025-12-15)
-2. [Version 0.4.9](#version-049---2025-12-09)
+1. [Version 0.5.1 (Current)](#version-051---unreleased)
+2. [Version 0.5.0](#version-050---2025-12-15)
+3. [Version 0.4.9](#version-049---2025-12-09)
 3. [Version 0.4.8](#version-048---2025-12-04)
 3. [Version 0.4.7](#version-047---2025-11-28)
 4. [Version 0.4.6](#version-046---2025-11-27)
@@ -42,9 +43,59 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [0.5.0] - 2025-12-15
+## [0.5.1] - Unreleased
 
 **Current Release**
+
+### Added
+
+- **CLI Argument Aliases**: 3-tier alias system for improved ergonomics
+  - **Short aliases** (9 new): `-R`, `-P`, `-N`, `-C`, `-E`, `-p`, `-u`, `-d`, `-U`
+  - **Medium aliases** (7 new): `--root-pw-env`, `--pw-env`, `--new-pw-env`, `--cfgf`, `--cfgp`, `--envf`, `--perm`
+  - **Standardized naming**: `--arango-new-password-env`, `--environment-file`, `--config-file`
+  - **Character savings**: 40-50% reduction for common operations using short aliases
+
+- **Backward Compatibility**: All existing argument names remain valid as aliases
+  - `--password-env` → `--arango-password-env` (in `db config add`)
+  - `--new-password-env` → `--arango-new-password-env` (in `user password`)
+  - `--config-path` → `--config-file` (everywhere)
+  - `--env-file` → `--environment-file` (everywhere)
+
+- **Documentation Enhancements**:
+  - CLI reference updated with comprehensive alias tables
+  - Collapsible alias sections added to multi-tenancy guides and scenarios
+  - Progressive disclosure examples in troubleshooting guide
+  - Preserves educational clarity while providing power-user shortcuts
+
+### Changed
+
+- **Help Text**: All commands now document available aliases
+- **Documentation**: Tutorial and reference docs enhanced with collapsible alias sections
+
+### Technical Details
+
+- **Implementation**: Argparse-based alias resolution (no custom parsing logic)
+- **Testing**: 4 new backward compatibility tests, 18 test functions updated
+- **Zero Breaking Changes**: 100% backward compatibility maintained
+- **Usability Enhancement**: Convenience aliases only, no new functionality
+
+**Examples:**
+
+```bash
+# Verbose (documentation default - educational clarity)
+maa db add myapp_prod \
+  --with-user myapp_user \
+  --permission rw \
+  --arango-root-password-env ARANGO_ROOT_PASSWORD \
+  --arango-password-env ARANGO_PASSWORD
+
+# Short aliases (power users - improved ergonomics)
+maa db add myapp_prod --with-user myapp_user -p rw -R ARANGO_ROOT_PASSWORD -P ARANGO_PASSWORD
+```
+
+---
+
+## [0.5.0] - 2025-12-15
 
 ### Fixed
 
