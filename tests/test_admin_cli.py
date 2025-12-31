@@ -883,6 +883,31 @@ class TestUserAdmin:
         del os.environ["ARANGO_PASSWORD"]
         del os.environ["ARANGO_NEW_PASSWORD"]
 
+    def test_user_password_new_password_env_backward_compat(
+        self, mock_arango_client_user, mock_sys_db, capsys
+    ):
+        """Verify --new-password-env backward compatibility in user password."""
+        mock_sys_db.has_user.return_value = True
+
+        args = Namespace(
+            env_file=None,
+            arango_password_env=None,
+            new_password_env="NEW_PASSWORD",  # OLD name (backward compat)
+            dry_run=False,
+            yes=True,
+        )
+
+        os.environ["ARANGO_PASSWORD"] = "oldpass"
+        os.environ["NEW_PASSWORD"] = "newpass"
+
+        result = cli_user.handle_user_password(args)
+        assert result == EXIT_SUCCESS
+
+        mock_sys_db.update_user.assert_called_once()
+
+        del os.environ["ARANGO_PASSWORD"]
+        del os.environ["NEW_PASSWORD"]
+
 
 # ============================================================================
 # TestSafetyFeatures (3 tests)
