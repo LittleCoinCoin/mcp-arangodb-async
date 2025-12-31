@@ -245,5 +245,41 @@ Then create a collection called "experiments" in db2 and insert a document with 
 - Learn complete instance isolation
 - Manage different credentials for different instances
 
-> **Previous:** [Scenario 1: Single Instance, Single Database](01-single-instance-single-database.md)  
+---
+
+## Advanced: Using Shorthand Aliases
+
+<details>
+<summary>💡 Complete scenario workflow with shorthand aliases</summary>
+
+**Scenario 2 - Single Instance, Multiple Databases:**
+
+```bash
+# Step 1: Add second database with user
+maa db add db2 --with-user user1 -E .user1.env
+
+# Step 2: Add to config file
+maa db config add second_db -u http://localhost:8529 -d db2 -U user1 -P ARANGO_PASSWORD
+
+# Step 3: Verify both databases
+maa db config list
+
+# Verification: Test both connections
+maa db config test first_db -E .user1.env
+maa db config test second_db -E .user1.env
+```
+
+**Alias reference:**
+- `-u` = `--url`
+- `-d` = `--database`
+- `-U` = `--username`
+- `-E` = `--environment-file` / `--env-file`
+- `-P` = `--arango-password-env` / `--pw-env`
+
+See [CLI Reference](../cli-reference.md) for complete list.
+</details>
+
+---
+
+> **Previous:** [Scenario 1: Single Instance, Single Database](01-single-instance-single-database.md)
 > **Next:** [Scenario 3: Multiple Instances, Multiple Databases](03-multiple-instances-multiple-databases.md)

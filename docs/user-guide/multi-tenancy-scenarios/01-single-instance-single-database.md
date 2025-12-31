@@ -258,4 +258,39 @@ You can check the results using the ArangoDB web interface or the Admin CLI. Go 
 - Add a second database to the same ArangoDB instance
 - Learn database switching and resolution
 
+---
+
+## Advanced: Using Shorthand Aliases
+
+<details>
+<summary>💡 Complete scenario workflow with shorthand aliases</summary>
+
+**Scenario 1 - Single Instance, Single Database:**
+
+```bash
+# Step 1: Create database with user (using short aliases)
+maa db add db1 --with-user user1 -E .user1.env
+
+# Step 2: Verify configuration
+maa db list -E .user1.env
+
+# Step 3: Add to config file
+maa db config add first_db -u http://localhost:8529 -d db1 -U user1 -P ARANGO_PASSWORD
+
+# Step 4: Test connection
+maa db config test first_db -E .user1.env
+```
+
+**Alias reference:**
+- `-u` = `--url`
+- `-d` = `--database`
+- `-U` = `--username`
+- `-E` = `--environment-file` / `--env-file`
+- `-P` = `--arango-password-env` / `--pw-env`
+
+See [CLI Reference](../cli-reference.md) for complete list.
+</details>
+
+---
+
 > **Next:** [Scenario 2: Single Instance, Multiple Databases](02-single-instance-multiple-databases.md)
