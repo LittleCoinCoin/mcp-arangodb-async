@@ -138,7 +138,13 @@ def main() -> int:
     # db config add subcommand
     config_add_parser = db_config_subparsers.add_parser("add", help="Add a database configuration")
     config_add_parser.add_argument("key", help="Database key (unique identifier)")
-    config_add_parser.add_argument("--url", required=True, help="ArangoDB server URL")
+    config_add_parser.add_argument(
+        "--url",
+        "-u",
+        dest="url",
+        required=True,
+        help="ArangoDB server URL. Alias: -u",
+    )
     config_add_parser.add_argument("--database", required=True, help="Database name")
     config_add_parser.add_argument("--username", required=True, help="Username")
     config_add_parser.add_argument(
@@ -251,7 +257,12 @@ def main() -> int:
         default="rw",
         help="Permission level (default: rw). Aliases: --perm, -p",
     )
-    db_add_parser.add_argument("--url", help="ArangoDB server URL (default: ARANGO_URL env or http://localhost:8529)")
+    db_add_parser.add_argument(
+        "--url",
+        "-u",
+        dest="url",
+        help="ArangoDB server URL (default: ARANGO_URL env or http://localhost:8529). Alias: -u",
+    )
     db_add_parser.add_argument(
         "--environment-file",
         "--env-file",
@@ -280,7 +291,12 @@ def main() -> int:
     # db remove subcommand (ArangoDB database deletion)
     db_remove_parser = db_subparsers.add_parser("remove", aliases=["rm"], help="Delete ArangoDB database")
     db_remove_parser.add_argument("name", help="Database name")
-    db_remove_parser.add_argument("--url", help="ArangoDB server URL (default: ARANGO_URL env or http://localhost:8529)")
+    db_remove_parser.add_argument(
+        "--url",
+        "-u",
+        dest="url",
+        help="ArangoDB server URL (default: ARANGO_URL env or http://localhost:8529). Alias: -u",
+    )
     db_remove_parser.add_argument(
         "--environment-file",
         "--env-file",
@@ -301,7 +317,12 @@ def main() -> int:
 
     # db list subcommand (ArangoDB database listing)
     db_list_parser = db_subparsers.add_parser("list", aliases=["ls"], help="List ArangoDB databases")
-    db_list_parser.add_argument("--url", help="ArangoDB server URL (default: ARANGO_URL env or http://localhost:8529)")
+    db_list_parser.add_argument(
+        "--url",
+        "-u",
+        dest="url",
+        help="ArangoDB server URL (default: ARANGO_URL env or http://localhost:8529). Alias: -u",
+    )
     db_list_parser.add_argument(
         "--environment-file",
         "--env-file",
@@ -330,7 +351,12 @@ def main() -> int:
     user_add_parser = user_subparsers.add_parser("add", help="Create ArangoDB user")
     user_add_parser.add_argument("username", help="Username")
     user_add_parser.add_argument("--active", action="store_true", default=True, help="User is active (default: true)")
-    user_add_parser.add_argument("--url", help="ArangoDB server URL (default: ARANGO_URL env or http://localhost:8529)")
+    user_add_parser.add_argument(
+        "--url",
+        "-u",
+        dest="url",
+        help="ArangoDB server URL (default: ARANGO_URL env or http://localhost:8529). Alias: -u",
+    )
     user_add_parser.add_argument(
         "--environment-file",
         "--env-file",
@@ -359,7 +385,12 @@ def main() -> int:
     # user remove subcommand
     user_remove_parser = user_subparsers.add_parser("remove", aliases=["rm"], help="Delete ArangoDB user")
     user_remove_parser.add_argument("username", help="Username")
-    user_remove_parser.add_argument("--url", help="ArangoDB server URL (default: ARANGO_URL env or http://localhost:8529)")
+    user_remove_parser.add_argument(
+        "--url",
+        "-u",
+        dest="url",
+        help="ArangoDB server URL (default: ARANGO_URL env or http://localhost:8529). Alias: -u",
+    )
     user_remove_parser.add_argument(
         "--environment-file",
         "--env-file",
@@ -380,7 +411,12 @@ def main() -> int:
 
     # user list subcommand
     user_list_parser = user_subparsers.add_parser("list", aliases=["ls"], help="List ArangoDB users")
-    user_list_parser.add_argument("--url", help="ArangoDB server URL (default: ARANGO_URL env or http://localhost:8529)")
+    user_list_parser.add_argument(
+        "--url",
+        "-u",
+        dest="url",
+        help="ArangoDB server URL (default: ARANGO_URL env or http://localhost:8529). Alias: -u",
+    )
     user_list_parser.add_argument(
         "--environment-file",
         "--env-file",
@@ -411,7 +447,12 @@ def main() -> int:
         default="rw",
         help="Permission level (default: rw). Aliases: --perm, -p",
     )
-    user_grant_parser.add_argument("--url", help="ArangoDB server URL (default: ARANGO_URL env or http://localhost:8529)")
+    user_grant_parser.add_argument(
+        "--url",
+        "-u",
+        dest="url",
+        help="ArangoDB server URL (default: ARANGO_URL env or http://localhost:8529). Alias: -u",
+    )
     user_grant_parser.add_argument(
         "--environment-file",
         "--env-file",
@@ -434,7 +475,12 @@ def main() -> int:
     user_revoke_parser = user_subparsers.add_parser("revoke", help="Revoke database permissions")
     user_revoke_parser.add_argument("username", help="Username")
     user_revoke_parser.add_argument("database", help="Database name")
-    user_revoke_parser.add_argument("--url", help="ArangoDB server URL (default: ARANGO_URL env or http://localhost:8529)")
+    user_revoke_parser.add_argument(
+        "--url",
+        "-u",
+        dest="url",
+        help="ArangoDB server URL (default: ARANGO_URL env or http://localhost:8529). Alias: -u",
+    )
     user_revoke_parser.add_argument(
         "--environment-file",
         "--env-file",
@@ -455,7 +501,12 @@ def main() -> int:
 
     # user databases subcommand (self-service)
     user_databases_parser = user_subparsers.add_parser("databases", help="List accessible databases (self-service)")
-    user_databases_parser.add_argument("--url", help="ArangoDB server URL (default: ARANGO_URL env or http://localhost:8529)")
+    user_databases_parser.add_argument(
+        "--url",
+        "-u",
+        dest="url",
+        help="ArangoDB server URL (default: ARANGO_URL env or http://localhost:8529). Alias: -u",
+    )
     user_databases_parser.add_argument(
         "--environment-file",
         "--env-file",
@@ -475,7 +526,12 @@ def main() -> int:
 
     # user password subcommand (self-service)
     user_password_parser = user_subparsers.add_parser("password", help="Change own password (self-service)")
-    user_password_parser.add_argument("--url", help="ArangoDB server URL (default: ARANGO_URL env or http://localhost:8529)")
+    user_password_parser.add_argument(
+        "--url",
+        "-u",
+        dest="url",
+        help="ArangoDB server URL (default: ARANGO_URL env or http://localhost:8529). Alias: -u",
+    )
     user_password_parser.add_argument(
         "--environment-file",
         "--env-file",
