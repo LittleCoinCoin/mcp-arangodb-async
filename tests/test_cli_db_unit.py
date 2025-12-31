@@ -39,7 +39,7 @@ class TestCLIAdd:
             password_env="PROD_PASSWORD",
             timeout=60.0,
             description="Production database",
-            config_path=self.config_path,
+            config_file=self.config_path,
             dry_run=False,
             yes=True,  # Skip confirmation prompt
         )
@@ -75,7 +75,7 @@ class TestCLIAdd:
             password_env="STAGING_PASSWORD",
             timeout=30.0,
             description=None,
-            config_path=self.config_path,
+            config_file=self.config_path,
             dry_run=False,
             yes=True,  # Skip confirmation prompt
         )
@@ -114,7 +114,7 @@ class TestCLIAdd:
             password_env="NEW_PASSWORD",
             timeout=30.0,
             description=None,
-            config_path=self.config_path,
+            config_file=self.config_path,
             dry_run=False,
             yes=True,  # Skip confirmation prompt
         )
@@ -136,7 +136,7 @@ class TestCLIAdd:
             password_env="TEST_PASSWORD",
             timeout=30.0,
             description=None,
-            config_path="/invalid/path/databases.yaml",
+            config_file="/invalid/path/databases.yaml",
             dry_run=False,
             yes=True,  # Skip confirmation prompt
         )
@@ -189,7 +189,7 @@ class TestCLIRemove:
 
         args = Namespace(
             key="production",
-            config_path=self.config_path,
+            config_file=self.config_path,
             dry_run=False,
             yes=True,  # Skip confirmation prompt
         )
@@ -219,7 +219,7 @@ class TestCLIRemove:
 
         args = Namespace(
             key="nonexistent",
-            config_path=self.config_path,
+            config_file=self.config_path,
             dry_run=False,
             yes=True,  # Skip confirmation prompt
         )
@@ -234,7 +234,7 @@ class TestCLIRemove:
         """Test error handling when removing database fails."""
         args = Namespace(
             key="test",
-            config_path="/invalid/path/databases.yaml",
+            config_file="/invalid/path/databases.yaml",
             dry_run=False,
             yes=True,  # Skip confirmation prompt
         )
@@ -289,7 +289,7 @@ class TestCLIList:
         with open(self.config_path, 'w') as f:
             yaml.dump(config_data, f)
 
-        args = Namespace(config_path=self.config_path)
+        args = Namespace(config_file=self.config_path)
 
         result = handle_list(args)
 
@@ -312,7 +312,7 @@ class TestCLIList:
         with open(self.config_path, 'w') as f:
             yaml.dump(config_data, f)
 
-        args = Namespace(config_path=self.config_path)
+        args = Namespace(config_file=self.config_path)
 
         result = handle_list(args)
 
@@ -324,7 +324,7 @@ class TestCLIList:
         """Test listing when config file doesn't exist - uses env var fallback."""
         # Use a path that doesn't exist
         nonexistent_config = os.path.join(self.temp_dir, "nonexistent", "databases.yaml")
-        args = Namespace(config_path=nonexistent_config)
+        args = Namespace(config_file=nonexistent_config)
 
         # Environment variables provide default config (graceful degradation)
         with patch.dict(os.environ, {
@@ -351,7 +351,7 @@ class TestCLIList:
         """Test listing when config file doesn't exist - uses default env values."""
         # Use a path that doesn't exist
         nonexistent_config = os.path.join(self.temp_dir, "nonexistent", "databases.yaml")
-        args = Namespace(config_path=nonexistent_config)
+        args = Namespace(config_file=nonexistent_config)
 
         result = handle_list(args)
 
@@ -366,7 +366,7 @@ class TestCLIList:
 
     def test_list_databases_error_handling(self, capsys):
         """Test error handling when listing databases fails."""
-        args = Namespace(config_path="/invalid/path/databases.yaml")
+        args = Namespace(config_file="/invalid/path/databases.yaml")
 
         with patch("mcp_arangodb_async.cli_db.ConfigFileLoader") as mock_loader:
             mock_loader.return_value.load.side_effect = Exception("Test error")
@@ -409,7 +409,7 @@ class TestCLITest:
 
         args = Namespace(
             key="production",
-            config_path=self.config_path,
+            config_file=self.config_path,
         )
 
         # Mock the async test_connection method
@@ -444,7 +444,7 @@ class TestCLITest:
 
         args = Namespace(
             key="production",
-            config_path=self.config_path,
+            config_file=self.config_path,
         )
 
         # Mock the async test_connection method
@@ -470,7 +470,7 @@ class TestCLITest:
 
         args = Namespace(
             key="nonexistent",
-            config_path=self.config_path,
+            config_file=self.config_path,
         )
 
         result = handle_test(args)
@@ -483,7 +483,7 @@ class TestCLITest:
         """Test error handling when testing connection fails."""
         args = Namespace(
             key="test",
-            config_path="/invalid/path/databases.yaml",
+            config_file="/invalid/path/databases.yaml",
         )
 
         with patch("mcp_arangodb_async.cli_db.ConfigFileLoader") as mock_loader:
@@ -532,7 +532,7 @@ class TestCLIStatus:
         with open(self.config_path, 'w') as f:
             yaml.dump(config_data, f)
 
-        args = Namespace(config_path=self.config_path)
+        args = Namespace(config_file=self.config_path)
 
         result = handle_status(args)
 
@@ -563,7 +563,7 @@ class TestCLIStatus:
         with open(self.config_path, 'w') as f:
             yaml.dump(config_data, f)
 
-        args = Namespace(config_path=self.config_path)
+        args = Namespace(config_file=self.config_path)
 
         result = handle_status(args)
 
@@ -573,7 +573,7 @@ class TestCLIStatus:
 
     def test_status_error_handling(self, capsys):
         """Test error handling when showing status fails."""
-        args = Namespace(config_path="/invalid/path/databases.yaml")
+        args = Namespace(config_file="/invalid/path/databases.yaml")
 
         with patch("mcp_arangodb_async.cli_db.ConfigFileLoader") as mock_loader:
             mock_loader.return_value.load.side_effect = Exception("Test error")

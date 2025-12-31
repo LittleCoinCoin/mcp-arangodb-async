@@ -155,7 +155,7 @@ class TestDBConfig:
             password_env="TEST_PASSWORD",
             timeout=30.0,
             description="Test database",
-            config_path=str(config_path),
+            config_file=str(config_path),
             dry_run=False,
             yes=True,
         )
@@ -181,7 +181,7 @@ class TestDBConfig:
             password_env="TEST_PASSWORD",
             timeout=30.0,
             description="Test database",
-            config_path=str(config_path),
+            config_file=str(config_path),
             dry_run=False,
             yes=True,
         )
@@ -196,7 +196,7 @@ class TestDBConfig:
             password_env="TEST_PASSWORD2",
             timeout=30.0,
             description="Duplicate",
-            config_path=str(config_path),
+            config_file=str(config_path),
             dry_run=False,
             yes=True,
         )
@@ -218,7 +218,7 @@ class TestDBConfig:
             password_env="TEST_PASSWORD",
             timeout=30.0,
             description="Test database",
-            config_path=str(config_path),
+            config_file=str(config_path),
             dry_run=False,
             yes=True,
         )
@@ -227,7 +227,7 @@ class TestDBConfig:
         # Remove it
         args_remove = Namespace(
             key="testdb",
-            config_path=str(config_path),
+            config_file=str(config_path),
             dry_run=False,
             yes=True,
         )
@@ -250,14 +250,14 @@ class TestDBConfig:
                 password_env="TEST_PASSWORD",
                 timeout=30.0,
                 description=f"Database {i}",
-                config_path=str(config_path),
+                config_file=str(config_path),
                 dry_run=False,
                 yes=True,
             )
             cli_db.handle_add(args)
 
         # List them
-        args_list = Namespace(config_path=str(config_path))
+        args_list = Namespace(config_file=str(config_path))
         result = cli_db.handle_list(args_list)
         assert result == EXIT_SUCCESS
 
@@ -281,7 +281,7 @@ class TestDBConfig:
             password_env="TEST_PASSWORD",
             timeout=30.0,
             description="Test database",
-            config_path=str(config_path),
+            config_file=str(config_path),
             dry_run=False,
             yes=True,
         )
@@ -305,7 +305,7 @@ class TestDBConfig:
 
             args_test = Namespace(
                 key="testdb",
-                config_path=str(config_path),
+                config_file=str(config_path),
             )
             result = cli_db.handle_test(args_test)
             assert result == EXIT_SUCCESS
@@ -328,7 +328,7 @@ class TestDBConfig:
             password_env="TEST_PASSWORD",
             timeout=30.0,
             description="Test database",
-            config_path=str(config_path),
+            config_file=str(config_path),
             dry_run=False,
             yes=True,
         )
@@ -343,7 +343,7 @@ class TestDBConfig:
 
             args_test = Namespace(
                 key="testdb",
-                config_path=str(config_path),
+                config_file=str(config_path),
             )
             result = cli_db.handle_test(args_test)
             assert result == EXIT_ERROR
@@ -366,14 +366,14 @@ class TestDBConfig:
             password_env="TEST_PASSWORD",
             timeout=30.0,
             description="Test database",
-            config_path=str(config_path),
+            config_file=str(config_path),
             dry_run=False,
             yes=True,
         )
         cli_db.handle_add(args_add)
 
         # Get status
-        args_status = Namespace(config_path=str(config_path))
+        args_status = Namespace(config_file=str(config_path))
         result = cli_db.handle_status(args_status)
         assert result == EXIT_SUCCESS
 

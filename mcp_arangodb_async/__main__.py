@@ -163,7 +163,7 @@ def main() -> int:
         "--cfgf",
         "--cfgp",
         "-C",
-        dest="config_path",
+        dest="config_file",
         default="config/databases.yaml",
         help="Path to configuration file. Aliases: --config-path, --cfgf, --cfgp, -C",
     )
@@ -179,7 +179,7 @@ def main() -> int:
         "--cfgf",
         "--cfgp",
         "-C",
-        dest="config_path",
+        dest="config_file",
         default="config/databases.yaml",
         help="Path to configuration file. Aliases: --config-path, --cfgf, --cfgp, -C",
     )
@@ -194,7 +194,7 @@ def main() -> int:
         "--cfgf",
         "--cfgp",
         "-C",
-        dest="config_path",
+        dest="config_file",
         default="config/databases.yaml",
         help="Path to configuration file. Aliases: --config-path, --cfgf, --cfgp, -C",
     )
@@ -208,7 +208,7 @@ def main() -> int:
         "--cfgf",
         "--cfgp",
         "-C",
-        dest="config_path",
+        dest="config_file",
         default="config/databases.yaml",
         help="Path to configuration file. Aliases: --config-path, --cfgf, --cfgp, -C",
     )
@@ -222,7 +222,7 @@ def main() -> int:
         "--cfgf",
         "--cfgp",
         "-C",
-        dest="config_path",
+        dest="config_file",
         default="config/databases.yaml",
         help="Path to configuration file. Aliases: --config-path, --cfgf, --cfgp, -C",
     )
