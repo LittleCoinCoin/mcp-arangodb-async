@@ -252,7 +252,13 @@ def main() -> int:
         dest="env_file",
         help="Path to .env file for credentials. Aliases: --env-file, --envf, -E",
     )
-    db_add_parser.add_argument("--arango-root-password-env", help="Root password env var (default: ARANGO_ROOT_PASSWORD)")
+    db_add_parser.add_argument(
+        "--arango-root-password-env",
+        "--root-pw-env",
+        "-R",
+        dest="arango_root_password_env",
+        help="Root password env var (default: ARANGO_ROOT_PASSWORD). Aliases: --root-pw-env, -R",
+    )
     db_add_parser.add_argument("--arango-password-env", help="User password env var (default: ARANGO_PASSWORD)")
     db_add_parser.add_argument("--dry-run", action="store_true", help="Preview changes without executing")
     db_add_parser.add_argument("--yes", "-y", action="store_true", help="Skip confirmation prompt")
@@ -269,7 +275,13 @@ def main() -> int:
         dest="env_file",
         help="Path to .env file for credentials. Aliases: --env-file, --envf, -E",
     )
-    db_remove_parser.add_argument("--arango-root-password-env", help="Root password env var (default: ARANGO_ROOT_PASSWORD)")
+    db_remove_parser.add_argument(
+        "--arango-root-password-env",
+        "--root-pw-env",
+        "-R",
+        dest="arango_root_password_env",
+        help="Root password env var (default: ARANGO_ROOT_PASSWORD). Aliases: --root-pw-env, -R",
+    )
     db_remove_parser.add_argument("--dry-run", action="store_true", help="Preview changes without executing")
     db_remove_parser.add_argument("--yes", "-y", action="store_true", help="Skip confirmation prompt")
 
@@ -284,7 +296,13 @@ def main() -> int:
         dest="env_file",
         help="Path to .env file for credentials. Aliases: --env-file, --envf, -E",
     )
-    db_list_parser.add_argument("--arango-root-password-env", help="Root password env var (default: ARANGO_ROOT_PASSWORD)")
+    db_list_parser.add_argument(
+        "--arango-root-password-env",
+        "--root-pw-env",
+        "-R",
+        dest="arango_root_password_env",
+        help="Root password env var (default: ARANGO_ROOT_PASSWORD). Aliases: --root-pw-env, -R",
+    )
     db_list_parser.add_argument("--json", action="store_true", help="Output as JSON")
 
     # User management subcommand
@@ -307,7 +325,13 @@ def main() -> int:
         dest="env_file",
         help="Path to .env file for credentials. Aliases: --env-file, --envf, -E",
     )
-    user_add_parser.add_argument("--arango-root-password-env", help="Root password env var (default: ARANGO_ROOT_PASSWORD)")
+    user_add_parser.add_argument(
+        "--arango-root-password-env",
+        "--root-pw-env",
+        "-R",
+        dest="arango_root_password_env",
+        help="Root password env var (default: ARANGO_ROOT_PASSWORD). Aliases: --root-pw-env, -R",
+    )
     user_add_parser.add_argument("--arango-password-env", help="User password env var (default: ARANGO_PASSWORD)")
     user_add_parser.add_argument("--dry-run", action="store_true", help="Preview changes without executing")
     user_add_parser.add_argument("--yes", "-y", action="store_true", help="Skip confirmation prompt")
@@ -324,7 +348,13 @@ def main() -> int:
         dest="env_file",
         help="Path to .env file for credentials. Aliases: --env-file, --envf, -E",
     )
-    user_remove_parser.add_argument("--arango-root-password-env", help="Root password env var (default: ARANGO_ROOT_PASSWORD)")
+    user_remove_parser.add_argument(
+        "--arango-root-password-env",
+        "--root-pw-env",
+        "-R",
+        dest="arango_root_password_env",
+        help="Root password env var (default: ARANGO_ROOT_PASSWORD). Aliases: --root-pw-env, -R",
+    )
     user_remove_parser.add_argument("--dry-run", action="store_true", help="Preview changes without executing")
     user_remove_parser.add_argument("--yes", "-y", action="store_true", help="Skip confirmation prompt")
 
@@ -339,7 +369,13 @@ def main() -> int:
         dest="env_file",
         help="Path to .env file for credentials. Aliases: --env-file, --envf, -E",
     )
-    user_list_parser.add_argument("--arango-root-password-env", help="Root password env var (default: ARANGO_ROOT_PASSWORD)")
+    user_list_parser.add_argument(
+        "--arango-root-password-env",
+        "--root-pw-env",
+        "-R",
+        dest="arango_root_password_env",
+        help="Root password env var (default: ARANGO_ROOT_PASSWORD). Aliases: --root-pw-env, -R",
+    )
     user_list_parser.add_argument("--json", action="store_true", help="Output as JSON")
 
     # user grant subcommand
@@ -356,7 +392,13 @@ def main() -> int:
         dest="env_file",
         help="Path to .env file for credentials. Aliases: --env-file, --envf, -E",
     )
-    user_grant_parser.add_argument("--arango-root-password-env", help="Root password env var (default: ARANGO_ROOT_PASSWORD)")
+    user_grant_parser.add_argument(
+        "--arango-root-password-env",
+        "--root-pw-env",
+        "-R",
+        dest="arango_root_password_env",
+        help="Root password env var (default: ARANGO_ROOT_PASSWORD). Aliases: --root-pw-env, -R",
+    )
     user_grant_parser.add_argument("--dry-run", action="store_true", help="Preview changes without executing")
     user_grant_parser.add_argument("--yes", "-y", action="store_true", help="Skip confirmation prompt")
 
@@ -373,7 +415,13 @@ def main() -> int:
         dest="env_file",
         help="Path to .env file for credentials. Aliases: --env-file, --envf, -E",
     )
-    user_revoke_parser.add_argument("--arango-root-password-env", help="Root password env var (default: ARANGO_ROOT_PASSWORD)")
+    user_revoke_parser.add_argument(
+        "--arango-root-password-env",
+        "--root-pw-env",
+        "-R",
+        dest="arango_root_password_env",
+        help="Root password env var (default: ARANGO_ROOT_PASSWORD). Aliases: --root-pw-env, -R",
+    )
     user_revoke_parser.add_argument("--dry-run", action="store_true", help="Preview changes without executing")
     user_revoke_parser.add_argument("--yes", "-y", action="store_true", help="Skip confirmation prompt")
 
