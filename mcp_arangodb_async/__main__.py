@@ -106,7 +106,7 @@ def main() -> int:
         "-C",
         dest="config_file",
         default=None,
-        help="Path to database configuration YAML file. Aliases: --config-path, --cfgf, --cfgp, -C",
+        help="Path to database configuration YAML file",
     )
 
     # Health subcommand
@@ -143,21 +143,21 @@ def main() -> int:
         "-u",
         dest="url",
         required=True,
-        help="ArangoDB server URL. Alias: -u",
+        help="ArangoDB server URL",
     )
     config_add_parser.add_argument(
         "--database",
         "-d",
         dest="database",
         required=True,
-        help="Database name. Alias: -d",
+        help="Database name",
     )
     config_add_parser.add_argument(
         "--username",
         "-U",
         dest="username",
         required=True,
-        help="Username. Alias: -U",
+        help="Username",
     )
     config_add_parser.add_argument(
         "--arango-password-env",
@@ -166,7 +166,7 @@ def main() -> int:
         "-P",
         dest="arango_password_env",
         required=True,
-        help="Environment variable name containing password. Aliases: --password-env, --pw-env, -P",
+        help="Environment variable name containing password",
     )
     config_add_parser.add_argument(
         "--timeout",
@@ -187,7 +187,7 @@ def main() -> int:
         "-C",
         dest="config_file",
         default="config/databases.yaml",
-        help="Path to configuration file. Aliases: --config-path, --cfgf, --cfgp, -C",
+        help="Path to configuration file",
     )
     config_add_parser.add_argument("--dry-run", action="store_true", help="Preview changes without executing")
     config_add_parser.add_argument("--yes", "-y", action="store_true", help="Skip confirmation prompt")
@@ -203,7 +203,7 @@ def main() -> int:
         "-C",
         dest="config_file",
         default="config/databases.yaml",
-        help="Path to configuration file. Aliases: --config-path, --cfgf, --cfgp, -C",
+        help="Path to configuration file",
     )
     config_remove_parser.add_argument("--dry-run", action="store_true", help="Preview changes without executing")
     config_remove_parser.add_argument("--yes", "-y", action="store_true", help="Skip confirmation prompt")
@@ -218,7 +218,7 @@ def main() -> int:
         "-C",
         dest="config_file",
         default="config/databases.yaml",
-        help="Path to configuration file. Aliases: --config-path, --cfgf, --cfgp, -C",
+        help="Path to configuration file",
     )
 
     # db config test subcommand
@@ -232,7 +232,7 @@ def main() -> int:
         "-C",
         dest="config_file",
         default="config/databases.yaml",
-        help="Path to configuration file. Aliases: --config-path, --cfgf, --cfgp, -C",
+        help="Path to configuration file",
     )
     config_test_parser.add_argument(
         "--environment-file",
@@ -240,7 +240,7 @@ def main() -> int:
         "--envf",
         "-E",
         dest="env_file",
-        help="Path to .env file for credentials. Aliases: --env-file, --envf, -E",
+        help="Path to .env file for credentials",
     )
 
     # db config status subcommand
@@ -253,7 +253,7 @@ def main() -> int:
         "-C",
         dest="config_file",
         default="config/databases.yaml",
-        help="Path to configuration file. Aliases: --config-path, --cfgf, --cfgp, -C",
+        help="Path to configuration file",
     )
 
     # db add subcommand (ArangoDB database creation)
@@ -267,13 +267,13 @@ def main() -> int:
         dest="permission",
         choices=["rw", "ro", "none"],
         default="rw",
-        help="Permission level (default: rw). Aliases: --perm, -p",
+        help="Permission level (default: rw)",
     )
     db_add_parser.add_argument(
         "--url",
         "-u",
         dest="url",
-        help="ArangoDB server URL (default: ARANGO_URL env or http://localhost:8529). Alias: -u",
+        help="ArangoDB server URL (default: ARANGO_URL env or http://localhost:8529)",
     )
     db_add_parser.add_argument(
         "--environment-file",
@@ -281,21 +281,21 @@ def main() -> int:
         "--envf",
         "-E",
         dest="env_file",
-        help="Path to .env file for credentials. Aliases: --env-file, --envf, -E",
+        help="Path to .env file for credentials",
     )
     db_add_parser.add_argument(
         "--arango-root-password-env",
         "--root-pw-env",
         "-R",
         dest="arango_root_password_env",
-        help="Root password env var (default: ARANGO_ROOT_PASSWORD). Aliases: --root-pw-env, -R",
+        help="Root password env var (default: ARANGO_ROOT_PASSWORD)",
     )
     db_add_parser.add_argument(
         "--arango-password-env",
         "--pw-env",
         "-P",
         dest="arango_password_env",
-        help="User password env var (default: ARANGO_PASSWORD). Aliases: --pw-env, -P",
+        help="User password env var (default: ARANGO_PASSWORD)",
     )
     db_add_parser.add_argument("--dry-run", action="store_true", help="Preview changes without executing")
     db_add_parser.add_argument("--yes", "-y", action="store_true", help="Skip confirmation prompt")
@@ -307,7 +307,7 @@ def main() -> int:
         "--url",
         "-u",
         dest="url",
-        help="ArangoDB server URL (default: ARANGO_URL env or http://localhost:8529). Alias: -u",
+        help="ArangoDB server URL (default: ARANGO_URL env or http://localhost:8529)",
     )
     db_remove_parser.add_argument(
         "--environment-file",
@@ -315,14 +315,14 @@ def main() -> int:
         "--envf",
         "-E",
         dest="env_file",
-        help="Path to .env file for credentials. Aliases: --env-file, --envf, -E",
+        help="Path to .env file for credentials",
     )
     db_remove_parser.add_argument(
         "--arango-root-password-env",
         "--root-pw-env",
         "-R",
         dest="arango_root_password_env",
-        help="Root password env var (default: ARANGO_ROOT_PASSWORD). Aliases: --root-pw-env, -R",
+        help="Root password env var (default: ARANGO_ROOT_PASSWORD)",
     )
     db_remove_parser.add_argument("--dry-run", action="store_true", help="Preview changes without executing")
     db_remove_parser.add_argument("--yes", "-y", action="store_true", help="Skip confirmation prompt")
@@ -333,7 +333,7 @@ def main() -> int:
         "--url",
         "-u",
         dest="url",
-        help="ArangoDB server URL (default: ARANGO_URL env or http://localhost:8529). Alias: -u",
+        help="ArangoDB server URL (default: ARANGO_URL env or http://localhost:8529)",
     )
     db_list_parser.add_argument(
         "--environment-file",
@@ -341,14 +341,14 @@ def main() -> int:
         "--envf",
         "-E",
         dest="env_file",
-        help="Path to .env file for credentials. Aliases: --env-file, --envf, -E",
+        help="Path to .env file for credentials",
     )
     db_list_parser.add_argument(
         "--arango-root-password-env",
         "--root-pw-env",
         "-R",
         dest="arango_root_password_env",
-        help="Root password env var (default: ARANGO_ROOT_PASSWORD). Aliases: --root-pw-env, -R",
+        help="Root password env var (default: ARANGO_ROOT_PASSWORD)",
     )
     db_list_parser.add_argument("--json", action="store_true", help="Output as JSON")
 
@@ -367,7 +367,7 @@ def main() -> int:
         "--url",
         "-u",
         dest="url",
-        help="ArangoDB server URL (default: ARANGO_URL env or http://localhost:8529). Alias: -u",
+        help="ArangoDB server URL (default: ARANGO_URL env or http://localhost:8529)",
     )
     user_add_parser.add_argument(
         "--environment-file",
@@ -375,21 +375,21 @@ def main() -> int:
         "--envf",
         "-E",
         dest="env_file",
-        help="Path to .env file for credentials. Aliases: --env-file, --envf, -E",
+        help="Path to .env file for credentials",
     )
     user_add_parser.add_argument(
         "--arango-root-password-env",
         "--root-pw-env",
         "-R",
         dest="arango_root_password_env",
-        help="Root password env var (default: ARANGO_ROOT_PASSWORD). Aliases: --root-pw-env, -R",
+        help="Root password env var (default: ARANGO_ROOT_PASSWORD)",
     )
     user_add_parser.add_argument(
         "--arango-password-env",
         "--pw-env",
         "-P",
         dest="arango_password_env",
-        help="User password env var (default: ARANGO_PASSWORD). Aliases: --pw-env, -P",
+        help="User password env var (default: ARANGO_PASSWORD)",
     )
     user_add_parser.add_argument("--dry-run", action="store_true", help="Preview changes without executing")
     user_add_parser.add_argument("--yes", "-y", action="store_true", help="Skip confirmation prompt")
@@ -401,7 +401,7 @@ def main() -> int:
         "--url",
         "-u",
         dest="url",
-        help="ArangoDB server URL (default: ARANGO_URL env or http://localhost:8529). Alias: -u",
+        help="ArangoDB server URL (default: ARANGO_URL env or http://localhost:8529)",
     )
     user_remove_parser.add_argument(
         "--environment-file",
@@ -409,14 +409,14 @@ def main() -> int:
         "--envf",
         "-E",
         dest="env_file",
-        help="Path to .env file for credentials. Aliases: --env-file, --envf, -E",
+        help="Path to .env file for credentials",
     )
     user_remove_parser.add_argument(
         "--arango-root-password-env",
         "--root-pw-env",
         "-R",
         dest="arango_root_password_env",
-        help="Root password env var (default: ARANGO_ROOT_PASSWORD). Aliases: --root-pw-env, -R",
+        help="Root password env var (default: ARANGO_ROOT_PASSWORD)",
     )
     user_remove_parser.add_argument("--dry-run", action="store_true", help="Preview changes without executing")
     user_remove_parser.add_argument("--yes", "-y", action="store_true", help="Skip confirmation prompt")
@@ -427,7 +427,7 @@ def main() -> int:
         "--url",
         "-u",
         dest="url",
-        help="ArangoDB server URL (default: ARANGO_URL env or http://localhost:8529). Alias: -u",
+        help="ArangoDB server URL (default: ARANGO_URL env or http://localhost:8529)",
     )
     user_list_parser.add_argument(
         "--environment-file",
@@ -435,14 +435,14 @@ def main() -> int:
         "--envf",
         "-E",
         dest="env_file",
-        help="Path to .env file for credentials. Aliases: --env-file, --envf, -E",
+        help="Path to .env file for credentials",
     )
     user_list_parser.add_argument(
         "--arango-root-password-env",
         "--root-pw-env",
         "-R",
         dest="arango_root_password_env",
-        help="Root password env var (default: ARANGO_ROOT_PASSWORD). Aliases: --root-pw-env, -R",
+        help="Root password env var (default: ARANGO_ROOT_PASSWORD)",
     )
     user_list_parser.add_argument("--json", action="store_true", help="Output as JSON")
 
@@ -457,13 +457,13 @@ def main() -> int:
         dest="permission",
         choices=["rw", "ro", "none"],
         default="rw",
-        help="Permission level (default: rw). Aliases: --perm, -p",
+        help="Permission level (default: rw)",
     )
     user_grant_parser.add_argument(
         "--url",
         "-u",
         dest="url",
-        help="ArangoDB server URL (default: ARANGO_URL env or http://localhost:8529). Alias: -u",
+        help="ArangoDB server URL (default: ARANGO_URL env or http://localhost:8529)",
     )
     user_grant_parser.add_argument(
         "--environment-file",
@@ -471,14 +471,14 @@ def main() -> int:
         "--envf",
         "-E",
         dest="env_file",
-        help="Path to .env file for credentials. Aliases: --env-file, --envf, -E",
+        help="Path to .env file for credentials",
     )
     user_grant_parser.add_argument(
         "--arango-root-password-env",
         "--root-pw-env",
         "-R",
         dest="arango_root_password_env",
-        help="Root password env var (default: ARANGO_ROOT_PASSWORD). Aliases: --root-pw-env, -R",
+        help="Root password env var (default: ARANGO_ROOT_PASSWORD)",
     )
     user_grant_parser.add_argument("--dry-run", action="store_true", help="Preview changes without executing")
     user_grant_parser.add_argument("--yes", "-y", action="store_true", help="Skip confirmation prompt")
@@ -491,7 +491,7 @@ def main() -> int:
         "--url",
         "-u",
         dest="url",
-        help="ArangoDB server URL (default: ARANGO_URL env or http://localhost:8529). Alias: -u",
+        help="ArangoDB server URL (default: ARANGO_URL env or http://localhost:8529)",
     )
     user_revoke_parser.add_argument(
         "--environment-file",
@@ -499,14 +499,14 @@ def main() -> int:
         "--envf",
         "-E",
         dest="env_file",
-        help="Path to .env file for credentials. Aliases: --env-file, --envf, -E",
+        help="Path to .env file for credentials",
     )
     user_revoke_parser.add_argument(
         "--arango-root-password-env",
         "--root-pw-env",
         "-R",
         dest="arango_root_password_env",
-        help="Root password env var (default: ARANGO_ROOT_PASSWORD). Aliases: --root-pw-env, -R",
+        help="Root password env var (default: ARANGO_ROOT_PASSWORD)",
     )
     user_revoke_parser.add_argument("--dry-run", action="store_true", help="Preview changes without executing")
     user_revoke_parser.add_argument("--yes", "-y", action="store_true", help="Skip confirmation prompt")
@@ -517,7 +517,7 @@ def main() -> int:
         "--url",
         "-u",
         dest="url",
-        help="ArangoDB server URL (default: ARANGO_URL env or http://localhost:8529). Alias: -u",
+        help="ArangoDB server URL (default: ARANGO_URL env or http://localhost:8529)",
     )
     user_databases_parser.add_argument(
         "--environment-file",
@@ -525,14 +525,14 @@ def main() -> int:
         "--envf",
         "-E",
         dest="env_file",
-        help="Path to .env file for credentials. Aliases: --env-file, --envf, -E",
+        help="Path to .env file for credentials",
     )
     user_databases_parser.add_argument(
         "--arango-password-env",
         "--pw-env",
         "-P",
         dest="arango_password_env",
-        help="User password env var (default: ARANGO_PASSWORD). Aliases: --pw-env, -P",
+        help="User password env var (default: ARANGO_PASSWORD)",
     )
     user_databases_parser.add_argument("--json", action="store_true", help="Output as JSON")
 
@@ -542,7 +542,7 @@ def main() -> int:
         "--url",
         "-u",
         dest="url",
-        help="ArangoDB server URL (default: ARANGO_URL env or http://localhost:8529). Alias: -u",
+        help="ArangoDB server URL (default: ARANGO_URL env or http://localhost:8529)",
     )
     user_password_parser.add_argument(
         "--environment-file",
@@ -550,14 +550,14 @@ def main() -> int:
         "--envf",
         "-E",
         dest="env_file",
-        help="Path to .env file for credentials. Aliases: --env-file, --envf, -E",
+        help="Path to .env file for credentials",
     )
     user_password_parser.add_argument(
         "--arango-password-env",
         "--pw-env",
         "-P",
         dest="arango_password_env",
-        help="Current password env var (default: ARANGO_PASSWORD). Aliases: --pw-env, -P",
+        help="Current password env var (default: ARANGO_PASSWORD)",
     )
     user_password_parser.add_argument(
         "--arango-new-password-env",
@@ -566,7 +566,7 @@ def main() -> int:
         "-N",
         dest="new_password_env",
         default="ARANGO_NEW_PASSWORD",
-        help="New password env var (default: ARANGO_NEW_PASSWORD). Aliases: --new-password-env, --new-pw-env, -N",
+        help="New password env var (default: ARANGO_NEW_PASSWORD)",
     )
     user_password_parser.add_argument("--dry-run", action="store_true", help="Preview changes without executing")
     user_password_parser.add_argument("--yes", "-y", action="store_true", help="Skip confirmation prompt")
