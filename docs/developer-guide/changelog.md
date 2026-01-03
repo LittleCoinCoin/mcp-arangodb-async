@@ -43,9 +43,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [0.5.1] - Unreleased
+## [0.5.2] - Unreleased
 
 **Current Release**
+
+### Fixed
+
+✅ **CLI Reporting Enhancement**
+- **Password Environment Variable Reporting:**
+  - Added password environment variable to `db config add` command output
+  - Users can now verify which environment variable is configured for password
+  - Maintains consistency with CLI UX philosophy (only show what's explicitly set)
+  - No breaking changes, fully backward compatible
+  - Issue: Closes [#XX](https://github.com/LittleCoinCoin/mcp-arangodb-async/issues/XX)
+
+### Changed
+
+- **CLI Output:** `db config add` now shows password env in confirmation and result output
+- **User Experience:** Improved transparency for password configuration without exposing secrets
+
+---
+
+## [0.5.1] - 2025-12-15
+=======
 
 ### Added
 
