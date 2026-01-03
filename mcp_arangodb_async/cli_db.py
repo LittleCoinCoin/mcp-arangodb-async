@@ -42,6 +42,7 @@ def handle_add(args: Namespace) -> int:
     reporter.add(ConsequenceType.ADD, f"  URL: {args.url}")
     reporter.add(ConsequenceType.ADD, f"  Database: {args.database}")
     reporter.add(ConsequenceType.ADD, f"  Username: {args.username}")
+    reporter.add(ConsequenceType.ADD, f"  Password Env: {args.arango_password_env}")
 
     # Dry-run mode: report and exit
     if dry_run:
