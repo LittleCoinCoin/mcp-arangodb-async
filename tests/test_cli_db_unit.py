@@ -415,10 +415,16 @@ class TestCLITest:
 
         # Mock the async test_connection method
         with patch("mcp_arangodb_async.cli_db.asyncio.run") as mock_run:
-            mock_run.return_value = {
-                "connected": True,
-                "version": "3.11.0"
-            }
+            def run_mock(coro):
+                # Close the coroutine to avoid warnings
+                if hasattr(coro, 'close'):
+                    coro.close()
+                return {
+                    "connected": True,
+                    "version": "3.11.0"
+                }
+            
+            mock_run.side_effect = run_mock
             result = handle_test(args)
 
         assert result == 0
@@ -450,10 +456,16 @@ class TestCLITest:
 
         # Mock the async test_connection method
         with patch("mcp_arangodb_async.cli_db.asyncio.run") as mock_run:
-            mock_run.return_value = {
-                "connected": False,
-                "error": "Connection refused"
-            }
+            def run_mock(coro):
+                # Close the coroutine to avoid warnings
+                if hasattr(coro, 'close'):
+                    coro.close()
+                return {
+                    "connected": False,
+                    "error": "Connection refused"
+                }
+            
+            mock_run.side_effect = run_mock
             result = handle_test(args)
 
         assert result == 1
