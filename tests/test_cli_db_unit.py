@@ -1058,3 +1058,99 @@ class TestCLIUpdate:
         with open(self.config_path, 'r') as f:
             updated_config = yaml.safe_load(f)
         assert updated_config["databases"]["production"]["url"] == "http://localhost:8529"  # Unchanged
+
+    def test_update_dry_run_mode(self, capsys):
+        """Test dry-run shows changes without applying them."""
+        # Create initial configuration
+        config_data = {
+            "default_database": "production",
+            "databases": {
+                "production": {
+                    "url": "http://localhost:8529",
+                    "database": "prod_db",
+                    "username": "admin",
+                    "password_env": "PROD_PASSWORD",
+                    "timeout": 30.0,
+                    "description": "Production database"
+                }
+            }
+        }
+        os.makedirs(os.path.dirname(self.config_path), exist_ok=True)
+        with open(self.config_path, 'w') as f:
+            yaml.dump(config_data, f)
+
+        # Test multiple change types in dry-run
+        args = Namespace(
+            existing_key="production",
+            key="prod",
+            url="http://new-host:8529",
+            database="new_db",
+            username="newuser",
+            arango_password_env="NEW_PASSWORD",
+            timeout=60.0,
+            description="Updated description",
+            config_file=self.config_path,
+            dry_run=True,  # Dry-run mode
+            yes=True,
+        )
+        result = handle_update(args)
+        assert result == 0
+        captured = capsys.readouterr()
+        assert "[UPDATED - DRY-RUN]" in captured.out
+        assert "Key: production → prod" in captured.out
+        assert "URL: http://localhost:8529 → http://new-host:8529" in captured.out
+        assert "Database: prod_db → new_db" in captured.out
+        assert "Username: admin → newuser" in captured.out
+        assert "Password Env: PROD_PASSWORD → NEW_PASSWORD" in captured.out
+        assert "Timeout: 30.0 → 60.0" in captured.out
+        assert "Description: Production database → Updated description" in captured.out
+
+        # Verify no file changes were made
+        with open(self.config_path, 'r') as f:
+            updated_config = yaml.safe_load(f)
+        assert updated_config["databases"]["production"]["url"] == "http://localhost:8529"  # Unchanged
+        assert updated_config["default_database"] == "production"  # Unchanged
+        assert "prod" not in updated_config["databases"]  # New key not added
+
+    def test_update_output_format(self, capsys):
+        """Test ConsequenceType.UPDATE usage and output formatting."""
+        # Create initial configuration
+        config_data = {
+            "databases": {
+                "production": {
+                    "url": "http://localhost:8529",
+                    "database": "prod_db",
+                    "username": "admin",
+                    "password_env": "PROD_PASSWORD",
+                    "timeout": 30.0,
+                }
+            }
+        }
+        os.makedirs(os.path.dirname(self.config_path), exist_ok=True)
+        with open(self.config_path, 'w') as f:
+            yaml.dump(config_data, f)
+
+        # Test ConsequenceType.UPDATE usage (yellow color)
+        args = Namespace(
+            existing_key="production",
+            key=None,
+            url="http://new:8529",
+            database=None,
+            username=None,
+            arango_password_env=None,
+            timeout=None,
+            description=None,
+            config_file=self.config_path,
+            dry_run=False,
+            yes=True,
+        )
+        result = handle_update(args)
+        assert result == 0
+        captured = capsys.readouterr()
+
+        # Verify yellow color code for UPDATE type
+        # The ResultReporter uses ConsequenceType.UPDATE which has yellow color
+        assert "[UPDATED]" in captured.out
+        assert "Database configuration 'production'" in captured.out
+        assert "URL: http://localhost:8529 → http://new:8529" in captured.out
+        assert "Configuration saved to:" in captured.out
