@@ -256,6 +256,63 @@ def main() -> int:
         help="Path to configuration file",
     )
 
+    # db config update subcommand
+    config_update_parser = db_config_subparsers.add_parser("update", help="Update a database configuration")
+    config_update_parser.add_argument("existing_key", help="Existing database key to update")
+    config_update_parser.add_argument(
+        "--key",
+        "-k",
+        dest="key",
+        help="New database key (rename the configuration)",
+    )
+    config_update_parser.add_argument(
+        "--url",
+        "-u",
+        dest="url",
+        help="ArangoDB server URL",
+    )
+    config_update_parser.add_argument(
+        "--database",
+        "-d",
+        dest="database",
+        help="Database name",
+    )
+    config_update_parser.add_argument(
+        "--username",
+        "-U",
+        dest="username",
+        help="Username",
+    )
+    config_update_parser.add_argument(
+        "--arango-password-env",
+        "--password-env",
+        "--pw-env",
+        "-P",
+        dest="arango_password_env",
+        help="Environment variable name containing password",
+    )
+    config_update_parser.add_argument(
+        "--timeout",
+        type=float,
+        help="Connection timeout in seconds",
+    )
+    config_update_parser.add_argument(
+        "--description",
+        help="Optional description",
+    )
+    config_update_parser.add_argument(
+        "--config-file",
+        "--config-path",
+        "--cfgf",
+        "--cfgp",
+        "-C",
+        dest="config_file",
+        default="config/databases.yaml",
+        help="Path to configuration file",
+    )
+    config_update_parser.add_argument("--dry-run", action="store_true", help="Preview changes without executing")
+    config_update_parser.add_argument("--yes", "-y", action="store_true", help="Skip confirmation prompt")
+
     # db add subcommand (ArangoDB database creation)
     db_add_parser = db_subparsers.add_parser("add", help="Create ArangoDB database")
     db_add_parser.add_argument("name", help="Database name")
@@ -595,6 +652,8 @@ def main() -> int:
                 return cli_db.handle_test(args)
             elif args.db_config_command == "status":
                 return cli_db.handle_status(args)
+            elif args.db_config_command == "update":
+                return cli_db.handle_update(args)
             else:
                 db_config_parser.print_help()
                 return 1
