@@ -871,3 +871,190 @@ class TestCLIUpdate:
         assert updated_config["default_database"] == "prod"  # Still points to prod
         assert "test" in updated_config["databases"]
         assert "staging" not in updated_config["databases"]
+
+    def test_update_validation_errors(self, capsys):
+        """Test input validation error conditions."""
+        # Create initial configuration
+        config_data = {
+            "default_database": "production",
+            "databases": {
+                "production": {
+                    "url": "http://localhost:8529",
+                    "database": "prod_db",
+                    "username": "admin",
+                    "password_env": "PROD_PASSWORD",
+                    "timeout": 30.0,
+                }
+            }
+        }
+        os.makedirs(os.path.dirname(self.config_path), exist_ok=True)
+        with open(self.config_path, 'w') as f:
+            yaml.dump(config_data, f)
+
+        # Test 1: Nonexistent key → "Database 'missing' not found"
+        args = Namespace(
+            existing_key="missing",
+            key=None,
+            url="http://new:8529",
+            database=None,
+            username=None,
+            arango_password_env=None,
+            timeout=None,
+            description=None,
+            config_file=self.config_path,
+            dry_run=False,
+            yes=True,
+        )
+        result = handle_update(args)
+        assert result == 1  # EXIT_ERROR
+        captured = capsys.readouterr()
+        assert "Error: Database 'missing' not found" in captured.err
+
+        # Test 2: New key already exists → "Database 'existing' already exists"
+        args = Namespace(
+            existing_key="production",
+            key="production",  # Same key (no change)
+            url="http://new:8529",
+            database=None,
+            username=None,
+            arango_password_env=None,
+            timeout=None,
+            description=None,
+            config_file=self.config_path,
+            dry_run=False,
+            yes=True,
+        )
+        result = handle_update(args)
+        assert result == 0  # This should work (same key is allowed)
+
+        # Add another database to test conflict
+        config_data["databases"]["staging"] = {
+            "url": "http://staging:8529",
+            "database": "staging_db",
+            "username": "admin",
+            "password_env": "STAGING_PASSWORD",
+            "timeout": 30.0,
+        }
+        with open(self.config_path, 'w') as f:
+            yaml.dump(config_data, f)
+
+        # Try to rename to existing key
+        args = Namespace(
+            existing_key="production",
+            key="staging",  # Conflict with existing key
+            url=None,
+            database=None,
+            username=None,
+            arango_password_env=None,
+            timeout=None,
+            description=None,
+            config_file=self.config_path,
+            dry_run=False,
+            yes=True,
+        )
+        result = handle_update(args)
+        assert result == 1  # EXIT_ERROR
+        captured = capsys.readouterr()
+        assert "Error: Database 'staging' already exists" in captured.err
+
+        # Test 3: No changes specified → "No changes specified"
+        args = Namespace(
+            existing_key="production",
+            key=None,
+            url=None,
+            database=None,
+            username=None,
+            arango_password_env=None,
+            timeout=None,
+            description=None,
+            config_file=self.config_path,
+            dry_run=False,
+            yes=True,
+        )
+        result = handle_update(args)
+        assert result == 1  # EXIT_ERROR
+        captured = capsys.readouterr()
+        assert "Error: No changes specified" in captured.err
+
+    def test_update_system_errors(self, capsys):
+        """Test system-level error handling."""
+        # Test 1: ConfigFileLoader exception → "Error updating database"
+        args = Namespace(
+            existing_key="test",
+            key=None,
+            url="http://new:8529",
+            database=None,
+            username=None,
+            arango_password_env=None,
+            timeout=None,
+            description=None,
+            config_file="/invalid/path/databases.yaml",
+            dry_run=False,
+            yes=True,
+        )
+        result = handle_update(args)
+        assert result == 1  # EXIT_ERROR
+        captured = capsys.readouterr()
+        assert "Error updating database:" in captured.err
+
+        # Test 2: Invalid config file path (directory doesn't exist)
+        args = Namespace(
+            existing_key="test",
+            key=None,
+            url="http://new:8529",
+            database=None,
+            username=None,
+            arango_password_env=None,
+            timeout=None,
+            description=None,
+            config_file="/nonexistent/dir/databases.yaml",
+            dry_run=False,
+            yes=True,
+        )
+        result = handle_update(args)
+        assert result == 1  # EXIT_ERROR
+        captured = capsys.readouterr()
+        assert "Error updating database:" in captured.err
+
+    def test_update_user_cancellation(self, capsys):
+        """Test user declining confirmation prompt."""
+        # Create initial configuration
+        config_data = {
+            "databases": {
+                "production": {
+                    "url": "http://localhost:8529",
+                    "database": "prod_db",
+                    "username": "admin",
+                    "password_env": "PROD_PASSWORD",
+                    "timeout": 30.0,
+                }
+            }
+        }
+        os.makedirs(os.path.dirname(self.config_path), exist_ok=True)
+        with open(self.config_path, 'w') as f:
+            yaml.dump(config_data, f)
+
+        # Mock user input to decline
+        with patch("builtins.input", return_value="n"):
+            args = Namespace(
+                existing_key="production",
+                key=None,
+                url="http://new:8529",
+                database=None,
+                username=None,
+                arango_password_env=None,
+                timeout=None,
+                description=None,
+                config_file=self.config_path,
+                dry_run=False,
+                yes=False,  # Don't skip confirmation
+            )
+            result = handle_update(args)
+            assert result == 2  # EXIT_CANCELLED
+            captured = capsys.readouterr()
+            assert "Operation cancelled" in captured.err
+
+        # Verify no file changes were made
+        with open(self.config_path, 'r') as f:
+            updated_config = yaml.safe_load(f)
+        assert updated_config["databases"]["production"]["url"] == "http://localhost:8529"  # Unchanged
