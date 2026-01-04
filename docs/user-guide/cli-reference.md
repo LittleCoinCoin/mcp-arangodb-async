@@ -68,7 +68,8 @@ maa
 │   │   ├── remove      # Remove database from YAML
 │   │   ├── list        # List configured databases
 │   │   ├── test        # Test database connection
-│   │   └── status      # Show resolution status
+│   │   ├── status      # Show resolution status
+│   │   └── update      # Update database configuration
 │   ├── add             # Create ArangoDB database
 │   ├── remove          # Delete ArangoDB database
 │   └── list            # List ArangoDB databases
@@ -278,6 +279,100 @@ Default database: production
   production:
     URL: http://localhost:8529
     Database: myapp_prod
+```
+
+--- 
+
+### db config update
+
+Update an existing database configuration in YAML file.
+
+**Syntax:**
+
+```bash
+maa db config update <existing-key> 
+  [--key <new-key>] 
+  [--url <url>] 
+  [--database <database>] 
+  [--username <username>] 
+  [--arango-password-env <env_var>] 
+  [--timeout <seconds>] 
+  [--description <text>] 
+  [--config-file <path>] 
+  [--dry-run] 
+  [--yes]
+```
+
+**Arguments:**
+
+| Argument | Aliases | Description |
+|----------|---------|-------------|
+| `<existing-key>` | - | Existing database key to update |
+| `--key` | `-k` | New database key (rename the configuration) |
+| `--url` | `-u` | ArangoDB server URL (e.g., `http://localhost:8529`) |
+| `--database` | `-d` | Database name |
+| `--username` | `-U` | Username for authentication |
+| `--arango-password-env` | `--password-env`, `--pw-env`, `-P` | Environment variable name containing password |
+| `--timeout` | - | Connection timeout in seconds |
+| `--description` | - | Optional description (use empty string to clear) |
+| `--config-file` | `--config-path`, `--cfgf`, `--cfgp`, `-C` | Path to YAML file (default: `config/databases.yaml`) |
+| `--dry-run` | - | Preview without executing |
+| `--yes` | `-y` | Skip confirmation |
+
+**Output Format:**
+
+Changes are displayed with before/after values:
+
+```
+[UPDATED] Database configuration 'production'
+  Key: production → prod
+  URL: http://localhost:8529 → http://new-host:8529
+  Database: prod_db → new_db
+  Username: admin → newuser
+  Password Env: PROD_PASSWORD → NEW_PASSWORD
+  Timeout: 30.0 → 60.0
+  Description: Production database → Updated description
+```
+
+**Exit Codes:**
+
+| Code | Meaning |
+|------|---------|
+| 0 | Success |
+| 1 | Error (validation failed, file error, etc.) |
+| 2 | Cancelled (user declined confirmation) |
+
+**Examples:**
+
+```bash
+# Update URL only
+maa db config update production --url http://new-host:8529
+
+# Rename key only (long form)
+maa db config update production --key prod
+
+# Rename key only (short form)
+maa db config update production -k prod
+
+# Rename key and update fields
+maa db config update production -k prod --url http://new-host:8529 --timeout 60
+
+# Update multiple fields
+maa db config update production \
+  --url http://staging:8529 \
+  --database staging_db \
+  --timeout 45 \
+  --description "Staging environment"
+
+# Clear description (use empty string)
+maa db config update production --description ""
+
+# Dry-run mode (preview changes)
+maa db config update production --url http://new:8529 --dry-run
+
+# Skip confirmation
+maa db config update production --url http://new:8529 --yes
+```
     Username: admin
     Password env: ARANGO_PASSWORD
     Timeout: 60.0s
