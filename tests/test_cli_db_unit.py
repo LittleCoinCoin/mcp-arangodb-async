@@ -997,7 +997,7 @@ class TestCLIUpdate:
             yaml.dump(config_data, f)
 
         # Test 1: ConfigFileLoader exception → "Error updating database"
-        # Use an invalid config file path
+        # Use a different invalid config file path
         args = Namespace(
             existing_key="test",
             key=None,

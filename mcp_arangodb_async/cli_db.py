@@ -352,7 +352,7 @@ def handle_update(args: Namespace) -> int:
         
         # Build updated configuration by merging existing with new values
         # Handle description specially: empty string means clear it
-        desc_value = args.description if args.description != "" else None
+        desc_value = args.description if args.description is not None and args.description != "" else None
         updated_config = DatabaseConfig(
             url=args.url if args.url else existing_config.url,
             database=args.database if args.database else existing_config.database,
