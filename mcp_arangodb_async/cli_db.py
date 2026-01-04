@@ -9,6 +9,7 @@ Functions:
 - handle_list() - List all configured databases
 - handle_test() - Test database connection
 - handle_status() - Show database resolution status
+- handle_update() - Update a database configuration
 """
 
 from __future__ import annotations
