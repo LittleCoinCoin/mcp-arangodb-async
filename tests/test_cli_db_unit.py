@@ -664,8 +664,8 @@ class TestCLIUpdate:
         captured = capsys.readouterr()
         assert "URL: http://new-host:8529 → http://staging:8529" in captured.out
         assert "Timeout: 30.0 → 45.0" in captured.out
-        # After Test 1, description was not updated, so it shows as "(not set)"
-        assert "Description: (not set) → Updated production" in captured.out
+        # After Test 1, description was preserved (not changed), so it shows existing value
+        assert "Description: Production database → Updated production" in captured.out
 
         # Test 3: Update optional field (description value → None)
         # Note: We need to explicitly pass an empty string or use a special value
