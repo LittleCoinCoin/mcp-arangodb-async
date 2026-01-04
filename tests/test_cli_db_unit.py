@@ -667,6 +667,8 @@ class TestCLIUpdate:
         assert "Description: Production database → Updated production" in captured.out
 
         # Test 3: Update optional field (description value → None)
+        # Note: We need to explicitly pass an empty string or use a special value
+        # to indicate we want to clear the description
         args = Namespace(
             existing_key="production",
             key=None,
@@ -675,7 +677,7 @@ class TestCLIUpdate:
             username=None,
             arango_password_env=None,
             timeout=None,
-            description=None,  # Explicitly set to None to clear
+            description="",  # Empty string to clear description
             config_file=self.config_path,
             dry_run=False,
             yes=True,
@@ -978,7 +980,24 @@ class TestCLIUpdate:
 
     def test_update_system_errors(self, capsys):
         """Test system-level error handling."""
+        # Create a valid config file first so the database exists
+        config_data = {
+            "databases": {
+                "test": {
+                    "url": "http://localhost:8529",
+                    "database": "test_db",
+                    "username": "admin",
+                    "password_env": "TEST_PASSWORD",
+                    "timeout": 30.0,
+                }
+            }
+        }
+        os.makedirs(os.path.dirname(self.config_path), exist_ok=True)
+        with open(self.config_path, 'w') as f:
+            yaml.dump(config_data, f)
+
         # Test 1: ConfigFileLoader exception → "Error updating database"
+        # Use an invalid config file path
         args = Namespace(
             existing_key="test",
             key=None,

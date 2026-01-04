@@ -351,16 +351,19 @@ def handle_update(args: Namespace) -> int:
             return EXIT_ERROR
         
         # Build updated configuration by merging existing with new values
+        # Handle description specially: empty string means clear it
+        desc_value = args.description if args.description != "" else None
         updated_config = DatabaseConfig(
             url=args.url if args.url else existing_config.url,
             database=args.database if args.database else existing_config.database,
             username=args.username if args.username else existing_config.username,
             password_env=args.arango_password_env if args.arango_password_env else existing_config.password_env,
             timeout=args.timeout if args.timeout is not None else existing_config.timeout,
-            description=args.description if args.description is not None else existing_config.description
+            description=desc_value if desc_value is not None else existing_config.description
         )
         
         # Check if any changes are specified
+        # Note: description="" means clear it, so it's a change
         has_changes = (
             args.key or
             args.url or
@@ -368,7 +371,8 @@ def handle_update(args: Namespace) -> int:
             args.username or
             args.arango_password_env or
             args.timeout is not None or
-            args.description is not None
+            args.description is not None or
+            args.description == ""
         )
         
         if not has_changes:
@@ -393,9 +397,9 @@ def handle_update(args: Namespace) -> int:
             reporter.add(ConsequenceType.UPDATE, f"  Password Env: {existing_config.password_env} → {args.arango_password_env}")
         if args.timeout is not None:
             reporter.add(ConsequenceType.UPDATE, f"  Timeout: {existing_config.timeout} → {args.timeout}")
-        if args.description is not None:
+        if args.description is not None or args.description == "":
             old_desc = existing_config.description if existing_config.description else "(not set)"
-            new_desc = args.description if args.description else "(not set)"
+            new_desc = args.description if args.description and args.description != "" else "(not set)"
             reporter.add(ConsequenceType.UPDATE, f"  Description: {old_desc} → {new_desc}")
         
         # Dry-run mode: report and exit
