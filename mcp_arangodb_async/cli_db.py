@@ -359,7 +359,7 @@ def handle_update(args: Namespace) -> int:
             username=args.username if args.username else existing_config.username,
             password_env=args.arango_password_env if args.arango_password_env else existing_config.password_env,
             timeout=args.timeout if args.timeout is not None else existing_config.timeout,
-            description=desc_value if desc_value is not None else existing_config.description
+            description=desc_value  # Use None to clear, or the new value
         )
         
         # Check if any changes are specified

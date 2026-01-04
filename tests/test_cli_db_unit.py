@@ -997,7 +997,7 @@ class TestCLIUpdate:
             yaml.dump(config_data, f)
 
         # Test 1: ConfigFileLoader exception → "Error updating database"
-        # Use a different invalid config file path
+        # Use a completely different invalid config file path
         args = Namespace(
             existing_key="test",
             key=None,
@@ -1007,7 +1007,7 @@ class TestCLIUpdate:
             arango_password_env=None,
             timeout=None,
             description=None,
-            config_file="/invalid/path/databases.yaml",
+            config_file="/tmp/invalid/path/databases.yaml",
             dry_run=False,
             yes=True,
         )
@@ -1026,7 +1026,7 @@ class TestCLIUpdate:
             arango_password_env=None,
             timeout=None,
             description=None,
-            config_file="/nonexistent/dir/databases.yaml",
+            config_file="/tmp/nonexistent/dir/databases.yaml",
             dry_run=False,
             yes=True,
         )
