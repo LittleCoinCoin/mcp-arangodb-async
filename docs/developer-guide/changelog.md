@@ -15,37 +15,84 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Table of Contents
 
-1. [Version 0.5.1 (Current)](#version-051---unreleased)
-2. [Version 0.5.0](#version-050---2025-12-15)
-3. [Version 0.4.9](#version-049---2025-12-09)
-3. [Version 0.4.8](#version-048---2025-12-04)
-3. [Version 0.4.7](#version-047---2025-11-28)
-4. [Version 0.4.6](#version-046---2025-11-27)
-4. [Version 0.4.5](#version-045---2025-11-27)
-4. [Version 0.4.4](#version-044---2025-11-27)
-5. [Version 0.4.3](#version-043---2025-11-24)
-6. [Version 0.4.2](#version-042---2025-11-24)
-7. [Version 0.4.1](#version-041---2025-11-24)
-8. [Version 0.4.0](#version-040---2025-11-11)
-8. [Version 0.3.2](#version-032---2025-10-20)
-9. [Version 0.3.1](#version-031---2025-10-20)
-10. [Version 0.3.0](#version-030---2025-10-20)
-11. [Version 0.2.11](#version-0211---2025-10-20)
-12. [Version 0.2.10](#version-0210---2025-10-20)
-13. [Version 0.2.9](#version-029---2025-10-20)
-14. [Version 0.2.8](#version-028---2025-10-20)
-15. [Version 0.2.7](#version-027---2025-10-19)
-16. [Version 0.2.6](#version-026---2025-10-15)
-17. [Version 0.2.5](#version-025---2025-10-10)
-18. [Version 0.2.0-0.2.4](#version-020-024---2025-09-01-to-2025-10-01)
-19. [Version 0.1.x](#version-01x---2025-08-01)
-20. [Migration Guides](#migration-guides)
+1. [Version 0.5.3 (Current)](#version-053---2026-01-04)
+2. [Version 0.5.2](#version-052---2026-01-03)
+3. [Version 0.5.1](#version-051---2025-12-31)
+4. [Version 0.5.0](#version-050---2025-12-15)
+5. [Version 0.4.9](#version-049---2025-12-09)
+6. [Version 0.4.8](#version-048---2025-12-04)
+7. [Version 0.4.7](#version-047---2025-11-28)
+8. [Version 0.4.6](#version-046---2025-11-27)
+9. [Version 0.4.5](#version-045---2025-11-27)
+10. [Version 0.4.4](#version-044---2025-11-27)
+11. [Version 0.4.3](#version-043---2025-11-24)
+12. [Version 0.4.2](#version-042---2025-11-24)
+13. [Version 0.4.1](#version-041---2025-11-24)
+14. [Version 0.4.0](#version-040---2025-11-11)
+15. [Version 0.3.2](#version-032---2025-10-20)
+16. [Version 0.3.1](#version-031---2025-10-20)
+17. [Version 0.3.0](#version-030---2025-10-20)
+18. [Version 0.2.11](#version-0211---2025-10-20)
+19. [Version 0.2.10](#version-0210---2025-10-20)
+20. [Version 0.2.9](#version-029---2025-10-20)
+21. [Version 0.2.8](#version-028---2025-10-20)
+22. [Version 0.2.7](#version-027---2025-10-19)
+23. [Version 0.2.6](#version-026---2025-10-15)
+24. [Version 0.2.5](#version-025---2025-10-10)
+25. [Version 0.2.0-0.2.4](#version-020-024---2025-09-01-to-2025-10-01)
+26. [Version 0.1.x](#version-01x---2025-08-01)
+27. [Migration Guides](#migration-guides)
 
 ---
 
-## [0.5.2] - Unreleased
+## [0.5.3] - 2026-01-04
 
 **Current Release**
+
+### Added
+
+✅ **CLI Database Configuration Update Command**
+- **New `maa db config update` command:**
+  - Update existing database configuration fields (URL, database, username, password_env, timeout, description)
+  - Rename configuration keys with automatic default database reference handling
+  - Support for clearing optional fields (description) by passing empty string
+  - Full alias support: `-k` (key), `-u` (url), `-d` (database), `-U` (username), `-P` (password-env), `-C` (description)
+  - Dry-run mode (`--dry-run`) to preview changes without applying
+  - Interactive confirmation with consequence reporting using `ConsequenceType.UPDATE`
+  - Proper exit codes: 0 (success), 1 (error), 2 (cancelled)
+
+### Fixed
+
+✅ **Test Suite Improvements**
+- **Cross-platform path comparison:** Fixed path assertions using `os.path.realpath()` to handle macOS symlinks (`/var` → `/private/var`)
+- **Pytest configuration:** Fixed malformed `pyproject.toml` syntax and added proper asyncio marker configuration
+- **Docker integration tests:** Made docker import conditional to prevent collection errors when docker module is unavailable
+- **Unawaited coroutine warnings:** Fixed mock handling in CLI tests to properly close coroutines
+
+### Technical Details
+
+- **Files Modified:**
+  - `mcp_arangodb_async/__main__.py` - Added `update` subparser with all arguments and aliases
+  - `mcp_arangodb_async/cli_db.py` - Added `handle_update()` function (116 lines)
+  - `tests/test_cli_db_unit.py` - Added `TestCLIUpdate` class with 8 tests
+  - `tests/test_backup.py` - Fixed path comparison for cross-platform compatibility
+  - `tests/test_graph_backup_unit.py` - Fixed path comparison for cross-platform compatibility
+  - `tests/test_mcp_integration.py` - Updated mocks to use `MultiDatabaseConnectionManager` with `AsyncMock`
+  - `tests/integration/test_docker_container.py` - Made docker import conditional
+  - `pyproject.toml` - Fixed syntax errors and pytest configuration
+
+- **Test Results:** 455 passed, 12 skipped, 0 warnings
+
+### Documentation
+
+- Updated CLI reference with complete `db config update` section
+- Added update command to hierarchical command structure tree
+- Added configuration update examples to all multi-tenancy scenarios
+- Updated multi-tenancy guide quick reference
+
+---
+
+## [0.5.2] - 2026-01-03
 
 ### Fixed
 
@@ -55,7 +102,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Users can now verify which environment variable is configured for password
   - Maintains consistency with CLI UX philosophy (only show what's explicitly set)
   - No breaking changes, fully backward compatible
-  - Issue: Closes [#XX](https://github.com/LittleCoinCoin/mcp-arangodb-async/issues/XX)
 
 ### Changed
 
@@ -64,8 +110,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [0.5.1] - 2025-12-15
-=======
+## [0.5.1] - 2025-12-31
 
 ### Added
 
