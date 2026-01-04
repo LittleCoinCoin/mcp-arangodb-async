@@ -598,3 +598,276 @@ class TestCLIUpdate:
         """Clean up test fixtures."""
         import shutil
         shutil.rmtree(self.temp_dir, ignore_errors=True)
+
+    def test_update_fields_success(self, capsys):
+        """Test field updates: single field, multiple fields, optional fields."""
+        # Create initial configuration
+        config_data = {
+            "default_database": "production",
+            "databases": {
+                "production": {
+                    "url": "http://localhost:8529",
+                    "database": "prod_db",
+                    "username": "admin",
+                    "password_env": "PROD_PASSWORD",
+                    "timeout": 30.0,
+                    "description": "Production database"
+                }
+            }
+        }
+        os.makedirs(os.path.dirname(self.config_path), exist_ok=True)
+        with open(self.config_path, 'w') as f:
+            yaml.dump(config_data, f)
+
+        # Test 1: Update single field (URL)
+        args = Namespace(
+            existing_key="production",
+            key=None,
+            url="http://new-host:8529",
+            database=None,
+            username=None,
+            arango_password_env=None,
+            timeout=None,
+            description=None,
+            config_file=self.config_path,
+            dry_run=False,
+            yes=True,
+        )
+        result = handle_update(args)
+        assert result == 0
+        captured = capsys.readouterr()
+        assert "[UPDATED]" in captured.out
+        assert "URL: http://localhost:8529 → http://new-host:8529" in captured.out
+
+        # Verify file was updated
+        with open(self.config_path, 'r') as f:
+            updated_config = yaml.safe_load(f)
+        assert updated_config["databases"]["production"]["url"] == "http://new-host:8529"
+        assert updated_config["databases"]["production"]["database"] == "prod_db"  # Unchanged
+
+        # Test 2: Update multiple fields (URL + timeout + description)
+        args = Namespace(
+            existing_key="production",
+            key=None,
+            url="http://staging:8529",
+            database=None,
+            username=None,
+            arango_password_env=None,
+            timeout=45.0,
+            description="Updated production",
+            config_file=self.config_path,
+            dry_run=False,
+            yes=True,
+        )
+        result = handle_update(args)
+        assert result == 0
+        captured = capsys.readouterr()
+        assert "URL: http://new-host:8529 → http://staging:8529" in captured.out
+        assert "Timeout: 30.0 → 45.0" in captured.out
+        assert "Description: Production database → Updated production" in captured.out
+
+        # Test 3: Update optional field (description value → None)
+        args = Namespace(
+            existing_key="production",
+            key=None,
+            url=None,
+            database=None,
+            username=None,
+            arango_password_env=None,
+            timeout=None,
+            description=None,  # Explicitly set to None to clear
+            config_file=self.config_path,
+            dry_run=False,
+            yes=True,
+        )
+        result = handle_update(args)
+        assert result == 0
+        captured = capsys.readouterr()
+        assert "Description: Updated production → (not set)" in captured.out
+
+        # Verify description was removed
+        with open(self.config_path, 'r') as f:
+            updated_config = yaml.safe_load(f)
+        assert "description" not in updated_config["databases"]["production"]
+
+    def test_update_key_renaming(self, capsys):
+        """Test key renaming: key-only and key+fields, including aliases."""
+        # Create initial configuration
+        config_data = {
+            "default_database": "production",
+            "databases": {
+                "production": {
+                    "url": "http://localhost:8529",
+                    "database": "prod_db",
+                    "username": "admin",
+                    "password_env": "PROD_PASSWORD",
+                    "timeout": 30.0,
+                }
+            }
+        }
+        os.makedirs(os.path.dirname(self.config_path), exist_ok=True)
+        with open(self.config_path, 'w') as f:
+            yaml.dump(config_data, f)
+
+        # Test 1: Rename key only (production → prod)
+        args = Namespace(
+            existing_key="production",
+            key="prod",
+            url=None,
+            database=None,
+            username=None,
+            arango_password_env=None,
+            timeout=None,
+            description=None,
+            config_file=self.config_path,
+            dry_run=False,
+            yes=True,
+        )
+        result = handle_update(args)
+        assert result == 0
+        captured = capsys.readouterr()
+        assert "Key: production → prod" in captured.out
+
+        # Verify key was renamed
+        with open(self.config_path, 'r') as f:
+            updated_config = yaml.safe_load(f)
+        assert "prod" in updated_config["databases"]
+        assert "production" not in updated_config["databases"]
+        assert updated_config["default_database"] == "prod"  # Default updated
+
+        # Test 2: Rename key with field updates (prod → staging + URL change)
+        args = Namespace(
+            existing_key="prod",
+            key="staging",
+            url="http://staging:8529",
+            database=None,
+            username=None,
+            arango_password_env=None,
+            timeout=None,
+            description=None,
+            config_file=self.config_path,
+            dry_run=False,
+            yes=True,
+        )
+        result = handle_update(args)
+        assert result == 0
+        captured = capsys.readouterr()
+        assert "Key: prod → staging" in captured.out
+        assert "URL: http://localhost:8529 → http://staging:8529" in captured.out
+
+        # Test 3: Test -k short alias
+        # Add another database for this test
+        config_data = {
+            "default_database": "staging",
+            "databases": {
+                "staging": {
+                    "url": "http://staging:8529",
+                    "database": "staging_db",
+                    "username": "admin",
+                    "password_env": "STAGING_PASSWORD",
+                    "timeout": 30.0,
+                },
+                "dev": {
+                    "url": "http://dev:8529",
+                    "database": "dev_db",
+                    "username": "admin",
+                    "password_env": "DEV_PASSWORD",
+                    "timeout": 30.0,
+                }
+            }
+        }
+        with open(self.config_path, 'w') as f:
+            yaml.dump(config_data, f)
+
+        # Use -k alias
+        args = Namespace(
+            existing_key="dev",
+            key="development",  # Using -k alias in CLI would be: dev -k development
+            url=None,
+            database=None,
+            username=None,
+            arango_password_env=None,
+            timeout=None,
+            description=None,
+            config_file=self.config_path,
+            dry_run=False,
+            yes=True,
+        )
+        result = handle_update(args)
+        assert result == 0
+        captured = capsys.readouterr()
+        assert "Key: dev → development" in captured.out
+
+    def test_update_default_database_scenarios(self, capsys):
+        """Test default database reference handling during key rename."""
+        # Create initial configuration with default database
+        config_data = {
+            "default_database": "production",
+            "databases": {
+                "production": {
+                    "url": "http://localhost:8529",
+                    "database": "prod_db",
+                    "username": "admin",
+                    "password_env": "PROD_PASSWORD",
+                    "timeout": 30.0,
+                },
+                "staging": {
+                    "url": "http://staging:8529",
+                    "database": "staging_db",
+                    "username": "admin",
+                    "password_env": "STAGING_PASSWORD",
+                    "timeout": 30.0,
+                }
+            }
+        }
+        os.makedirs(os.path.dirname(self.config_path), exist_ok=True)
+        with open(self.config_path, 'w') as f:
+            yaml.dump(config_data, f)
+
+        # Test 1: Rename default database key (updates default_database reference)
+        args = Namespace(
+            existing_key="production",
+            key="prod",
+            url=None,
+            database=None,
+            username=None,
+            arango_password_env=None,
+            timeout=None,
+            description=None,
+            config_file=self.config_path,
+            dry_run=False,
+            yes=True,
+        )
+        result = handle_update(args)
+        assert result == 0
+
+        # Verify default_database reference was updated
+        with open(self.config_path, 'r') as f:
+            updated_config = yaml.safe_load(f)
+        assert updated_config["default_database"] == "prod"
+        assert "prod" in updated_config["databases"]
+        assert "production" not in updated_config["databases"]
+
+        # Test 2: Rename non-default database key (default_database unchanged)
+        args = Namespace(
+            existing_key="staging",
+            key="test",
+            url=None,
+            database=None,
+            username=None,
+            arango_password_env=None,
+            timeout=None,
+            description=None,
+            config_file=self.config_path,
+            dry_run=False,
+            yes=True,
+        )
+        result = handle_update(args)
+        assert result == 0
+
+        # Verify default_database reference unchanged
+        with open(self.config_path, 'r') as f:
+            updated_config = yaml.safe_load(f)
+        assert updated_config["default_database"] == "prod"  # Still points to prod
+        assert "test" in updated_config["databases"]
+        assert "staging" not in updated_config["databases"]
