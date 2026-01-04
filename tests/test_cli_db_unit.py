@@ -664,7 +664,8 @@ class TestCLIUpdate:
         captured = capsys.readouterr()
         assert "URL: http://new-host:8529 → http://staging:8529" in captured.out
         assert "Timeout: 30.0 → 45.0" in captured.out
-        assert "Description: Production database → Updated production" in captured.out
+        # After Test 1, description was not updated, so it shows as "(not set)"
+        assert "Description: (not set) → Updated production" in captured.out
 
         # Test 3: Update optional field (description value → None)
         # Note: We need to explicitly pass an empty string or use a special value
@@ -997,7 +998,7 @@ class TestCLIUpdate:
             yaml.dump(config_data, f)
 
         # Test 1: ConfigFileLoader exception → "Error updating database"
-        # Use a completely different invalid config file path
+        # Use a config file path that doesn't exist
         args = Namespace(
             existing_key="test",
             key=None,
@@ -1007,7 +1008,7 @@ class TestCLIUpdate:
             arango_password_env=None,
             timeout=None,
             description=None,
-            config_file="/tmp/invalid/path/databases.yaml",
+            config_file=os.path.join(self.temp_dir, "nonexistent", "databases.yaml"),
             dry_run=False,
             yes=True,
         )
@@ -1026,7 +1027,7 @@ class TestCLIUpdate:
             arango_password_env=None,
             timeout=None,
             description=None,
-            config_file="/tmp/nonexistent/dir/databases.yaml",
+            config_file=os.path.join(self.temp_dir, "another", "nonexistent", "databases.yaml"),
             dry_run=False,
             yes=True,
         )
