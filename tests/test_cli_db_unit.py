@@ -12,6 +12,7 @@ from mcp_arangodb_async.cli_db import (
     handle_list,
     handle_test,
     handle_status,
+    handle_update,
 )
 from mcp_arangodb_async.multi_db_manager import DatabaseConfig
 
@@ -583,3 +584,17 @@ class TestCLIStatus:
         captured = capsys.readouterr()
         assert "Error showing status" in captured.err
 
+
+
+class TestCLIUpdate:
+    """Test 'db config update' subcommand."""
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        self.temp_dir = tempfile.mkdtemp()
+        self.config_path = os.path.join(self.temp_dir, "databases.yaml")
+
+    def teardown_method(self):
+        """Clean up test fixtures."""
+        import shutil
+        shutil.rmtree(self.temp_dir, ignore_errors=True)
