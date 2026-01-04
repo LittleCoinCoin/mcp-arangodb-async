@@ -56,6 +56,18 @@ Note: Starting the server with default stdio (`maa server`) is useful primarily 
 maa db config add mydb -u http://localhost:8529 -d mydb -U admin -P ARANGO_PASSWORD
 ```
 
+**Quick updates with short aliases:**
+```bash
+# Update URL
+maa db config update mydb -u http://new-host:8529
+
+# Rename configuration
+maa db config update mydb -k production
+
+# Update multiple fields
+maa db config update mydb -u http://new-host:8529 -d new_db --timeout 60
+```
+
 **Server startup with config alias:**
 ```bash
 maa server -C config/databases.yaml
@@ -65,6 +77,7 @@ maa server -C config/databases.yaml
 - `-u` = `--url`
 - `-d` = `--database`
 - `-U` = `--username`
+- `-k` = `--key` (for renaming)
 - `-P` = `--arango-password-env` / `--pw-env`
 - `-C` = `--config-file` / `--config-path`
 
