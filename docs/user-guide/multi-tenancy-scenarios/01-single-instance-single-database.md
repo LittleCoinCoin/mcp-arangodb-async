@@ -260,6 +260,47 @@ You can check the results using the ArangoDB web interface or the Admin CLI. Go 
 
 ---
 
+## Configuration Updates
+
+Use the `db config update` command to modify existing database configurations. This is useful when:
+- Changing server URLs (e.g., switching from development to production)
+- Updating timeout settings
+- Renaming configuration keys
+- Modifying descriptions
+
+### Common Update Operations
+
+**Update URL and timeout:**
+```bash
+maa db config update first_db --url http://new-host:8529 --timeout 60
+```
+
+**Rename configuration key:**
+```bash
+maa db config update first_db --key production
+```
+
+**Update multiple fields:**
+```bash
+maa db config update first_db \
+  --url http://staging:8529 \
+  --database staging_db \
+  --timeout 45 \
+  --description "Staging environment"
+```
+
+**Preview changes with dry-run:**
+```bash
+maa db config update first_db --url http://new:8529 --dry-run
+```
+
+**Clear description:**
+```bash
+maa db config update first_db --description ""
+```
+
+---
+
 ## Advanced: Using Shorthand Aliases
 
 <details>

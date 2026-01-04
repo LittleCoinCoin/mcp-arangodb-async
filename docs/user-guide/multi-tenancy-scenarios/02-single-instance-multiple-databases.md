@@ -247,6 +247,44 @@ Then create a collection called "experiments" in db2 and insert a document with 
 
 ---
 
+## Configuration Updates
+
+Use the `db config update` command to modify existing database configurations. This is useful when:
+- Changing timeout settings for specific databases
+- Updating descriptions to reflect environment changes
+- Renaming configuration keys for better organization
+
+### Common Update Operations
+
+**Update timeout for a specific database:**
+```bash
+maa db config update first_db --timeout 60
+```
+
+**Rename configuration key:**
+```bash
+maa db config update first_db --key production
+```
+
+**Update description:**
+```bash
+maa db config update first_db --description "Production database"
+```
+
+**Update multiple fields:**
+```bash
+maa db config update first_db \
+  --timeout 45 \
+  --description "Updated production environment"
+```
+
+**Preview changes with dry-run:**
+```bash
+maa db config update first_db --timeout 60 --dry-run
+```
+
+---
+
 ## Advanced: Using Shorthand Aliases
 
 <details>

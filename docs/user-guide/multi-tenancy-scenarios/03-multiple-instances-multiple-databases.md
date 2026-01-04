@@ -324,6 +324,46 @@ Then, update the experiment beta in db2 with a new field to reference the protoc
 
 ---
 
+## Configuration Updates
+
+Use the `db config update` command to modify existing database configurations across multiple instances. This is useful when:
+- Changing server URLs when migrating instances
+- Updating timeout settings for specific environments
+- Renaming configuration keys for better organization
+- Modifying descriptions to reflect instance purpose
+
+### Common Update Operations
+
+**Update URL for a production instance:**
+```bash
+maa db config update prod_db --url http://prod-arango:8529
+```
+
+**Update timeout for development instance:**
+```bash
+maa db config update dev_db --timeout 45
+```
+
+**Rename configuration key:**
+```bash
+maa db config update staging_db --key staging
+```
+
+**Update multiple fields:**
+```bash
+maa db config update prod_db \
+  --url http://new-prod:8529 \
+  --timeout 60 \
+  --description "Production instance - High availability"
+```
+
+**Preview changes with dry-run:**
+```bash
+maa db config update prod_db --url http://new-prod:8529 --dry-run
+```
+
+---
+
 ## Advanced: Using Shorthand Aliases
 
 <details>
