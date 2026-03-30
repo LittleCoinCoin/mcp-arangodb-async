@@ -65,7 +65,7 @@ services:
     environment:
       ARANGO_ROOT_PASSWORD: ${ARANGO_ROOT_PASSWORD:-your-secure-password}
     ports:
-      - "${ARANGO_PORT:-8529}:8529"
+      - "127.0.0.1:${ARANGO_PORT:-8529}:8529"
     volumes:
       - arangodb_data:/var/lib/arangodb3
       - arangodb_apps:/var/lib/arangodb3-apps

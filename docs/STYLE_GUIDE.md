@@ -460,7 +460,7 @@ services:
     environment:
       ARANGO_ROOT_PASSWORD: ${ARANGO_ROOT_PASSWORD:-changeme}
     ports:
-      - "8529:8529"
+      - "127.0.0.1:8529:8529"
 ```
 
 ### AQL Query Examples

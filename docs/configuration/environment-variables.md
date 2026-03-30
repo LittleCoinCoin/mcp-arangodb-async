@@ -545,7 +545,7 @@ services:
       MCP_HTTP_PORT: 8000
       LOG_LEVEL: INFO
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
 ```
 
 ---

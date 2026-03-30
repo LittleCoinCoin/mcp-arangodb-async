@@ -828,7 +828,7 @@ services:
     environment:
       ARANGO_ROOT_PASSWORD: changeme
     ports:
-      - "8529:8529"
+      - "127.0.0.1:8529:8529"
     volumes:
       - arango_data:/var/lib/arangodb3
     healthcheck:
@@ -840,7 +840,7 @@ services:
   mcp-server:
     build: .
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     environment:
       MCP_TRANSPORT: http
       MCP_HTTP_HOST: 0.0.0.0
