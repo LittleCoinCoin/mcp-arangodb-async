@@ -11,11 +11,10 @@ Complete guide to installing ArangoDB 3.11 as a prerequisite for mcp-arangodb-as
 ## Table of Contents
 
 1. [Why ArangoDB 3.11?](#why-arangodb-311)
-2. [Option 1: Docker Installation (Recommended)](#option-1-docker-installation-recommended)
-3. [Option 2: Native Installation](#option-2-native-installation)
-4. [Initialize Database](#initialize-database)
-5. [Verification](#verification)
-6. [Troubleshooting](#troubleshooting)
+2. [Docker Installation](docker-installation)
+3. [Initialize Database](#initialize-database)
+4. [Verification](#verification)
+5. [Troubleshooting](#troubleshooting)
 
 ---
 
